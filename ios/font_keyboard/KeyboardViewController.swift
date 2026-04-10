@@ -362,7 +362,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
     // MARK: - Mode
 
     enum Mode: Int, CaseIterable {
-        case fonts = 0, emoticon, special, dotArt, gif, translate, favorites
+        case fonts = 0, translate, emoticon, special, dotArt, gif, favorites
         var title: String {
             switch self {
             case .fonts:     return "Aa"
@@ -487,6 +487,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
                 "●", "○", "◆", "◇", "◉", "◎", "▣", "▤", "▥", "▦", "▧", "▨"]),
         ("패턴", ["░", "▒", "▓", "█", "▌", "▐", "▀", "▄", "┼", "╬", "═", "║",
                 "╔", "╗", "╚", "╝", "┌", "┐", "└", "┘", "├", "┤", "┬", "┴"]),
+        ("장식선", ["════════════════", "────────────────", "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄",
+                  "------------------------", "— — — — — — — —", "________________",
+                  "················································", "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈",
+                  "·͜·♡·͜·♡·͜·♡·͜·♡·͜·", "ξ 3ξ 3ξ 3ξ 3ξ 3",
+                  "≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋", "⌇⌇⌇⌇⌇⌇⌇⌇⌇⌇⌇⌇⌇⌇⌇⌇",
+                  "▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱▱", "·.·.·.·.·.·.·.·.·.·.·.·.·.·.·.",
+                  "꒰꒰꒰꒰꒰꒰꒰꒰꒰꒰꒰꒰꒰꒰꒰꒰", "✦·········✦·········✦",
+                  "┉┉┉┉┉┉┉┉┉┉┉┉┉┉┉┉", "•·.·•·.·•·.·•·.·•·.·•",
+                  "°·.·°·.·°·.·°·.·°·.·°", "﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏"]),
     ]
     private var selectedSpecialCat = 0
 
@@ -803,19 +812,22 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
     // MARK: - Translate State
 
     private let translateLangs: [(String, String)] = [
-        ("🇺🇸 영어", "English"), ("🇯🇵 일본어", "Japanese"), ("🇨🇳 중국어", "Chinese"),
-        ("🇪🇸 스페인어", "Spanish"), ("🇫🇷 프랑스어", "French"), ("🇩🇪 독일어", "German"),
-        ("🇻🇳 베트남어", "Vietnamese"), ("🇹🇭 태국어", "Thai"), ("🇮🇩 인니어", "Indonesian"),
+        ("🇰🇷 한국어", "Korean"), ("🇺🇸 영어", "English"), ("🇯🇵 일본어", "Japanese"),
+        ("🇨🇳 중국어", "Chinese"), ("🇪🇸 스페인어", "Spanish"), ("🇫🇷 프랑스어", "French"),
+        ("🇩🇪 독일어", "German"), ("🇻🇳 베트남어", "Vietnamese"), ("🇹🇭 태국어", "Thai"),
+        ("🇮🇩 인니어", "Indonesian"),
     ]
-    private var translateLangIndex = 0
     private weak var translateInputLabel: UILabel?
     private weak var translateResultLabel: UILabel?
     private var translationInput = ""
     private var lastTranslation = ""
     private var isTranslateDirectInput = true
+    private var sourceLangIndex = 0   // 🇰🇷 한국어
+    private var targetLangIndex = 1   // 🇺🇸 영어
     private var isKoreanMode = true
     private var isTranslateShifted = false
     private var isTranslateCapsLock = false
+    private var isTranslateNumberMode = false
     private var lastShiftTime: Date?
 
     // ㅂㅈㄷㄱㅅ → ㅃㅉㄸㄲㅆ
@@ -1774,15 +1786,214 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
     // MARK: - Translate Mode
 
     private func buildTranslateMode() {
-        if isTranslateDirectInput {
-            buildTranslateDirectMode()
+        let stack = UIStackView()
+        stack.axis = .vertical; stack.spacing = 2
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(stack)
+        pinToEdges(stack, in: contentView)
+
+        // ── Top bar: 원본언어 → 번역언어 + 🔄 + 🗑 ──
+        let topBar = UIStackView()
+        topBar.axis = .horizontal; topBar.spacing = 2; topBar.setHeight(26)
+
+        let srcBtn = UIButton(type: .system)
+        srcBtn.setTitle(translateLangs[sourceLangIndex].0 + " ▼", for: .normal)
+        srcBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
+        srcBtn.setTitleColor(.darkGray, for: .normal)
+        srcBtn.addTarget(self, action: #selector(translateSourceDropdown), for: .touchUpInside)
+        topBar.addArrangedSubview(srcBtn)
+
+        let arrowLabel = UILabel()
+        arrowLabel.text = "→"
+        arrowLabel.font = .systemFont(ofSize: 14, weight: .bold)
+        arrowLabel.textColor = mainPink
+        arrowLabel.textAlignment = .center
+        arrowLabel.setWidth(20)
+        topBar.addArrangedSubview(arrowLabel)
+
+        let tgtBtn = UIButton(type: .system)
+        tgtBtn.setTitle(translateLangs[targetLangIndex].0 + " ▼", for: .normal)
+        tgtBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
+        tgtBtn.setTitleColor(mainPink, for: .normal)
+        tgtBtn.addTarget(self, action: #selector(translateTargetDropdown), for: .touchUpInside)
+        topBar.addArrangedSubview(tgtBtn)
+
+        topBar.addArrangedSubview(UIView()) // spacer
+
+        let swapBtn = UIButton(type: .system)
+        swapBtn.setTitle("🔄", for: .normal)
+        swapBtn.titleLabel?.font = .systemFont(ofSize: 14)
+        swapBtn.addTarget(self, action: #selector(translateSwapLangs), for: .touchUpInside)
+        swapBtn.setWidth(28)
+        topBar.addArrangedSubview(swapBtn)
+
+        let clearBtn = UIButton(type: .system)
+        clearBtn.setTitle("🗑", for: .normal)
+        clearBtn.titleLabel?.font = .systemFont(ofSize: 14)
+        clearBtn.addTarget(self, action: #selector(translateClearTapped), for: .touchUpInside)
+        clearBtn.setWidth(28)
+        topBar.addArrangedSubview(clearBtn)
+
+        stack.addArrangedSubview(topBar)
+
+        // ── Input box ──
+        let inputBox = UIView()
+        inputBox.backgroundColor = .white
+        inputBox.layer.cornerRadius = 8; inputBox.layer.borderWidth = 0.5
+        inputBox.layer.borderColor = UIColor(white: 0.85, alpha: 1).cgColor
+
+        let inputLabel = UILabel()
+        inputLabel.font = .systemFont(ofSize: 12); inputLabel.numberOfLines = 0
+        inputLabel.translatesAutoresizingMaskIntoConstraints = false
+        inputBox.addSubview(inputLabel)
+        translateInputLabel = inputLabel
+
+        NSLayoutConstraint.activate([
+            inputLabel.topAnchor.constraint(equalTo: inputBox.topAnchor, constant: 4),
+            inputLabel.leadingAnchor.constraint(equalTo: inputBox.leadingAnchor, constant: 6),
+            inputLabel.trailingAnchor.constraint(equalTo: inputBox.trailingAnchor, constant: -6),
+            inputLabel.bottomAnchor.constraint(equalTo: inputBox.bottomAnchor, constant: -4),
+        ])
+
+        // ── Result box ──
+        let resultBox = UIView()
+        resultBox.backgroundColor = UIColor(white: 0.95, alpha: 1)
+        resultBox.layer.cornerRadius = 8
+
+        let resultLabel = UILabel()
+        resultLabel.text = "번역 결과가 여기에 표시됩니다"
+        resultLabel.textColor = .lightGray
+        resultLabel.font = .systemFont(ofSize: 12); resultLabel.numberOfLines = 0
+        resultLabel.translatesAutoresizingMaskIntoConstraints = false
+        resultBox.addSubview(resultLabel)
+        translateResultLabel = resultLabel
+
+        NSLayoutConstraint.activate([
+            resultLabel.topAnchor.constraint(equalTo: resultBox.topAnchor, constant: 4),
+            resultLabel.leadingAnchor.constraint(equalTo: resultBox.leadingAnchor, constant: 6),
+            resultLabel.trailingAnchor.constraint(equalTo: resultBox.trailingAnchor, constant: -6),
+            resultLabel.bottomAnchor.constraint(equalTo: resultBox.bottomAnchor, constant: -4),
+        ])
+
+        // Text areas row
+        let textRow = UIStackView()
+        textRow.axis = .horizontal; textRow.spacing = 3; textRow.distribution = .fillEqually
+        textRow.addArrangedSubview(inputBox)
+        textRow.addArrangedSubview(resultBox)
+        stack.addArrangedSubview(textRow)
+
+        // ── Keyboard rows ──
+        buildTranslateKeyboardRows(into: stack)
+
+        // ── Bottom bar ──
+        let bottom = UIStackView()
+        bottom.axis = .horizontal; bottom.spacing = 3
+
+        let langToggle = makeSpecialKey("한/영")
+        langToggle.backgroundColor = isKoreanMode ? UIColor.systemBlue.withAlphaComponent(0.15) : UIColor(white: 0.88, alpha: 1)
+        langToggle.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
+        langToggle.setWidth(40)
+        langToggle.addTarget(self, action: #selector(translateToggleKorEng), for: .touchUpInside)
+        bottom.addArrangedSubview(langToggle)
+
+        let numToggle = makeSpecialKey(isTranslateNumberMode ? "ABC" : "!?123")
+        numToggle.titleLabel?.font = .systemFont(ofSize: 10, weight: .semibold)
+        numToggle.setWidth(42)
+        numToggle.addTarget(self, action: #selector(translateToggleNumberMode), for: .touchUpInside)
+        bottom.addArrangedSubview(numToggle)
+
+        let space = makeLetterKey("space")
+        space.titleLabel?.font = .systemFont(ofSize: 12)
+        space.addTarget(self, action: #selector(translateSpaceTapped), for: .touchUpInside)
+        bottom.addArrangedSubview(space)
+
+        let trBtn = makeSpecialKey("번역")
+        trBtn.backgroundColor = UIColor(white: 0.88, alpha: 1)
+        trBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
+        trBtn.setWidth(40)
+        trBtn.addTarget(self, action: #selector(translateTriggered), for: .touchUpInside)
+        bottom.addArrangedSubview(trBtn)
+
+        let insBtn = makeSpecialKey("삽입")
+        insBtn.backgroundColor = mainPink; insBtn.setTitleColor(.white, for: .normal)
+        insBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
+        insBtn.setWidth(40)
+        insBtn.addTarget(self, action: #selector(translateInsertTapped), for: .touchUpInside)
+        bottom.addArrangedSubview(insBtn)
+
+        stack.addArrangedSubview(bottom)
+        updateTranslateInputDisplay()
+    }
+
+    private func buildTranslateKeyboardRows(into stack: UIStackView) {
+        if isTranslateNumberMode {
+            let numRows: [[String]] = [
+                ["1","2","3","4","5","6","7","8","9","0"],
+                ["-","/",":",";","(",")","₩","&","@","\""],
+                [".",",","?","!","'"]
+            ]
+            for (ri, row) in numRows.enumerated() {
+                let rowStack = UIStackView()
+                rowStack.axis = .horizontal; rowStack.distribution = .fillEqually; rowStack.spacing = 3
+                for key in row {
+                    let btn = makeLetterKey(key)
+                    btn.titleLabel?.font = .systemFont(ofSize: 16)
+                    btn.addTarget(self, action: #selector(translateKeyTapped(_:)), for: .touchUpInside)
+                    rowStack.addArrangedSubview(btn)
+                }
+                if ri == 2 {
+                    let del = makeSpecialKey("⌫")
+                    del.addTarget(self, action: #selector(translateDeleteTapped), for: .touchUpInside)
+                    rowStack.addArrangedSubview(del)
+                }
+                stack.addArrangedSubview(rowStack)
+            }
         } else {
-            buildTranslatePasteMode()
+            let shifted = isTranslateShifted || isTranslateCapsLock
+            let korN: [[String]] = [
+                ["ㅂ","ㅈ","ㄷ","ㄱ","ㅅ","ㅛ","ㅕ","ㅑ","ㅐ","ㅔ"],
+                ["ㅁ","ㄴ","ㅇ","ㄹ","ㅎ","ㅗ","ㅓ","ㅏ","ㅣ"],
+                ["ㅋ","ㅌ","ㅊ","ㅍ","ㅠ","ㅜ","ㅡ"]
+            ]
+            let korS: [[String]] = [
+                ["ㅃ","ㅉ","ㄸ","ㄲ","ㅆ","ㅛ","ㅕ","ㅑ","ㅐ","ㅔ"],
+                ["ㅁ","ㄴ","ㅇ","ㄹ","ㅎ","ㅗ","ㅓ","ㅏ","ㅣ"],
+                ["ㅋ","ㅌ","ㅊ","ㅍ","ㅠ","ㅜ","ㅡ"]
+            ]
+            let eng: [[String]] = [
+                ["q","w","e","r","t","y","u","i","o","p"],
+                ["a","s","d","f","g","h","j","k","l"],
+                ["z","x","c","v","b","n","m"]
+            ]
+            let rows = isKoreanMode ? (shifted ? korS : korN) : eng
+
+            for (ri, row) in rows.enumerated() {
+                let rowStack = UIStackView()
+                rowStack.axis = .horizontal; rowStack.distribution = .fillEqually; rowStack.spacing = 3
+                if ri == 2 {
+                    let shift = makeSpecialKey("⇧")
+                    shift.addTarget(self, action: #selector(translateShiftTapped), for: .touchUpInside)
+                    if shifted { shift.backgroundColor = mainPink; shift.setTitleColor(.white, for: .normal) }
+                    rowStack.addArrangedSubview(shift)
+                }
+                for key in row {
+                    let label = (!isKoreanMode && shifted) ? key.uppercased() : key
+                    let btn = makeLetterKey(label)
+                    btn.titleLabel?.font = .systemFont(ofSize: isKoreanMode ? 16 : 18)
+                    btn.addTarget(self, action: #selector(translateKeyTapped(_:)), for: .touchUpInside)
+                    rowStack.addArrangedSubview(btn)
+                }
+                if ri == 2 {
+                    let del = makeSpecialKey("⌫")
+                    del.addTarget(self, action: #selector(translateDeleteTapped), for: .touchUpInside)
+                    rowStack.addArrangedSubview(del)
+                }
+                stack.addArrangedSubview(rowStack)
+            }
         }
     }
 
-    // ── Paste Mode ──────────────────────────────────────────────────────
-    private func buildTranslatePasteMode() {
+    private func _DELETED_buildTranslatePasteMode() {
         let container = UIView()
         container.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(container)
@@ -1813,7 +2024,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
             btn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
             btn.tag = i; btn.layer.cornerRadius = 12
             btn.contentEdgeInsets = UIEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
-            let sel = i == translateLangIndex
+            let sel = i == targetLangIndex
             btn.backgroundColor = sel ? mainPink : UIColor(white: 0.92, alpha: 1)
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
             btn.addTarget(self, action: #selector(translateLangTapped(_:)), for: .touchUpInside)
@@ -1974,13 +2185,31 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
             btn.titleLabel?.font = .systemFont(ofSize: 10, weight: .semibold)
             btn.tag = i; btn.layer.cornerRadius = 11
             btn.contentEdgeInsets = UIEdgeInsets(top: 2, left: 7, bottom: 2, right: 7)
-            let sel = i == translateLangIndex
+            let sel = i == targetLangIndex
             btn.backgroundColor = sel ? mainPink : UIColor(white: 0.92, alpha: 1)
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
             btn.addTarget(self, action: #selector(translateLangTapped(_:)), for: .touchUpInside)
             langRow.addArrangedSubview(btn)
         }
         stack.addArrangedSubview(langScroll)
+
+        // Clipboard action buttons
+        let actionRow = UIStackView()
+        actionRow.axis = .horizontal; actionRow.spacing = 8
+        let pasteBtn = UIButton(type: .system)
+        pasteBtn.setTitle("📋 붙여넣기", for: .normal)
+        pasteBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
+        pasteBtn.setTitleColor(mainPink, for: .normal)
+        pasteBtn.addTarget(self, action: #selector(translatePasteAndTranslate), for: .touchUpInside)
+        actionRow.addArrangedSubview(pasteBtn)
+        let clearBtn = UIButton(type: .system)
+        clearBtn.setTitle("🗑 지우기", for: .normal)
+        clearBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .medium)
+        clearBtn.setTitleColor(.darkGray, for: .normal)
+        clearBtn.addTarget(self, action: #selector(translateClearTapped), for: .touchUpInside)
+        actionRow.addArrangedSubview(clearBtn)
+        actionRow.addArrangedSubview(UIView()) // spacer
+        stack.addArrangedSubview(actionRow)
 
         // Input + Result side by side
         let displayRow = UIStackView()
@@ -2004,62 +2233,101 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
         displayRow.addArrangedSubview(resultLabel)
         stack.addArrangedSubview(displayRow)
 
-        // Keyboard rows (Korean or English)
-        let korRows: [[String]] = [
-            ["ㅂ","ㅈ","ㄷ","ㄱ","ㅅ","ㅛ","ㅕ","ㅑ","ㅐ","ㅔ"],
-            ["ㅁ","ㄴ","ㅇ","ㄹ","ㅎ","ㅗ","ㅓ","ㅏ","ㅣ"],
-            ["ㅋ","ㅌ","ㅊ","ㅍ","ㅠ","ㅜ","ㅡ"]
-        ]
-        let engRows: [[String]] = [
-            ["q","w","e","r","t","y","u","i","o","p"],
-            ["a","s","d","f","g","h","j","k","l"],
-            ["z","x","c","v","b","n","m"]
-        ]
-        let rows = isKoreanMode ? korRows : engRows
-
-        for (ri, row) in rows.enumerated() {
-            let rowStack = UIStackView()
-            rowStack.axis = .horizontal; rowStack.distribution = .fillEqually; rowStack.spacing = 3
-
-            if ri == 2 && isKoreanMode {
-                let shift = makeSpecialKey("⇧")
-                shift.addTarget(self, action: #selector(translateShiftTapped), for: .touchUpInside)
-                if isTranslateShifted || isTranslateCapsLock {
-                    shift.backgroundColor = mainPink
-                    shift.setTitleColor(.white, for: .normal)
+        // Keyboard rows
+        if isTranslateNumberMode {
+            // Number/Symbol keyboard
+            let numRows: [[String]] = [
+                ["1","2","3","4","5","6","7","8","9","0"],
+                ["-","/",":",";","(",")","₩","&","@","\""],
+                [".",",","?","!","'"]
+            ]
+            for (ri, row) in numRows.enumerated() {
+                let rowStack = UIStackView()
+                rowStack.axis = .horizontal; rowStack.distribution = .fillEqually; rowStack.spacing = 3
+                for key in row {
+                    let btn = makeLetterKey(key)
+                    btn.titleLabel?.font = .systemFont(ofSize: 16)
+                    btn.addTarget(self, action: #selector(translateKeyTapped(_:)), for: .touchUpInside)
+                    rowStack.addArrangedSubview(btn)
                 }
-                rowStack.addArrangedSubview(shift)
+                if ri == 2 {
+                    let del = makeSpecialKey("⌫")
+                    del.addTarget(self, action: #selector(translateDeleteTapped), for: .touchUpInside)
+                    rowStack.addArrangedSubview(del)
+                }
+                stack.addArrangedSubview(rowStack)
+            }
+        } else {
+            // Korean or English keyboard
+            let shifted = isTranslateShifted || isTranslateCapsLock
+            let korRowsNormal: [[String]] = [
+                ["ㅂ","ㅈ","ㄷ","ㄱ","ㅅ","ㅛ","ㅕ","ㅑ","ㅐ","ㅔ"],
+                ["ㅁ","ㄴ","ㅇ","ㄹ","ㅎ","ㅗ","ㅓ","ㅏ","ㅣ"],
+                ["ㅋ","ㅌ","ㅊ","ㅍ","ㅠ","ㅜ","ㅡ"]
+            ]
+            let korRowsShifted: [[String]] = [
+                ["ㅃ","ㅉ","ㄸ","ㄲ","ㅆ","ㅛ","ㅕ","ㅑ","ㅐ","ㅔ"],
+                ["ㅁ","ㄴ","ㅇ","ㄹ","ㅎ","ㅗ","ㅓ","ㅏ","ㅣ"],
+                ["ㅋ","ㅌ","ㅊ","ㅍ","ㅠ","ㅜ","ㅡ"]
+            ]
+            let engRows: [[String]] = [
+                ["q","w","e","r","t","y","u","i","o","p"],
+                ["a","s","d","f","g","h","j","k","l"],
+                ["z","x","c","v","b","n","m"]
+            ]
+            let rows: [[String]]
+            if isKoreanMode {
+                rows = shifted ? korRowsShifted : korRowsNormal
+            } else {
+                rows = engRows
             }
 
-            for key in row {
-                let btn = makeLetterKey(key)
-                btn.titleLabel?.font = .systemFont(ofSize: isKoreanMode ? 16 : 18)
-                btn.addTarget(self, action: #selector(translateKeyTapped(_:)), for: .touchUpInside)
-                rowStack.addArrangedSubview(btn)
+            for (ri, row) in rows.enumerated() {
+                let rowStack = UIStackView()
+                rowStack.axis = .horizontal; rowStack.distribution = .fillEqually; rowStack.spacing = 3
+
+                if ri == 2 {
+                    let shift = makeSpecialKey("⇧")
+                    shift.addTarget(self, action: #selector(translateShiftTapped), for: .touchUpInside)
+                    if shifted {
+                        shift.backgroundColor = mainPink
+                        shift.setTitleColor(.white, for: .normal)
+                    }
+                    rowStack.addArrangedSubview(shift)
+                }
+
+                for key in row {
+                    let label = (!isKoreanMode && shifted) ? key.uppercased() : key
+                    let btn = makeLetterKey(label)
+                    btn.titleLabel?.font = .systemFont(ofSize: isKoreanMode ? 16 : 18)
+                    btn.addTarget(self, action: #selector(translateKeyTapped(_:)), for: .touchUpInside)
+                    rowStack.addArrangedSubview(btn)
+                }
+                if ri == 2 {
+                    let del = makeSpecialKey("⌫")
+                    del.addTarget(self, action: #selector(translateDeleteTapped), for: .touchUpInside)
+                    rowStack.addArrangedSubview(del)
+                }
+                stack.addArrangedSubview(rowStack)
             }
-            if ri == 2 {
-                let del = makeSpecialKey("⌫")
-                del.addTarget(self, action: #selector(translateDeleteTapped), for: .touchUpInside)
-                rowStack.addArrangedSubview(del)
-            }
-            stack.addArrangedSubview(rowStack)
         }
 
-        // Bottom: 한/영 + 📋 + space + 번역 + 삽입
+        // Bottom: 한/영 + !?123/ABC + space + 번역 + 삽입
         let bottom = UIStackView()
         bottom.axis = .horizontal; bottom.spacing = 3
 
-        let langToggle = makeSpecialKey(isKoreanMode ? "한/영" : "한/영")
+        let langToggle = makeSpecialKey("한/영")
         langToggle.backgroundColor = isKoreanMode ? UIColor.systemBlue.withAlphaComponent(0.15) : UIColor(white: 0.88, alpha: 1)
         langToggle.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
-        langToggle.setWidth(44)
+        langToggle.setWidth(40)
         langToggle.addTarget(self, action: #selector(translateToggleKorEng), for: .touchUpInside)
         bottom.addArrangedSubview(langToggle)
 
-        let pasteBtn = makeSpecialKey("📋")
-        pasteBtn.setWidth(32)
-        pasteBtn.addTarget(self, action: #selector(translateToggleDirectInput), for: .touchUpInside)
-        bottom.addArrangedSubview(pasteBtn)
+        let numToggle = makeSpecialKey(isTranslateNumberMode ? "ABC" : "!?123")
+        numToggle.titleLabel?.font = .systemFont(ofSize: 10, weight: .semibold)
+        numToggle.setWidth(42)
+        numToggle.addTarget(self, action: #selector(translateToggleNumberMode), for: .touchUpInside)
+        bottom.addArrangedSubview(numToggle)
 
         let space = makeLetterKey("space")
         space.titleLabel?.font = .systemFont(ofSize: 12)
@@ -2086,22 +2354,51 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
 
     private func updateTranslateInputDisplay() {
         if translationInput.isEmpty {
-            let hint = isTranslateDirectInput
-                ? " 타이핑하세요..."
-                : "번역할 텍스트를 복사한 후\n붙여넣기 버튼을 눌러주세요"
-            translateInputLabel?.text = hint
+            translateInputLabel?.text = " 타이핑..."
             translateInputLabel?.textColor = .lightGray
         } else {
-            translateInputLabel?.text = isTranslateDirectInput ? " \(translationInput)" : translationInput
+            translateInputLabel?.text = " \(translationInput)"
             translateInputLabel?.textColor = .darkText
         }
+    }
+
+    @objc private func translateSourceDropdown() {
+        let overlay = makeOverlay()
+        let stack = makePopupStack(in: overlay)
+        for (i, lang) in translateLangs.enumerated() {
+            let btn = makePopupButton(title: lang.0, color: i == sourceLangIndex ? mainPink : .darkGray) {
+                overlay.removeFromSuperview()
+                self.sourceLangIndex = i
+                self.showMode(.translate)
+            }
+            stack.addArrangedSubview(btn)
+        }
+    }
+
+    @objc private func translateTargetDropdown() {
+        let overlay = makeOverlay()
+        let stack = makePopupStack(in: overlay)
+        for (i, lang) in translateLangs.enumerated() {
+            let btn = makePopupButton(title: lang.0, color: i == targetLangIndex ? mainPink : .darkGray) {
+                overlay.removeFromSuperview()
+                self.targetLangIndex = i
+                self.showMode(.translate)
+            }
+            stack.addArrangedSubview(btn)
+        }
+    }
+
+    @objc private func translateSwapLangs() {
+        let tmp = sourceLangIndex
+        sourceLangIndex = targetLangIndex
+        targetLangIndex = tmp
+        showMode(.translate)
     }
 
     // MARK: - Translate Actions
 
     @objc private func translateLangTapped(_ s: UIButton) {
-        translateLangIndex = s.tag
-        showMode(.translate)
+        // unused legacy — kept for compatibility
     }
 
     @objc private func translateToggleDirectInput() {
@@ -2119,6 +2416,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
         showToast("붙여넣기 완료")
     }
 
+    @objc private func translatePasteAndTranslate() {
+        guard let text = UIPasteboard.general.string, !text.isEmpty else {
+            showToast("클립보드가 비어있어요")
+            return
+        }
+        hgFlush()
+        translationInput = text
+        updateTranslateInputDisplay()
+        translateTriggered()
+    }
+
     @objc private func translateClearTapped() {
         translationInput = ""
         lastTranslation = ""
@@ -2130,6 +2438,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
     @objc private func translateToggleKorEng() {
         hgFlush()
         isKoreanMode.toggle()
+        isTranslateNumberMode = false
+        isTranslateShifted = false
+        isTranslateCapsLock = false
+        showMode(.translate)
+    }
+
+    @objc private func translateToggleNumberMode() {
+        hgFlush()
+        isTranslateNumberMode.toggle()
         showMode(.translate)
     }
 
@@ -2152,28 +2469,18 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
     }
 
     @objc private func translateKeyTapped(_ s: UIButton) {
-        guard var key = s.title(for: .normal) else { return }
-        if isKoreanMode {
-            // Apply shift for 쌍자음
-            if isTranslateShifted, let shifted = korShiftMap[key] {
-                key = shifted
-            }
+        guard let key = s.title(for: .normal) else { return }
+        if isKoreanMode && !isTranslateNumberMode {
             handleHangulInput(key)
-            // Auto-release one-shot shift (not caps lock)
+            // Auto-release one-shot shift
             if isTranslateShifted && !isTranslateCapsLock {
                 isTranslateShifted = false
+                // Rebuild to show normal keys again
                 showMode(.translate)
                 return
             }
         } else {
-            if isTranslateShifted {
-                key = key.uppercased()
-                if !isTranslateCapsLock {
-                    isTranslateShifted = false
-                    showMode(.translate)
-                    return
-                }
-            }
+            hgFlush()
             translationInput += key
         }
         updateTranslateInputDisplay()
@@ -2365,11 +2672,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
         translateResultLabel?.text = "번역 중..."
         translateResultLabel?.textColor = .darkGray
 
-        let targetLang = translateLangs[translateLangIndex].1
+        let srcLang = translateLangs[sourceLangIndex].1
+        let tgtLang = translateLangs[targetLangIndex].1
         let body: [String: Any] = [
             "model": "gpt-4o-mini",
             "messages": [
-                ["role": "system", "content": "You are a translator. Translate the given text to \(targetLang). Return only the translated text without any explanation."],
+                ["role": "system", "content": "You are a translator. Translate the given text from \(srcLang) to \(tgtLang). Return only the translated text without any explanation."],
                 ["role": "user", "content": translationInput],
             ],
             "max_tokens": 500,
@@ -2704,7 +3012,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
 
     @objc private func gridItemTapped(_ s: UIButton) {
         guard let text = s.title(for: .normal) else { return }
-        textDocumentProxy.insertText(text)
+        // 장식선: copy to clipboard instead of insert (long text)
+        if currentMode == .special && selectedSpecialCat < specialCategories.count
+            && specialCategories[selectedSpecialCat].0 == "장식선" {
+            UIPasteboard.general.string = text
+            showToast("복사됨")
+        } else {
+            textDocumentProxy.insertText(text)
+        }
         tapFeedback(s)
     }
 
