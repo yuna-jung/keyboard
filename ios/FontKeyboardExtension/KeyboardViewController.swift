@@ -9,6 +9,14 @@ private let pinkColor   = UIColor(red: 1.0, green: 0.42, blue: 0.62, alpha: 1.0)
 private let keyBG       = UIColor.white
 private let specialKeyBG = UIColor(white: 0.78, alpha: 1)
 
+private let giphyApiKey = "SciHAuFmCTcpQSlSpCx09cHbmN4BjSaJ"
+
+struct GiphyImage {
+    let id: String
+    let previewURL: URL
+    let originalURL: URL
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MARK: - KeyboardViewController
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -17,13 +25,23 @@ class KeyboardViewController: UIInputViewController {
 
     // ── Mode ────────────────────────────────────────────────────────────────
     enum Mode: Int, CaseIterable {
-        case fonts = 0, emoticon, special, favorites
+        case fonts = 0, emoticon, special, dotArt, gif, favorites
         var title: String {
             switch self {
             case .fonts:     return "Aa"
-            case .emoticon:  return "(◕‿◕)"
-            case .special:   return "★"
+            case .emoticon:  return "( • ɞ• )"
+            case .special:   return "✦"
+            case .dotArt:    return "⣿"
+            case .gif:       return "GIF"
             case .favorites: return "♥"
+            }
+        }
+        var fontSize: CGFloat {
+            switch self {
+            case .emoticon:  return 9
+            case .special:   return 16
+            case .dotArt:    return 16
+            default:         return 14
             }
         }
     }
@@ -104,10 +122,31 @@ class KeyboardViewController: UIInputViewController {
                  "/ᐠ •̀ ˕ •́ マ","ʕ•̀ ω •́ʔ.:"]),
         ("동물", ["(=^･ω･^=)","(◕ᴥ◕)","ʕ•ᴥ•ʔ","(ΦωΦ)","ʕ·ᴥ·ʔ",
                  "(U・ω・U)","(=①ω①=)","(・⊝・)","≧◉ᴥ◉≦",
-                 "(ᵔᴥᵔ)","₍ᐢ..ᐢ₎","ᘛ⁐̤ᕐᐷ"]),
+                 "(ᵔᴥᵔ)","₍ᐢ..ᐢ₎","ᘛ⁐̤ᕐᐷ",
+                 "ʕ•ᴥ•.ʔ","ʕ๑•ﻌ•๑ʔ","ʕ•͡ɛ•͡ʼʼʔ","( ⁻(❢)⁻ )","₍ᐢ•ᴥ•ᐢ₎","(✦(ᴥ)✦)",
+                 "ʕ òᴥó ʔ","ʕ*•-•ʔฅ","ʕ•̀д•́ʔﾉ","/ᐠ ˵• ﻌ •˵マ","꜀(^｡ ̫ ｡^꜀ )꜆੭",
+                 "/.\\___/.\\ <(야옹)","o(=´∇｀=)o","/ᐠ - ̫ -マ","(=･ｪ･=?","●ᴥ●",
+                 "૮₍ ՛◐ ᴥ ◐`₎ʖ","໒( ̿･ ᴥ ̿･ )ʋ","ᘳ´• ᴥ •`ᘰ","૮ ｡ˊᯅˋ ა","૮₍ •̀ᴥ•́ ₎ა",
+                 "૮ ・ﻌ・ა","ヽ(°ᴥ°)ﾉ","(ᐡ -.- ᐡ)","( ੭ ˙🐽˙ )੭","( ˶˙🐽˙˵ ᐡ )",
+                 "(՞•Ꙫ•՞)ﾉ?","₍ᐢ`🐽´ᐢ₎","₍՞ • 🐽 • ՞₎","(´・(oo)・｀)","𓃟",
+                 "(̂•͈Ꙫ•͈⑅)̂ ୭","₍ᐢ. ֑ .ᐢ₎","( ᐢ, ,ᐢ)","⎛⑉・⊝・⑉⎞","•᷅ ʚ •᷄",
+                 "ʚ(•Θ•)ɞ","୧(•̀ө•́)୨","(๑•̀ɞ•́๑)✧","( • ɞ• )","(・ε・)",
+                 "(๑❛ө❛๑ )三","（ˇ ⊖ˇ）","( ˙◊˙ )","( 'Θ')ﾉ","𓆩(•࿉•)𓆪"]),
         ("사랑", ["(♥ω♥)","(づ￣ ³￣)づ","(灬♥ω♥灬)","(*˘︶˘*).｡*♡",
                  "(◍•ᴗ•◍)❤","(♡°▽°♡)","(✿ ♥‿♥)","( ˘ ³˘)♥",
-                 "(❤ω❤)","♡＾▽＾♡","(´,,•ω•,,)♡","(⺣◡⺣)♡*"]),
+                 "(❤ω❤)","♡＾▽＾♡","(´,,•ω•,,)♡","(⺣◡⺣)♡*",
+                 "꜀(  ꜆-⩊-)꜆♡","( ˶'ᵕ'🫶🏻)💕","(⸝⸝´▽︎ `⸝⸝)","( ⸝⸝⸝•   •⸝⸝⸝)",
+                 "＞ ̫＜ ♡","(ღˇᴗˇ)","(๑•́ ₃ •̀๑)","(●´□`)♡",
+                 "( ๑ ❛ ڡ ❛ ๑ )❤","⸜(♡ ॑ᗜ ॑♡)⸝","•́ε•̀٥","( ◜ᴗ◝ )♡",
+                 "(ღ•͈ᴗ•͈ღ)♥","໒( ♥ ◡ ♥ )७","♡ ᐡ◕ ̫ ◕ᐡ ♡","♥(〃´૩`〃)♥",
+                 "( . ̫ .)💗","(♡´౪`♡)","( っ꒪⌓꒪)っ—̳͟͞͞♡","૮ - ﻌ • ა ♥","⁎⁍̴̆Ɛ⁍̴̆⁎"]),
+        ("반응", ["･ᴗ･ )੭''","( *´ᗜ`*)ﾉ","(๑'• ֊ •'๑)੭","٩( ´◡` )( ´◡` )۶","_(._.)_",
+                 "( •⍸• )","c(   'o')っ","(⊙_⊙)","( ´o` )","ᯤ ᯅ ᯤ",
+                 "૮₍ •́ ₃•̀₎ა","ϲ( ´•ϲ̲̃ ̲̃•` )ɔ","( っ •‌ᜊ•‌ )う","ˣ‿ˣ","(๑•́‧̫•̀๑)",
+                 "⊙△⊙","⊙﹏⊙","ㅇࡇㅇ?","૮˘･_･˘ა","( ･̆ω･̆ )",
+                 "₍ᐢ - ̫ - ᐢ₎","( > ~ < )💦","•́.•̀","•̆₃•̑","( ᖛ ̫ ᖛ )",
+                 "( • ̀ω•́ )✧","(๑•̆૩•̆)","👉🏻(˚ ˃̣̣̥ ▵ ˂̣̣̥ )꒱👈🏻💧","˙∧˙","（≩∇≨）",
+                 "❛‿˂̵✧","(  > ᴗ • )","( ͡~ ͜ʖ ͡°)","(･ω<)☆","˶ˊᜊˋ˶ಣ"]),
         ("최고", ["ദ്ദിᐢ. .ᐢ₎","ദ്ദി（• ˕ •マ.ᐟ","ദ്ദി •⤙• )","( ദ്ദി ˙ᗜ˙ )",
                  "ჱ̒՞ ̳ᴗ ̫ ᴗ ̳՞꒱","(՞ •̀֊•́՞)ฅ","ჱ̒^. ̫ .^）","ദ്ദി*ˊᗜˋ*)",
                  "( 　'-' )ノദ്ദി)`-' )","ჱ̒⸝⸝•̀֊•́⸝⸝)","ദ്ദി  ॑꒳ ॑c)","ദ്ദിᐢ- ̫-ᐢ₎",
@@ -121,17 +160,333 @@ class KeyboardViewController: UIInputViewController {
     // ── Special Chars ───────────────────────────────────────────────────────
     private let specialCategories: [(String, [String])] = [
         ("화살표", ["→","←","↑","↓","➜","➡","⇒","⟶","↩","↪",
-                  "↗","↘","↙","↖","⤴","⤵","➤","↔","⇔","⟷"]),
-        ("도형",  ["■","□","▲","△","▼","▽","◆","◇","●","○",
-                  "◉","◎","★","☆","▶","◀","▷","◁","⬤","◈"]),
+                  "↗","↘","↙","↖","⤴\u{FE0E}","⤵\u{FE0E}","➤","↔","⇔","⟷",
+                  "⇐","⇑","⇓","⇕","⇖","⇗","⇘","⇙",
+                  "↺","↻","⟰","⟱","↕","↨","⇄","⇅","⇆"]),
+        ("도형",  ["■","□","▪","▫","▲","△","▶","▷","▼","▽","◀","◁",
+                  "●","○","◆","◇","◉","◎","▣","▤","▥","▦","▧","▨"]),
         ("하트",  ["♡","♥","❥","❦","❧","☙","▷♡◁",
                   "♡̴","ꕤ","𓆸","ʚ♡ɞ","﹤𝟹"]),
         ("별/꽃", ["✿","❀","✾","❁","✦","✧","❋","✺","✵","✶",
                   "✷","✸","❂","❃","✻","❄","❅","❆","✱","※"]),
         ("수학",  ["±","×","÷","≠","≈","≤","≥","∞","√","∑",
                   "∏","∫","∂","∆","∇","∈","∅","⊂","⊃","⊥"]),
+        ("장식",  ["꩜","⁂","✳\u{FE0E}","❊","✦","❈","⁕","꧁","꧂","࿇","꒰","꒱",
+                  "⌘","⌥","⇧","⌫","☯\u{FE0E}","☸\u{FE0E}","♾\u{FE0E}","⚜\u{FE0E}",
+                  "✡\u{FE0E}","☪\u{FE0E}"]),
+        ("기호", ["©","®","™","°","%","&","@","#","$","€","£","¥","₩","¢",
+                "±","×","÷","≠","≈","∞","√","π","∑",
+                "♩","♪","♫","♬",
+                "☎\u{FE0E}","✉\u{FE0E}","✂\u{FE0E}","✏\u{FE0E}","✒\u{FE0E}"]),
+        ("십자가", ["✝\u{FE0E}","✞","✟","☩","♰","♱","†","‡","✠","☦\u{FE0E}"]),
+        ("패턴", ["░","▒","▓","█","▌","▐","▀","▄","┼","╬","═","║",
+                "╔","╗","╚","╝","┌","┐","└","┘","├","┤","┬","┴"]),
     ]
     private var selectedSpecialCat = 0
+
+    // ── Dot Art ─────────────────────────────────────────────────────────────
+    private let dotArtCategories: [(String, [String])] = [
+        ("도트아트", [
+            """
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣤⣄
+⠀⠀⠀⣰⠞⠛⠲⣦⣤⠤⠤⢴⠏⣦⣈⣷⣚⠉⠻⡄
+⠀⠀⠀⣿⣀⠀⠈⠁⠀⠀⠀⢾⡀⢻⡿⠉⠉⣷⡞⠻⣦
+⠀⠀⢀⡿⠁⠀⠀⠀⠀⠀⠀⠈⠛⠛⠷⣤⣴⠿⠿⣠⡟
+⠀⠀⣾⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⢦⡶⢻⡄
+⠠⠤⡧⠤⠄⢠⣤⠀⠀⠀⠀⠀⠀⠀⠀⣤⣄⠀⠋⢹⡏⠁
+⠀⢀⣿⡤⠄⠘⠿⠁⠀⠠⣞⣻⠄⠀⠀⠻⠏⢀⡈⣽⠛⠃
+⠀⠀⢈⡷⣶⣃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠿⠛⠂
+⠀⠀⠀⠀⠀⠉⠙⠛⠛⠓⠒⠒⠒⠚⠛⠛⠉⠁
+""",
+            """
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡴⠒⠦⣄⣠⠶⠞⠳⣆⠀⠀⠀⠀
+⠀⠀⠀⣴⠛⠛⠛⠲⢦⣤⡴⠶⠶⢶⠏⠀⢀⣄⣹⣇⡀⠀⠀⣻⡀⠀⠀⠀
+⠀⠀⠀⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⠂⠀⢿⣼⠋⠀⠉⣿⣍⠉⠉⡆⠀⠀
+⠀⠀⠀⢿⡤⠀⠀⠀⠀⠀⠀⠀⠀⠈⠧⠤⠤⠿⢦⣀⣤⠿⠼⠀⣰⠃⠀⠀
+⠀⠀⠀⡾⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⠤⠶⢿⡀⠀⠀
+⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣼⡧⠤⠆
+⠀⠀⢼⡧⢤⠀⠀⠀⢠⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⡇⠀⠀⠀⣤⣧⣄⡀
+⠀⠀⢀⡿⠉⠹⡄⠀⠈⠋⠀⠀⠀⣴⠒⡆⠀⠀⠀⠀⠀⠀⠀⣀⣼⠁⠀⠀
+⢠⡞⠉⠛⠀⠀⠹⠶⠶⣄⠀⠀⠀⠈⠉⠀⠀⠀⠀⠀⠀⠀⣀⠾⠉⠙⠒⠀
+⠀⠳⢤⣀⠀⠀⢠⠖⠒⠈⢳⣀⠀⠀⢀⣀⣀⣀⣤⠤⠖⠛⠁⠀⠀⠀⠀⠀
+⠀⠀⠀⢹⡀⠀⠘⠲⠖⠃⣼⠋⠉⠁⠉⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠛⠦⣤⣤⠴⠞⠁
+""",
+            """
+⠀⠀⠀⠀⠛⠦⣤⣤⠴⠞⠁
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⠶⠦⡄⠀⠀⠀⠀⠀⠀⡴⠀⠀⠀
+⠀⢀⣀⠀⠀⠀⣀⠤⠖⠒⠋⡉⠙⢲⣺⢅⡀⠀⠹⡀⠀⠀⠀⢀⡜⠁⠀⠀⠀
+⣼⠉⠀⠉⠓⠏⠁⠀⠀⠀⠀⢯⣧⠈⢿⡆⠈⠓⢴⠇⠀⠀⣠⠊⠀⠀⠀⡀⠀
+⢧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠀⡀⠄⠠⢀⠈⢣⡀⠀⠁⠀⢀⡤⠊⠀⠀
+⠈⢧⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⢀⠎⠀⠀⠀⠘⡇⠀⢧⠀⠐⠊⠁⠀⠀⠀⠀
+⠀⢸⠳⣄⠀⠀⠀⠀⠀⠀⠀⠈⢺⠀⠀⠀⠀⠀⡇⠀⢸⠀⠀⠀⠀⢀⣀⣀⡀
+⠀⢸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣆⠠⠄⢀⡀⢇⠀⢸⡀⠀⡀⠀⠀⠀⠀⠀
+⠀⠘⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢃⠀⠀⠀⠈⠙⠆⡼⠛⢦⡀⠑⠢⣄⠀⠀
+⠀⠀⠹⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⡌⠢⣀⠀⢀⡴⡰⠁⠀⢀⡇⠀⠀⠈⠑⠀
+⠀⠀⠀⢸⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡴⠗⠒⠚⠉⠀
+⠀⠀⠀⡜⠀⠉⠢⢄⣀⠀⠀⠀⠀⠀⣀⡤⠖⠁⠀
+⠀⠀⠀⡇⠀⠀⠀⠀⣨⠟⠉⠉⠉⠉
+""",
+            """
+⠀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⡴⡇⢀⣀⣀⠀⠀⠀⠀⠀⠀⣀
+⠀⢠⠋⠀⠙⢆⠀⠀⣀⣀⣼⠁⠛⠉⣵⣋⡀⠀⠀⣠⠖⠋⠙⡄
+⠀⡞⠀⠀⠀⠈⠓⠋⠁⠀⠃⠀⠤⠴⠚⠃⠉⠙⠚⠁⠀⠀⠀⡇
+⠀⡇⠀⡶⠀⠀⠀⣠⣀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠀⠀⡄⠀⢹
+⢰⠁⠀⡇⠀⠀⢸⣵⣿⡇⠀⠀⠀⠀⠀⢰⣹⣿⠀⠀⠀⡇⠀⢸
+⢸⠀⠀⡇⠀⠀⠸⣿⣿⡇⠀⠀⠀⠀⠀⢸⣿⣿⠀⠀⠀⡇⠀⢸
+⢸⠀⠀⡇⠀⠀⠀⠻⠟⠃⠀⠀⠀⠀⠀⠘⠿⠋⠀⠀⠀⡇⠀⡾
+⠈⠒⠖⡇⠀⠀⠀⠀⠀⠀⠀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⣇⡤⠃
+⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠘⢿⣿⠆⠀⠀⠀⠀⠀⠀⢸⡇
+⠀⠀⠀⢳⡀⠀⠀⠀⠰⠶⠶⠛⠙⠷⠦⠄⠀⠀⠀⠀⣸⠁
+⠀⠀⠀⠀⠱⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡴⠃
+⠀⠀⠀⠀⠀⠀⠉⠓⠒⠦⠤⠤⠤⠤⠤⠤⠖⠋⠉
+""",
+            """
+⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⡠⢣⠀
+⠀⢸⢉⡗⠀⠀⠀⠀⠀⠀⠀⠀⠈⡆⠀⠈⡱⠖⠀⠀⠀⠀⠀⠀⠀⠀⣄⣠⠆⠀
+⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠰⠓⠒⢴⠀⠀⠀⠀⠀⠀⠀⣀⠀⠀⢨⠀⣰⠃
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠜⢹⡀⠀⠀⠀⠈⠀
+⠀⠀⠀⠀⢠⣀⣶⠀⠀⠀⠀⠀⠀⠀⠀⢤⢀⣀⣀⣀⡠⠋⠀⠀⢇
+⠀⠀⠀⠀⠀⡇⣄⠊⠁⠀⠀⠀⠀⠀⢀⡨⢦⠀⠀⠀⠀⠀⠀⠀⠘⠒⠤⣀⡀
+⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⡀⠔⠊⠁⢀⡀⠳⡀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠼⠋
+⠀⠀⠀⠀⠀⠀⠀⠀⣀⠔⠈⡀⠄⠂⠉⢀⡀⢰⠁⠀⠀⠀⠀⠀⠀⡴⠊⠁
+⠀⠀⠀⠀⠀⠀⡠⢊⠠⠒⣁⠤⠐⣀⡁⠤⢤⠃⢀⣀⡠⢄⡀⠀⠀⡇
+⠀⠀⠀⠀⡠⡪⢐⡡⢐⠩⠐⠊⠁⠀⠀⠀⠚⠉⠉⠀⠀⠀⠙⠢⣀⡇
+⠀⠀⢠⡪⡪⡲⠕⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠀⠈⠃
+⠀⣰⣿⠞⠉⠀⠀⠀⠀⠀⡄⡰⡆⠀⠀⠀⠀⠀⠀⢐⣌⡶
+⡰⠋⠀⠀⠀⠀⠀⠀⠀⠀⣸⠤⡐⠁⠀⠀⠀⠀⠀⠀⠀⠃
+""",
+            """
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⣚⣥⣤⠀⠀⢀⡷⠔⠒⠒⠲⠦⡀
+⠀⠀⠀⠀⠀⠀⠀⠀⢀⢎⣾⣿⠟⠁⡠⠖⣡⣶⣶⣶⠀⠀⠀⡇
+⠀⠀⠀⠀⠀⠀⠀⡔⣱⣿⠟⠁⡠⠊⣠⣾⣿⡿⠟⠁⠀⢀⠌
+⠀⠀⠀⠀⢀⠔⠉⠀⠀⠀⠀⠉⠀⠘⠛⠛⠁⠀⣀⠤⠚⠁
+⠀⠀⠀⡔⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢯⠁
+⠀⠀⡸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢱
+⠀⣰⠁⠀⣤⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹
+⢰⠃⠀⠀⠛⠁⠐⠂⠀⣿⡗⠀⠀⠀⠀⠀⠀⠀⢹⠀
+⠈⢧⣠⣾⣷⣦⣠⣶⣿⣿⣦⠀⠀⠀⠀⠀⠀⠀⡇
+⠒⠒⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⡰
+⠀⠀⠈⢿⣿⣿⣿⣿⣯⡉⠉⠉⠒⠲⢤⡔⠁
+⢀⠔⠁⠈⠻⣿⣿⡿⡋⠉⠓⠦⡄⠀⠀⠉⢫⠉⡆
+⠀⠀⠀⠀⠀⡐⠀⠀⠀⠈⢢⠤⠤⠜⠀⠀⠀⠀⡗⠁
+⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⢇⠀⡖⠒⠒⠤⣀⠇
+""",
+            """
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣤⣤⡤⡤⣤⣤⣄⣀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢄⡤⠞⠋⠁⠀⠀⠀⠀⠀⠀⠈⠉⠿⣦⣤⠶⠦⣤⡀
+⠀⠀⠀⠀⠀⠀⠀⢀⣴⠞⢋⡽⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⡇⠀⠀⠙⢶⣄
+⠀⠀⠀⠀⠀⠀⣰⠟⠁⠀⠘⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢷⡀⠀⠀⠉⠓⠦⣤⣤⣤⣤⣤⣤⣄⣀
+⠀⠀⠀⠀⣠⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⣷⡄⠀⠀⢻⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣆
+⠀⠀⣠⠞⠁⠀⠀⣀⣠⣏⡀⠂⢠⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⠿⡃⠀⠀⠀⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⡆
+⢀⡞⠁⠀⣠⠶⠛⠉⠉⠉⠙⢦⡸⣿⡿⠀⠀⠀⡄⢀⣀⣀⡶⠀⠀⠀⢀⡄⣀⠀⣢⠟⢦⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⠃
+⡞⠀⠀⠸⠁⠀⠀⠀⠀⠀⠀⠀⢳⢀⣠⠀⠀⠀⠉⠉⠀⠀⣀⠀⠀⠀⢀⣠⡴⠞⠁⠀⠀⠈⠓⠦⣄⣀⠀⠀⠀⠀⣀⣤⠞⠁
+⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⠀⠁⠀⢀⣀⣀⡴⠋⢻⡉⠙⠾⡟⢿⣅⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠉⠙⠛⠉⠉
+⠘⣦⡀⠀⠀⠀⠀⠀⠀⣀⣤⠞⢉⣹⣯⣍⣿⠉⠟⠀⠀⣸⠳⣄⡀⠀⠀⠙⢧⡀
+⠀⠈⠙⠒⠒⠒⠒⠚⠋⠁⠀⡴⠋⢀⡀⢠⡇⠀⠀⠀⠀⠃⠀⠀⠀⠀⠀⢀⡾⠋⢻⡄
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⢸⡀⠸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⢠⡇
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣇⠀⠀⠉⠋⠻⣄⠀⠀⠀⠀⠀⣀⣠⣴⠞⠋⠳⠶⠞
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⠦⢤⠤⠶⠋⠙⠳⣆⣀⣈⡿⠁
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠉
+""",
+            """
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣤⣤⡤⡤⣤⣤⣄⣀
+⠀⠀⠀⠀⠀⠀⠀⢀⡴⣆⠀⠀⠀⠀⠀⣠⡀⠀⠀⠀⠀⠀⠀⣼⣿⡗
+⠀⠀⠀⣠⠟⠀⠘⠷⠶⠶⠶⠾⠉⢳⡄⠀⠀⠀⠀⠀⣧⣿
+⠀⠀⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣤⣤⣤⣤⣤⣿⢿⣄
+⠀⠀⡇⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣧⠀⠀⠀⠀⠀⠀⠙⣷⡴⠶⣦
+⠀⠀⢱⡀⠀⠉⠉⠀⠀⠀⠀⠛⠃⠀⢠⡟⠂⠀⠀⢀⣀⣠⣤⠿⠞⠛⠋
+⣠⠾⠋⠙⣶⣤⣤⣤⣤⣤⣀⣠⣤⣾⣿⠴⠶⠚⠋⠉⠁
+⠛⠒⠛⠉⠉⠀⠀⠀⣴⠟⣣⡴⠛⠋
+⠀⠀⠀⠀⠀⠀⠀⠀⠛⠛⠉
+""",
+            """
+⠀⠀⠀⠀⠀⢀⠴⠚⠉⠉⠑⠦⠴⠚⠋⠉⠒⢄
+⠀⠀⠀⠀⢠⠋⠀⠀⠀⠀⠀⠀⠀⠸⣄⠀⢘⡄⢷
+⠀⠀⠀⠀⢸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⣏⠀⣼
+⠀⠀⠀⠀⠈⢇⢰⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢠⠏
+⠀⠀⠀⠀⠀⠈⢣⡳⣄⠀⠀⠀⠀⠀⠀⢀⡴⠋
+⠀⠀⠀⠀⠀⠀⠀⠙⠢⣕⠢⢄⢀⡠⠖⠋
+⠀⠀⣠⡴⠒⠦⣄⠀⠀⠀⠉⠉⠁⠀⠀⣀⡤⠤⢄⡀
+⢀⡞⠁⠀⠀⠀⠈⠛⠉⠉⠉⠉⠉⠉⠲⠏⠀⠀⠀⠘⢦
+⢸⡇⠀⠀⠀⠀⢀⡖⢳⠀⣠⠺⡄⠀⠀⠀⠀⠀⠀⠀⢘⡆
+⠀⢻⠇⠀⠀⢀⣾⣶⡏⢀⣿⣴⠇⠀⠀⠀⠀⠀⠠⢀⡾
+⠀⡏⢠⠖⠓⡾⢿⡿⠀⠸⣿⣿⢠⠀⠢⣄⠀⠀⠀⢻
+⢸⠀⠈⠛⠚⠁⠀⠀⠺⠃⠈⠁⠐⠦⣴⠿⠀⠀⠀⢸⡆
+⢸⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⠃
+⠀⢧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⡄
+⠀⠈⣷⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠞⠁⣧
+⠀⠀⡯⠙⠲⣄⡀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠖⠋⠀⠀⡟
+⠀⠀⢳⣤⢡⣤⠉⠛⣲⡶⠒⠲⣞⠛⢉⣀⠀⠀⠀⣼⠃
+⠀⠀⠀⠙⠓⠧⠴⠚⠉⠀⠀⠀⠙⢦⣀⠈⠁⣀⡴⠋
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠉
+""",
+            """
+⠀⠀⠀⠀⠀⠀⠀⢀⣀⡤⠔⢒⡒⠀⢐⠶⠒⠦⡄⣀
+⠀⠀⠀⠀⢀⠤⠊⢁⠊⠀⠀⠀⠈⢲⠁⠀⠀⠀⠘⡄⠁⠢⣀
+⠀⠀⢀⠔⠁⠀⠀⣞⠀⠀⠀⢰⣶⢸⢸⡷⠀⠀⠀⣡⡀⠀⠈⠢⡀
+⠀⢠⠂⠀⠀⡠⠐⠚⢄⠀⠀⠀⣡⣿⣧⣀⠀⢀⡠⠃⠀⠁⠢⡀⠈⢄
+⠀⠆⠀⡠⠚⠀⠄⡀⠀⠉⠉⠉⢏⠣⠄⢸⠀⠀⠀⢀⡠⠄⠂⠉⢆⠘⡀
+⢸⠀⡐⠀⠀⠀⠀⠀⠈⠑⠂⠀⠈⠓⡖⠁⠀⠀⠈⠁⠀⠀⠀⠀⢀⡆⡇
+⠀⠀⡇⠀⠀⠀⠀⠒⠒⠂⠀⠀⠀⠀⡇⠀⠀⠀⠀⠉⠉⠁⠀⡴⠀⠱⡇
+⢸⠀⡇⠀⠱⡀⣀⡀⠤⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠒⠒⠒⡲⠂⠀⡆⡇
+⠈⡆⢁⠈⠉⠉⢄⠀⠀⠀⠀⠀⠀⠀⢰⠀⠀⠀⠀⠀⢀⠔⠀⠀⢠⢡⠁
+⠀⠰⡈⢄⠀⠀⠀⠁⠢⢀⠀⠀⠀⠀⢈⠀⠀⠀⢀⠔⠉⠀⠀⢀⢆⠃⠄⠒⠢⠄
+⠀⠀⠐⢌⠂⠀⠀⠀⠀⠀⠉⠐⠂⠤⠼⠄⠒⠈⠀⠀⠀⠀⢀⣾⠣⠎⠀⠀⠀⢸
+⠀⠀⠀⠀⢱⢕⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣀⠠⢾⠁⠀⠈⢄⠀⠀⠈
+⠀⠀⠀⠀⡨⠒⠠⠬⠍⣉⣉⣉⣉⡽⣭⣭⢹⡅⠠⡤⠄⠒⡉⠀⠀⡠⠃
+⠀⠀⠀⡰⠁⠀⠀⢀⠒⠁⠀⠀⠐⡍⠀⡦⢈⠇⠀⠈⢢⠀⢁⡀⠊
+⠀⠀⢠⡇⠀⡄⠀⠇⠀⠀⠀⠀⠀⠈⠒⠓⠁⠀⠀⠀⠀⠆⢸
+⠀⠀⠐⢇⠀⡅⠀⠀⠐⠒⠒⠀⠀⠀⠀⠀⠀⠀⠈⠉⠂⠘⠈
+⠀⠀⠀⠀⠑⡦⠀⢃⠀⢇⠀⠀⠀⠀⠀⠀⠀⠀⠀⡰⢀⠃⡇
+⠀⢰⡋⠉⡦⡄⠀⠀⠑⢄⠑⠠⠄⣀⣀⣀⠠⠄⢊⡠⠃⢠
+⠀⠈⠃⠐⠁⠇⠀⠀⠀⠀⠉⠒⠠⠤⠤⠤⠀⠒⠁⠀⢀⠃
+⠀⠀⢀⡀⠴⢄⠀⠀⠀⠀⠀⠀⠀⡴⣊⣁⠀⢀⣀⢀⣌
+⠀⠀⡇⠀⠀⠀⠉⠉⠉⠉⠉⠉⠉⡁⠀⠀⠀⠀⠀⠀⠀⠉⢢
+⠀⠀⠑⠤⢀⣀⣀⣀⡀⠀⠤⠔⠚⠒⠠⠤⠤⠤⠤⠤⠤⠐⠊
+""",
+            """
+⠀⠀⠀⠀⣾⣿⣿⣷⣄
+⠀⠀⠀⢸⣿⣿⣿⣿⣿⣧⣴⣶⣶⣶⣄
+⠀⠀⠀⣀⣿⣿⡿⠻⣿⣿⣿⣿⣿⣿⣿⡄
+⠀⠀⠀⢇⠠⣏⡖⠒⣿⣿⣿⣿⣿⣿⣿⣧⡀
+⠀⠀⢀⣷⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷
+⠀⠀⢸⣿⣿⡿⢋⠁⠀⠀⠀⠀⠉⡙⢿⣿⣿⡇
+⠀⠀⠘⣿⣿⠀⣿⠇⠀⢀⠀⠀⠘⣿⠀⣿⡿⠁
+⠀⠀⠀⠈⠙⠷⠤⣀⣀⣐⣂⣀⣠⠤⠾⠋⠁
+""",
+            """
+⣿⣿⣿⣿⠿⠿⠿⢿⡿⠿⠿⠿⢿⣿⣿⣿
+⣿⣿⣿⡇ ⣤⣤⣤⡇⠀⣤⣤⣤⣿⣿⣿
+⣿⣿⣿⣇ ⠉⠉⠉⡇⠀⠉⠉⠉⣿⣿⣿
+⣿⣿⣿⠿⠿⠿⠿⠀ ⠿ ⠿⠿⠿⣿⣿⣿
+⣿⣿⣿⣤⣤⣤⠤⠤⠤⠤⢤⣤⣤⣿⣿⣿
+⣿⣿⣿⣿⠉⠀⣤⣤⣤⣤⡀⠈⢻⣿⣿⣿
+⣿⣿⣿⣿⣄⡀⠉⠙⠛⠉⠁⣠⣾⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+""",
+            """
+⢻⣶⠢⢄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀
+⠀⢻⡀⠀⠈⠢⢄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠤⠒⠉⣿⡟
+⠀⠀⠣⡀⠀⠀⠀⠑⢄⢀⣀⣀⣀⣀⣀⣀⠤⠒⠉⠀⠀⠀⢠⠟⠀
+⠀⠀⠀⠑⢄⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⠋⠀⠀
+⠀⠀⠀⠀⠀⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠈⢤⠊⠀⠀⠀⠀
+⠀⠀⠀⠀⡘⠀⠀⢮⣽⠀⠀⠀⠀⠀⠰⣭⡇⠀⠀⠈⢆⠀⠀⠀⠀
+⠀⠀⠀⠀⢃⠠⢄⠈⠁⠀⠰⠶⠀⠀⠀⠈⠀⡀⣀⠀⠸⡀⠀⠀⠀
+⠀⠀⠀⢸⠠⣀⣠⠇⠀⠀⡠⠐⠒⡄⠀⠀⠨⡀⢀⠅⠀⡇⠀⠀⠀
+⠀⠀⠀⠈⢆⠀⠀⠀⠀⠀⠘⠤⠠⠃⠀⠀⠀⠀⠀⠀⠀⢠⠀⠀⠀
+⠀⠀⠀⠀⠈⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⠀⠀⠀
+⠀⠀⠀⠀⠐⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⠀⠀⠀⠀⠰⠀⠀⠀
+""",
+            """
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣦⣄⣀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⣃⠈⠙⠛⢶⣦
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡾⠛⠿⣶⡏⠙⠻⠶⣤⣼⠇
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣧⣀⢀⣼⢀⣴⠶⢶⣴⡟⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⣤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠁⢸⣇⠀⠀⣹⠇⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡿⠁⠈⠙⣷⡀⠀⠀⠀⠀⠀⠀⢀⣤⣤⣀⣠⡾⠛⠻⣦⠀⠀⠀⠀⠀⠀⠀⣀⡀⠀⠉⠛⠛⠋⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠁⠀⠀⠀⠈⣷⣤⣤⣤⣤⣤⣴⡟⠉⠉⠹⣯⠀⠀⠀⢹⡆⠀⠀⠀⠀⠀⠀⣏⠁⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⣠⡾⠟⠛⠀⠀⠀⠀⠉⠉⠉⠀⠀⢈⣿⠀⠠⣷⣤⣿⠿⢶⣦⡾⠟⠻⣶⡄⠀⠀⢀⣿⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⣰⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣄⣀⣀⣿⡇⠀⢀⣿⣦⡀⠀⢸⣇⠀⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⢀⣾⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠉⠉⠻⠷⢿⣇⠈⠁⠀⣾⠿⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⣼⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⢷⣶⡾⠋⠀⠙⣷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⢠⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠛⠛⢻⡿⠶⠦⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⠶⢿⡟⠛⠃⠀⠀⠀⠀⠀⠀
+⠀⣀⣠⣼⣧⣤⠀⠀⠱⡀⢀⣴⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⡀⢀⣀⣸⣧⣄⣀⠀⠀⠀⠀⠀⠀
+⠈⠋⠉⢹⣏⢀⡀⠀⠀⡇⢸⣿⣿⣿⠀⠀⠀⠀⢠⡔⠒⢦⠀⠀⠀⠀⠀⢠⣿⣿⣷⡈⠉⠀⠀⠈⢋⡍⢹⡏⠉⠉⠀⠀⠀⠀⠀⠀
+⠀⠀⣠⡴⢿⡟⠉⢀⡼⠀⠈⠛⠛⠁⠀⠀⠀⠀⠀⠙⠒⠉⠀⠀⠀⠀⠀⠸⣿⣿⣿⠃⠀⠀⠀⠀⠙⠻⣿⣷⣄⡀⠀⠀⠀⠀⠀⠀
+⠀⠈⠉⠀⠈⢿⣤⣤⣤⣤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢢⡀⠀⠀⠀⠀⠀⣰⡟⠀⠉⠁⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⣾⠋⠀⠀⠈⠙⢷⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⡾⠛⠛⠻⢿⣟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠈⣿⡄⠀⠀⠀⠀⢸⣧⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡏⠀⠀⠀⠀⠀⣻⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠈⠛⠷⢶⣴⠶⠟⠉⠙⠛⠛⠶⠶⠶⠶⠶⠶⠤⣦⠦⠶⠶⠶⠶⠶⠛⢷⣤⣀⣀⣀⣴⠟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠉⠛⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+""",
+            """
+⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣤⣴⣶⣶⣶⣶⣶⠶⣶⣤⣤⣀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⢀⣤⣾⣿⣿⣿⠁⠀⢀⠈⢿⢀⣀⠀⠹⣿⣿⣿⣦⣄⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⣴⣿⣿⣿⣿⣿⠿⠀⠀⣟⡇⢘⣾⣽⠀⠀⡏⠉⠙⢛⣿⣷⡖⠀
+⠀⠀⠀⠀⠀⣾⣿⣿⡿⠿⠷⠶⠤⠙⠒⠀⠒⢻⣿⣿⡷⠋⠀⠴⠞⠋⠁⢙⣿⣄
+⠀⠀⠀⠀⢸⣿⣿⣯⣤⣤⣤⣤⣤⡄⠀⠀⠀⠀⠉⢹⡄⠀⠀⠀⠛⠛⠋⠉⠹⡇
+⠀⠀⠀⠀⢸⣿⣿⠀⠀⠀⣀⣠⣤⣤⣤⣤⣤⣤⣤⣼⣇⣀⣀⣀⣛⣛⣒⣲⢾⡷
+⢀⠤⠒⠒⢼⣿⣿⠶⠞⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁⠀⣼⠃
+⢮⠀⠀⠀⠀⣿⣿⣆⠀⠀⠻⣿⡿⠛⠉⠉⠁⠀⠉⠉⠛⠿⣿⣿⠟⠁⠀⣼⠃⠀
+⠈⠓⠶⣶⣾⣿⣿⣿⣧⡀⠀⠈⠒⢤⣀⣀⡀⠀⠀⣀⣀⡠⠚⠁⠀⢀⡼⠃⠀⠀
+⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⣷⣤⣤⣤⣤⣭⣭⣭⣭⣭⣥⣤⣤⣤⣴⣟⠁
+""",
+            """
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣶⣶⣶⣄⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⢠⣤⣄⣾⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠈⣻⣿⣿⣿⣿⣿⣿⣿⣶⣶⡄⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⣠⠟⠁⠀⠀⠉⠉⠛⠛⠛⢻⡏⠁⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⢰⠏⠀⠀⢰⣷⠀⠀⣤⡄⠀⠀⢹⡄⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⡿⠀⠀⠀⠀⣴⠶⣦⡉⠁⠀⠀⠀⣷⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢸⡇⠀⠀⢀⡀⢷⣤⣼⠇⢠⡀⠀⠀⣿⠀⠀⠀⠀
+⠀⠀⠀⠀⣰⠞⠃⠀⠀⣨⡿⢶⣤⣤⡶⠏⠀⠀⢀⡟⠀⠀⠀⠀
+⠀⠀⢀⡾⠁⠀⠀⠀⣰⠏⠀⠀⣿⠀⠀⠀⠀⠀⠈⠻⡄⠀⠀⠀
+⠀⠀⡾⠁⠀⠀⠀⣰⠟⠀⠀⢀⡟⠀⠀⠀⠀⣀⠀⠀⢻⠀⠀⠀
+⠀⢸⡇⠀⠀⠲⠛⠁⠀⠀⢀⡾⠁⠀⠀⠀⠀⢸⡆⠀⢸⡇⠀⠀
+⠀⠘⣇⠀⠀⠀⠀⠀⠀⣠⡞⠁⠀⠀⠀⠀⠀⢸⡇⠀⢸⡇⠀⠀
+⠀⠀⠙⠷⣤⣤⣤⣤⠾⠋⠀⠀⠀⠀⠀⠀⠀⢸⠃⠀⢸⡇⠀⠀
+""",
+            """
+⡤⠲⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡎⢑
+⠑⢲⠷⢤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠶⠚⡟⠉
+⠀⠸⡇⠀⠈⠙⠲⢤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠴⠚⠉⠀⠀⠀⡇⠀
+⠀⠀⡇⠀⠀⠀⠀⠀⠈⠙⣲⣀⠄⠠⠄⠒⠢⠤⠠⢴⠋⠁⠀⠀⠀⠀⠀⢸⠇⠀
+⠀⠀⣧⠀⠀⠀⠀⠀⣀⠏⠀⠀⠀⠀⠀⠀⢀⠀⠀⠈⠉⢳⡀⠀⠀⠀⠀⢸⠀⠀
+⠀⠀⢸⠀⠀⠀⣠⣾⠀⠀⠀⣂⡠⠤⢤⣤⠬⠤⢄⣰⠀⠀⠈⣷⡀⠀⠀⡾⠀⠀
+⠀⠀⠸⢦⣀⣼⠋⢎⢀⡜⠊⠁⢠⣾⣿⣿⣿⣦⠀⠈⠑⠶⡀⣹⠹⡦⠖⠃⠀⠀
+⠀⠀⠀⠀⢸⠃⠀⠀⠉⠀⠀⠀⠸⣁⣼⣿⣇⡸⠀⠀⠀⠀⠈⠁⠀⢻⡀⠀⠀⠀
+⠀⠀⠀⠀⣾⠀⠀⠀⣠⡴⠒⠉⠓⠲⢼⣈⠯⠒⠋⠙⠲⣄⠀⠀⠀⢸⡇⠀⠀⠀
+⠀⠀⠀⠀⢹⠀⠀⣰⠋⢲⣤⡀⠀⠀⠀⠀⠀⠀⠀⣠⣴⠋⢳⠀⠀⢸⠃⠀⠀⠀
+⠀⠀⠀⠀⠈⣧⠀⣏⠀⢸⣿⠏⠀⠀⢀⣀⠀⠀⠀⢿⡿⠀⠈⡇⢠⠏⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠈⠳⣿⡀⠀⠀⠀⠀⠀⢌⣂⠅⠀⠀⠀⠀⢀⣼⡶⠋⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢀⡀⣀⠽⠓⠲⠤⢤⣤⣤⣤⣤⣤⡤⠤⠶⢯⡁⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠣⠸⠛⠒⠒⢲⡀⠀⣀⡤⠦⣄⠀⢠⠖⠒⠒⠻⣀⠇⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢔⢑⠋⠁⠀⠀⠀⢹⠉⡂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+""",
+            """
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⠁⠈⣷
+⠀⠀⠀⠀⠀⠀⠀⠀⣠⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡠⠔⠛⡗⠊⠁
+⠀⠀⠀⠀⠀⠀⠀⢸⡁⠀⣸⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠴⠚⠁⠀⠀⢠⡇⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⡇⠀⠉⠑⠲⠤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠤⠒⠉⠀⠀⠀⠀⠀⠀⢸⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⠀⠀⠀⠀⠀⠀⠉⠒⠢⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣧⡤⠒⠚⠉⠉⠉⠉⠉⠉⠉⠙⠒⠦⣄⠀⠀⠀⠀⠀⠀⠀⡏⠀⠀⠀
+⠀⠀⢀⣠⣤⣄⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠀⠀⠀⠀⠀⠀⠀⣀⣤⣤⣤⣄⡀⠀⠀⠈⠑⢦⡀⠀⠀⠀⡇⠀⠀⠀
+⠀⠀⢸⣿⣿⣿⡇⠀⠀⠀⠀⢃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⣿⣿⣿⣿⣿⣿⡀⠀⠀⠀⠀⠙⢦⡀⢀⣰⠇⠀⠀⠀
+⣴⣾⣿⣿⣿⣿⡇⠀⠀⠀⠀⢸⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣟⠁⣿⣿⣿⣀⣿⠃⠀⠀⠀⠀⠀⠀⠹⡉⠁⠀⠀⠀⠀
+⢿⣿⣿⣿⣿⡿⠇⠀⢀⣤⣄⣀⠉⠉⠑⡶⠦⠀⠀⠀⠀⠀⠀⢀⣀⣀⡀⠉⠛⢿⢿⠿⠏⢁⡴⠛⠦⣀⠀⠀⠀⠀⢳⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠛⠛⠛⠛⠿⣷⣶⣧⡀⠀⠀⠀⠀⢀⠔⠉⠀⠀⠀⠉⠓⠢⠤⠤⠚⠁⠀⠀⠀⣰⠓⢆⠀⠀⢸⡀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡟⠻⢷⣄⠀⢰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⣾⣿⡇⠈⢣⠀⢸⠃⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣇⠀⠀⠉⠁⡇⠀⠀⣷⠶⠶⣤⡀⠀⠀⠀⢀⡤⢄⠀⠻⣿⣿⠏⠀⢸⠀⡼⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⡄⠀⠀⠀⢣⠀⠀⠀⣀⣀⡀⠁⠀⢀⡀⠀⠓⣉⠀⠀⠠⣾⣿⣇⡜⡴⠁⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠢⣀⠀⠈⢇⠀⢺⣿⣿⡟⠀⠀⠸⣍⢩⠟⠁⠀⠀⠀⠀⣠⣾⠟⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠑⣦⣌⣳⣄⡀⠀⠀⠀⠀⠀⠈⠁⠀⠀⢀⣀⡴⡞⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡴⠛⢲⣋⣀⣀⣀⡀⠈⠉⠉⠑⠒⣒⠚⠉⠉⠉⡤⢄⣀⠈⢳⠤⢤⡀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠒⠋⠀⠀⠀⠀⠹⣄⣀⢀⡤⠚⠉⠓⠦⣄⣀⣇⡀⠀⠉⠙⠦⠴⠃⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⡅⢈⡏⠀⠀⠀⠀⠀⠸⣅⣠⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣈⣉⠀⠀⠀⠀⠀⠀⠀⢀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+""",
+        ]),
+    ]
+    private var selectedDotArtCat = 0
+    private var dotArtImages: [UIImage] = []
+
+    // ── GIF State ──────────────────────────────────────────────────────────
+    private let gifCategories: [(String, String?)] = [
+        ("인기", nil),
+        ("재미있는", "funny"),
+        ("사랑", "love"),
+        ("슬픔", "sad"),
+        ("반응", "reaction"),
+        ("화남", "angry"),
+    ]
+    private var gifCategoryIndex = 0
+    private var gifImages: [GiphyImage] = []
+    private weak var gifSearchField: UITextField?
+    private weak var gifGridStack: UIStackView?
+    private weak var gifLoadingLabel: UILabel?
 
     // ═════════════════════════════════════════════════════════════════════════
     // MARK: - Lifecycle
@@ -211,6 +566,8 @@ class KeyboardViewController: UIInputViewController {
                                             self?.selectedSpecialCat = i
                                             self?.showMode(.special)
                                         })
+        case .dotArt:    buildDotArtMode()
+        case .gif:       buildGifMode()
         case .favorites: buildFavoritesMode()
         }
     }
@@ -227,7 +584,9 @@ class KeyboardViewController: UIInputViewController {
     private func makeModeButton(_ mode: Mode) -> UIButton {
         let btn = UIButton(type: .system)
         btn.setTitle(mode.title, for: .normal)
-        btn.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        btn.titleLabel?.font = .systemFont(ofSize: mode.fontSize, weight: .semibold)
+        btn.titleLabel?.adjustsFontSizeToFitWidth = true
+        btn.titleLabel?.minimumScaleFactor = 0.6
         btn.tag = mode.rawValue
         btn.layer.cornerRadius = 8
         btn.addTarget(self, action: #selector(modeTapped(_:)), for: .touchUpInside)
@@ -459,9 +818,15 @@ class KeyboardViewController: UIInputViewController {
             gridStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
         ])
 
+        // Detect "도트아트" — render as 1-column tall cells
+        let categoryName = categories[selected].0
+        let isDotArt = categoryName == "도트아트"
+        let actualCols = isDotArt ? 1 : cols
+        let cellHeight: CGFloat = isDotArt ? 130 : 42
+
         let items = categories[selected].1
-        let chunked = stride(from: 0, to: items.count, by: cols).map {
-            Array(items[$0..<min($0 + cols, items.count)])
+        let chunked = stride(from: 0, to: items.count, by: actualCols).map {
+            Array(items[$0..<min($0 + actualCols, items.count)])
         }
 
         for row in chunked {
@@ -472,21 +837,431 @@ class KeyboardViewController: UIInputViewController {
             for item in row {
                 let btn = UIButton(type: .system)
                 btn.setTitle(item, for: .normal)
-                btn.titleLabel?.font = .systemFont(ofSize: fontSize)
-                btn.titleLabel?.adjustsFontSizeToFitWidth = true
-                btn.titleLabel?.minimumScaleFactor = 0.4
+                if isDotArt {
+                    btn.titleLabel?.font = .monospacedSystemFont(ofSize: 9, weight: .regular)
+                    btn.titleLabel?.numberOfLines = 0
+                    btn.titleLabel?.textAlignment = .center
+                    btn.titleLabel?.lineBreakMode = .byWordWrapping
+                    btn.titleLabel?.adjustsFontSizeToFitWidth = true
+                    btn.titleLabel?.minimumScaleFactor = 0.5
+                } else {
+                    btn.titleLabel?.font = .systemFont(ofSize: fontSize)
+                    btn.titleLabel?.adjustsFontSizeToFitWidth = true
+                    btn.titleLabel?.minimumScaleFactor = 0.4
+                }
                 btn.backgroundColor = .white
                 btn.layer.cornerRadius = 8
                 btn.layer.borderWidth = 0.5
                 btn.layer.borderColor = UIColor(white: 0.85, alpha: 1).cgColor
                 btn.setTitleColor(.darkGray, for: .normal)
-                btn.setHeight(42)
+                btn.setHeight(cellHeight)
                 btn.addTarget(self, action: #selector(gridTapped(_:)), for: .touchUpInside)
+                rowStack.addArrangedSubview(btn)
+            }
+            for _ in 0..<(actualCols - row.count) { rowStack.addArrangedSubview(UIView()) }
+            gridStack.addArrangedSubview(rowStack)
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // MARK: - Dot Art Mode (가로 스크롤)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private func buildDotArtMode() {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(container)
+        pinToEdges(container, in: contentView)
+
+        let bottomBar = UIStackView()
+        bottomBar.axis = .horizontal
+        bottomBar.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(bottomBar)
+
+        let globe = makeSpecialKey("🌐")
+        globe.setWidth(44)
+        globe.addTarget(self, action: #selector(globeTapped), for: .touchUpInside)
+        let del = makeSpecialKey("⌫")
+        del.setWidth(44)
+        del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
+        bottomBar.addArrangedSubview(globe)
+        bottomBar.addArrangedSubview(UIView())
+        bottomBar.addArrangedSubview(del)
+
+        let scrollView = UIScrollView()
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.alwaysBounceHorizontal = true
+        scrollView.isPagingEnabled = true
+        scrollView.decelerationRate = .fast
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(scrollView)
+
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: container.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -4),
+
+            bottomBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            bottomBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            bottomBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            bottomBar.heightAnchor.constraint(equalToConstant: 34),
+        ])
+
+        let hStack = UIStackView()
+        hStack.axis = .horizontal
+        hStack.spacing = 12
+        hStack.alignment = .fill
+        hStack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(hStack)
+
+        NSLayoutConstraint.activate([
+            hStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 8),
+            hStack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 12),
+            hStack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -12),
+            hStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -8),
+            hStack.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -16),
+        ])
+
+        // Pre-render all dot arts as images
+        dotArtImages.removeAll()
+        let items = dotArtCategories.first?.1 ?? []
+        for (index, item) in items.enumerated() {
+            let image = dotArtToImage(item)
+            dotArtImages.append(image)
+
+            let btn = UIButton(type: .custom)
+            btn.tag = index
+            btn.backgroundColor = .white
+            btn.layer.cornerRadius = 10
+            btn.layer.borderWidth = 0.5
+            btn.layer.borderColor = UIColor(white: 0.85, alpha: 1).cgColor
+            btn.clipsToBounds = true
+            btn.widthAnchor.constraint(equalToConstant: 250).isActive = true
+            btn.addTarget(self, action: #selector(dotArtTapped(_:)), for: .touchUpInside)
+
+            let imageView = UIImageView(image: image)
+            imageView.contentMode = .scaleAspectFit
+            imageView.isUserInteractionEnabled = false
+            imageView.translatesAutoresizingMaskIntoConstraints = false
+            btn.addSubview(imageView)
+            NSLayoutConstraint.activate([
+                imageView.topAnchor.constraint(equalTo: btn.topAnchor, constant: 8),
+                imageView.leadingAnchor.constraint(equalTo: btn.leadingAnchor, constant: 8),
+                imageView.trailingAnchor.constraint(equalTo: btn.trailingAnchor, constant: -8),
+                imageView.bottomAnchor.constraint(equalTo: btn.bottomAnchor, constant: -8),
+            ])
+
+            hStack.addArrangedSubview(btn)
+        }
+    }
+
+    // MARK: - Dot Art → Image
+
+    private func dotArtToImage(_ text: String) -> UIImage {
+        let padding: CGFloat = 8
+        let font = UIFont(name: "Courier New", size: 7)
+            ?? .monospacedSystemFont(ofSize: 7, weight: .regular)
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 0
+        paragraphStyle.minimumLineHeight = 8
+        paragraphStyle.maximumLineHeight = 8
+        paragraphStyle.alignment = .left
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: UIColor.black,
+            .kern: 0,
+            .paragraphStyle: paragraphStyle,
+        ]
+
+        let attrString = NSAttributedString(string: text, attributes: attributes)
+
+        let maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude,
+                             height: CGFloat.greatestFiniteMagnitude)
+        let textRect = attrString.boundingRect(
+            with: maxSize,
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil
+        )
+
+        let canvasSize = CGSize(
+            width: ceil(textRect.width) + padding * 2,
+            height: ceil(textRect.height) + padding * 2
+        )
+
+        let renderer = UIGraphicsImageRenderer(size: canvasSize)
+        return renderer.image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(origin: .zero, size: canvasSize))
+            attrString.draw(at: CGPoint(x: padding, y: padding))
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // MARK: - GIF Mode
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private func buildGifMode() {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(container)
+        pinToEdges(container, in: contentView)
+
+        let searchField = UITextField()
+        searchField.placeholder = "GIF 검색..."
+        searchField.borderStyle = .roundedRect
+        searchField.font = .systemFont(ofSize: 14)
+        searchField.returnKeyType = .search
+        searchField.clearButtonMode = .whileEditing
+        searchField.translatesAutoresizingMaskIntoConstraints = false
+        searchField.addTarget(self, action: #selector(gifSearchTriggered), for: .editingDidEndOnExit)
+        container.addSubview(searchField)
+        gifSearchField = searchField
+
+        let catScroll = UIScrollView()
+        catScroll.showsHorizontalScrollIndicator = false
+        catScroll.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(catScroll)
+
+        let catRow = UIStackView()
+        catRow.axis = .horizontal
+        catRow.spacing = 6
+        catRow.translatesAutoresizingMaskIntoConstraints = false
+        catScroll.addSubview(catRow)
+        NSLayoutConstraint.activate([
+            catRow.topAnchor.constraint(equalTo: catScroll.topAnchor),
+            catRow.leadingAnchor.constraint(equalTo: catScroll.leadingAnchor, constant: 4),
+            catRow.trailingAnchor.constraint(equalTo: catScroll.trailingAnchor, constant: -4),
+            catRow.bottomAnchor.constraint(equalTo: catScroll.bottomAnchor),
+            catRow.heightAnchor.constraint(equalTo: catScroll.heightAnchor),
+        ])
+        for (i, cat) in gifCategories.enumerated() {
+            let btn = UIButton(type: .system)
+            btn.setTitle(cat.0, for: .normal)
+            btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
+            btn.layer.cornerRadius = 14
+            btn.contentEdgeInsets = UIEdgeInsets(top: 4, left: 14, bottom: 4, right: 14)
+            let sel = i == gifCategoryIndex
+            btn.backgroundColor = sel ? pinkColor : UIColor(white: 0.92, alpha: 1)
+            btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
+            btn.tag = i
+            btn.addTarget(self, action: #selector(gifCategoryTapped(_:)), for: .touchUpInside)
+            catRow.addArrangedSubview(btn)
+        }
+
+        let bottomBar = UIStackView()
+        bottomBar.axis = .horizontal
+        bottomBar.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(bottomBar)
+        let globe = makeSpecialKey("🌐")
+        globe.setWidth(44)
+        globe.addTarget(self, action: #selector(globeTapped), for: .touchUpInside)
+        let del = makeSpecialKey("⌫")
+        del.setWidth(44)
+        del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
+        bottomBar.addArrangedSubview(globe)
+        bottomBar.addArrangedSubview(UIView())
+        bottomBar.addArrangedSubview(del)
+
+        let scrollView = UIScrollView()
+        scrollView.alwaysBounceVertical = true
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(scrollView)
+
+        let gridStack = UIStackView()
+        gridStack.axis = .vertical
+        gridStack.spacing = 5
+        gridStack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(gridStack)
+        gifGridStack = gridStack
+
+        let loadingLabel = UILabel()
+        loadingLabel.text = "불러오는 중..."
+        loadingLabel.font = .systemFont(ofSize: 13)
+        loadingLabel.textColor = .lightGray
+        loadingLabel.textAlignment = .center
+        loadingLabel.numberOfLines = 0
+        loadingLabel.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(loadingLabel)
+        gifLoadingLabel = loadingLabel
+
+        NSLayoutConstraint.activate([
+            searchField.topAnchor.constraint(equalTo: container.topAnchor, constant: 2),
+            searchField.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
+            searchField.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+            searchField.heightAnchor.constraint(equalToConstant: 32),
+
+            catScroll.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 4),
+            catScroll.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            catScroll.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            catScroll.heightAnchor.constraint(equalToConstant: 32),
+
+            scrollView.topAnchor.constraint(equalTo: catScroll.bottomAnchor, constant: 4),
+            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -4),
+
+            bottomBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            bottomBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            bottomBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            bottomBar.heightAnchor.constraint(equalToConstant: 34),
+
+            gridStack.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 5),
+            gridStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 5),
+            gridStack.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -5),
+            gridStack.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -5),
+            gridStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -10),
+
+            loadingLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            loadingLabel.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 40),
+        ])
+
+        loadGifs()
+    }
+
+    private func loadGifs() {
+        let category = gifCategories[gifCategoryIndex]
+        gifImages = []
+        if let query = category.1 {
+            fetchGiphy(isSearch: true, query: query)
+        } else {
+            fetchGiphy(isSearch: false, query: nil)
+        }
+    }
+
+    private func fetchGiphy(isSearch: Bool, query: String?) {
+        gifLoadingLabel?.text = "불러오는 중..."
+        gifLoadingLabel?.isHidden = false
+
+        let urlString: String
+        if isSearch, let q = query?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            urlString = "https://api.giphy.com/v1/gifs/search?api_key=\(giphyApiKey)&q=\(q)&limit=20&lang=ko"
+        } else {
+            urlString = "https://api.giphy.com/v1/gifs/trending?api_key=\(giphyApiKey)&limit=20&lang=ko"
+        }
+        guard let url = URL(string: urlString) else { return }
+
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            guard let self = self else { return }
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let items = json["data"] as? [[String: Any]]
+            else {
+                DispatchQueue.main.async {
+                    self.gifImages = []
+                    self.gifLoadingLabel?.text = "GIF 불러오기 실패\nAPI Key를 확인해주세요"
+                    self.renderGifGrid()
+                }
+                return
+            }
+
+            let gifs: [GiphyImage] = items.compactMap { item in
+                guard let id = item["id"] as? String,
+                      let images = item["images"] as? [String: Any],
+                      let preview = images["fixed_width_small_still"] as? [String: Any],
+                      let previewStr = preview["url"] as? String,
+                      let previewURL = URL(string: previewStr),
+                      let original = images["original"] as? [String: Any],
+                      let originalStr = original["url"] as? String,
+                      let originalURL = URL(string: originalStr)
+                else { return nil }
+                return GiphyImage(id: id, previewURL: previewURL, originalURL: originalURL)
+            }
+
+            DispatchQueue.main.async {
+                self.gifImages = gifs
+                self.gifLoadingLabel?.isHidden = !gifs.isEmpty
+                if gifs.isEmpty { self.gifLoadingLabel?.text = "결과 없음" }
+                self.renderGifGrid()
+            }
+        }.resume()
+    }
+
+    private func renderGifGrid() {
+        guard let gridStack = gifGridStack else { return }
+        gridStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        let cols = 3
+        let chunked = stride(from: 0, to: gifImages.count, by: cols).map {
+            Array(gifImages[$0..<min($0 + cols, gifImages.count)])
+        }
+
+        for row in chunked {
+            let rowStack = UIStackView()
+            rowStack.axis = .horizontal
+            rowStack.distribution = .fillEqually
+            rowStack.spacing = 5
+
+            for gif in row {
+                let btn = UIButton(type: .custom)
+                btn.backgroundColor = UIColor(white: 0.94, alpha: 1)
+                btn.layer.cornerRadius = 8
+                btn.clipsToBounds = true
+                btn.heightAnchor.constraint(equalToConstant: 72).isActive = true
+                btn.accessibilityIdentifier = gif.id
+                btn.addTarget(self, action: #selector(gifCellTapped(_:)), for: .touchUpInside)
+
+                let imageView = UIImageView()
+                imageView.contentMode = .scaleAspectFill
+                imageView.clipsToBounds = true
+                imageView.isUserInteractionEnabled = false
+                imageView.translatesAutoresizingMaskIntoConstraints = false
+                btn.addSubview(imageView)
+                NSLayoutConstraint.activate([
+                    imageView.topAnchor.constraint(equalTo: btn.topAnchor),
+                    imageView.leadingAnchor.constraint(equalTo: btn.leadingAnchor),
+                    imageView.trailingAnchor.constraint(equalTo: btn.trailingAnchor),
+                    imageView.bottomAnchor.constraint(equalTo: btn.bottomAnchor),
+                ])
+
+                loadGifPreview(url: gif.previewURL, into: imageView, gifID: gif.id, button: btn)
                 rowStack.addArrangedSubview(btn)
             }
             for _ in 0..<(cols - row.count) { rowStack.addArrangedSubview(UIView()) }
             gridStack.addArrangedSubview(rowStack)
         }
+    }
+
+    private func loadGifPreview(url: URL, into imageView: UIImageView, gifID: String, button: UIButton) {
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            guard let data = data, let image = UIImage(data: data) else { return }
+            DispatchQueue.main.async {
+                if button.accessibilityIdentifier == gifID {
+                    imageView.image = image
+                }
+            }
+        }.resume()
+    }
+
+    @objc private func gifCategoryTapped(_ sender: UIButton) {
+        gifCategoryIndex = sender.tag
+        gifSearchField?.text = nil
+        showMode(.gif)
+    }
+
+    @objc private func gifSearchTriggered() {
+        guard let query = gifSearchField?.text, !query.isEmpty else { return }
+        fetchGiphy(isSearch: true, query: query)
+    }
+
+    @objc private func gifCellTapped(_ sender: UIButton) {
+        guard let gifID = sender.accessibilityIdentifier,
+              let gif = gifImages.first(where: { $0.id == gifID })
+        else { return }
+
+        showToast("GIF 다운로드 중...")
+        URLSession.shared.dataTask(with: gif.originalURL) { [weak self] data, _, _ in
+            DispatchQueue.main.async {
+                guard let data = data else {
+                    self?.showToast("다운로드 실패")
+                    return
+                }
+                UIPasteboard.general.setData(data, forPasteboardType: "com.compuserve.gif")
+                self?.showToast("GIF가 복사되었습니다")
+            }
+        }.resume()
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -629,6 +1404,51 @@ class KeyboardViewController: UIInputViewController {
             UIView.animate(withDuration: 0.06) {
                 s.transform = .identity
                 s.backgroundColor = .white
+            }
+        }
+    }
+
+    @objc private func dotArtTapped(_ s: UIButton) {
+        guard s.tag < dotArtImages.count else { return }
+        let image = dotArtImages[s.tag]
+        UIPasteboard.general.image = image
+        showToast("이미지가 복사되었습니다")
+        UIView.animate(withDuration: 0.06, animations: {
+            s.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+        }) { _ in
+            UIView.animate(withDuration: 0.06) {
+                s.transform = .identity
+            }
+        }
+    }
+
+    // MARK: - Toast
+
+    private func showToast(_ message: String) {
+        let toast = UILabel()
+        toast.text = message
+        toast.textColor = .white
+        toast.backgroundColor = UIColor(white: 0, alpha: 0.75)
+        toast.font = .systemFont(ofSize: 13, weight: .medium)
+        toast.textAlignment = .center
+        toast.layer.cornerRadius = 14
+        toast.layer.masksToBounds = true
+        toast.translatesAutoresizingMaskIntoConstraints = false
+        toast.alpha = 0
+        view.addSubview(toast)
+        NSLayoutConstraint.activate([
+            toast.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            toast.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -50),
+            toast.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
+            toast.heightAnchor.constraint(equalToConstant: 28),
+        ])
+        UIView.animate(withDuration: 0.2, animations: {
+            toast.alpha = 1
+        }) { _ in
+            UIView.animate(withDuration: 0.25, delay: 1.2, options: [], animations: {
+                toast.alpha = 0
+            }) { _ in
+                toast.removeFromSuperview()
             }
         }
     }
