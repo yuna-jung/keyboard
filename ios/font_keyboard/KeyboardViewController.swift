@@ -868,10 +868,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
     // MARK: - Lifecycle
 
     private var heightConstraint: NSLayoutConstraint?
+    private var isPremiumUser = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
+
+        // 프리미엄 체크 (App Group UserDefaults 통해 메인 앱에서 동기화)
+        checkPremiumStatus()
 
         // Clean up old per-date translation keys and reset
         let defaults = UserDefaults.standard
@@ -3256,6 +3260,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
         btn.setHeight(42)
         btn.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return btn
+    }
+
+    // MARK: - Premium Check (via App Group UserDefaults synced from main app)
+
+    private func checkPremiumStatus() {
+        let defaults = UserDefaults(suiteName: "group.com.yourapp.fontkeyboard") ?? .standard
+        isPremiumUser = defaults.bool(forKey: "is_premium")
     }
 
     // MARK: - UIScrollViewDelegate

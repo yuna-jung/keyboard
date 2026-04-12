@@ -5,8 +5,7 @@ import 'services/subscription_service.dart';
 
 const _pink = Color(0xFFFF6B9D);
 
-// TODO: RevenueCat 대시보드에서 발급받은 API Key로 교체
-const _revenueCatApiKey = 'YOUR_REVENUECAT_API_KEY';
+const _adaptyPublicKey = 'public_live_3DOX3Si9.vj8Cmt2zJnmbSqUZYtfk';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,9 +15,9 @@ void main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-  // RevenueCat API Key가 설정되지 않으면 구독 초기화 건너뜀
-  if (_revenueCatApiKey != 'YOUR_REVENUECAT_API_KEY') {
-    await SubscriptionService.instance.initialize(_revenueCatApiKey);
+  // Adapty 초기화
+  if (_adaptyPublicKey != 'YOUR_ADAPTY_PUBLIC_KEY') {
+    await SubscriptionService.instance.initialize(_adaptyPublicKey);
   }
   runApp(const FontKeyboardApp());
 }
@@ -29,7 +28,7 @@ class FontKeyboardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Font Keyboard',
+      title: 'Fonki',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

@@ -27,6 +27,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
   final _sub = SubscriptionService.instance;
   bool _loading = false;
   String? _error;
+  int _selectedPlan = 0; // 0 = weekly, 1 = yearly
+
+  @override
+  void initState() {
+    super.initState();
+    _sub.loadProducts();
+  }
 
   Future<void> _purchase() async {
     setState(() {
@@ -34,7 +41,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
       _error = null;
     });
     try {
-      final success = await _sub.purchaseWeekly();
+      final success = _selectedPlan == 0
+          ? await _sub.purchaseWeekly()
+          : await _sub.purchaseYearly();
       if (!mounted) return;
       if (success) {
         Navigator.pop(context, true);
@@ -83,10 +92,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Handle bar ──────────────────────────────────────────
+          // Handle bar
           Container(
-            width: 40,
-            height: 4,
+            width: 40, height: 4,
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
               color: Colors.grey.shade300,
@@ -94,10 +102,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
             ),
           ),
 
-          // ── Icon ────────────────────────────────────────────────
+          // Icon
           Container(
-            width: 72,
-            height: 72,
+            width: 72, height: 72,
             decoration: BoxDecoration(
               color: _pink.withValues(alpha: 0.12),
               shape: BoxShape.circle,
@@ -111,31 +118,59 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   end: const Offset(1, 1),
                   duration: 400.ms,
                   curve: Curves.elasticOut),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
-          // ── Title ───────────────────────────────────────────────
+          // Title
           const Text(
-            'Premium 잠금 해제',
+            '프리미엄으로 업그레이드',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             '모든 기능을 제한 없이 사용하세요',
             style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
+          const SizedBox(height: 20),
+
+          // Feature list
+          const _FeatureRow(icon: Icons.text_fields, text: '모든 폰트 스타일'),
+          const SizedBox(height: 8),
+          const _FeatureRow(icon: Icons.translate, text: '번역 무제한'),
+          const SizedBox(height: 8),
+          const _FeatureRow(icon: Icons.emoji_emotions, text: '이모티콘/특수문자 전체'),
+          const SizedBox(height: 8),
+          const _FeatureRow(icon: Icons.gif_box, text: 'GIF 무제한'),
+          const SizedBox(height: 8),
+          const _FeatureRow(icon: Icons.favorite, text: '즐겨찾기'),
           const SizedBox(height: 24),
 
-          // ── Feature list ────────────────────────────────────────
-          const _FeatureRow(icon: Icons.text_fields, text: '16가지 프리미엄 폰트 스타일'),
-          const SizedBox(height: 10),
-          const _FeatureRow(icon: Icons.emoji_emotions, text: '카테고리별 모든 이모티콘'),
-          const SizedBox(height: 10),
-          const _FeatureRow(icon: Icons.keyboard, text: 'iOS 커스텀 키보드 전체 기능'),
-          const SizedBox(height: 10),
-          const _FeatureRow(icon: Icons.update, text: '새로운 스타일 업데이트 무료 제공'),
-          const SizedBox(height: 28),
+          // Plan selection
+          Row(
+            children: [
+              Expanded(
+                child: _PlanCard(
+                  title: '주간',
+                  price: '₩4,900/주',
+                  originalPrice: '₩6,900',
+                  badge: '출시 이벤트',
+                  selected: _selectedPlan == 0,
+                  onTap: () => setState(() => _selectedPlan = 0),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _PlanCard(
+                  title: '연간',
+                  price: '₩59,900/년',
+                  selected: _selectedPlan == 1,
+                  onTap: () => setState(() => _selectedPlan = 1),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
 
-          // ── CTA button ──────────────────────────────────────────
+          // CTA button
           SizedBox(
             width: double.infinity,
             height: 54,
@@ -151,13 +186,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
               ),
               child: _loading
                   ? const SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 24, height: 24,
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5),
                     )
                   : const Text(
-                      '1주 무료 후 ₩5,000/주',
+                      '1주 무료체험 시작',
                       style:
                           TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                     ),
@@ -165,13 +199,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
           ),
           const SizedBox(height: 6),
 
-          // ── Free trial note ─────────────────────────────────────
+          // Note
           Text(
-            '1주 무료체험 후 자동 결제 · 언제든 해지 가능',
+            '무료체험 후 자동 결제 · 언제든 해지 가능',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
 
-          // ── Error ───────────────────────────────────────────────
+          // Error
           if (_error != null) ...[
             const SizedBox(height: 8),
             Text(_error!,
@@ -180,7 +214,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
           const SizedBox(height: 12),
 
-          // ── Restore + Later ─────────────────────────────────────
+          // Restore + Later
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -215,8 +249,7 @@ class _FeatureRow extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 36,
-          height: 36,
+          width: 36, height: 36,
           decoration: BoxDecoration(
             color: _pink.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
@@ -228,8 +261,80 @@ class _FeatureRow extends StatelessWidget {
           child: Text(text,
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
         ),
-        Icon(Icons.check_circle, size: 20, color: _pink),
+        const Icon(Icons.check_circle, size: 20, color: _pink),
       ],
+    );
+  }
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.title,
+    required this.price,
+    this.originalPrice,
+    this.badge,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String price;
+  final String? originalPrice;
+  final String? badge;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? _pink : Colors.grey.shade300,
+            width: selected ? 2 : 1,
+          ),
+          color: selected ? _pink.withValues(alpha: 0.05) : Colors.white,
+        ),
+        child: Column(
+          children: [
+            if (badge != null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                margin: const EdgeInsets.only(bottom: 6),
+                decoration: BoxDecoration(
+                  color: _pink,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(badge!,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700)),
+              ),
+            Text(title,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? _pink : Colors.black87)),
+            const SizedBox(height: 4),
+            if (originalPrice != null)
+              Text(originalPrice!,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                      decoration: TextDecoration.lineThrough)),
+            Text(price,
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? _pink : Colors.black54)),
+          ],
+        ),
+      ),
     );
   }
 }

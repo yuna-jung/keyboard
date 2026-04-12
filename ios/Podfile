@@ -36,6 +36,9 @@ target 'Runner' do
   end
 end
 
+# font_keyboard extension uses App Group UserDefaults for premium check
+# (Adapty SDK has UIApplication.shared which is unavailable in extensions)
+
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
