@@ -33,6 +33,24 @@ import UIKit
         defaults?.synchronize()
         result(nil)
 
+      case "syncPremium":
+        guard let args = call.arguments as? [String: Any] else {
+          result(FlutterError(code: "INVALID_ARGS", message: nil, details: nil))
+          return
+        }
+        let defaults = UserDefaults(suiteName: self.appGroupID)
+        if let isPremium = args["is_premium"] as? Bool {
+          defaults?.set(isPremium, forKey: "is_premium")
+        }
+        if let tier = args["tier"] as? String {
+          defaults?.set(tier, forKey: "tier")
+        }
+        if let canTranslate = args["can_translate_unlimited"] as? Bool {
+          defaults?.set(canTranslate, forKey: "can_translate_unlimited")
+        }
+        defaults?.synchronize()
+        result(nil)
+
       default:
         result(FlutterMethodNotImplemented)
       }

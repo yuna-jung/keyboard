@@ -869,6 +869,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
 
     private var heightConstraint: NSLayoutConstraint?
     private var isPremiumUser = false
+    private var userTier = "free" // "free" | "premium" | "lifetime"
+    private var canTranslateUnlimited = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -2659,7 +2661,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
     @objc private func translateTriggered() {
         guard !translationInput.isEmpty else { return }
 
-        // Daily limit check with proper date reset
+        // Refresh tier from App Group (main app may have updated it)
+        checkPremiumStatus()
+
+        // Lifetime users: translation is not included in lifetime plan
+        if userTier == "lifetime" {
+            showToast("번역은 주/연간 구독에서만 사용할 수 있어요")
+            return
+        }
+
+        // Daily limit (free users only — premium = unlimited)
         let defaults = UserDefaults.standard
         let today = todayString()
         let savedDate = defaults.string(forKey: "translation_date") ?? ""
@@ -2668,7 +2679,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
             defaults.set(today, forKey: "translation_date")
         }
         let count = defaults.integer(forKey: "translation_count")
-        if count >= dailyFreeTranslations {
+        if !canTranslateUnlimited && count >= dailyFreeTranslations {
             showToast("구독하면 무제한 번역이 가능해요 ✨")
             return
         }
@@ -2712,7 +2723,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
                 self.lastTranslation = translated.trimmingCharacters(in: .whitespacesAndNewlines)
                 self.translateResultLabel?.text = self.lastTranslation
                 self.translateResultLabel?.textColor = .darkText
-                defaults.set(count + 1, forKey: "translation_count")
+                // Only count for free users (premium = unlimited)
+                if !self.canTranslateUnlimited {
+                    defaults.set(count + 1, forKey: "translation_count")
+                }
             }
         }.resume()
     }
@@ -3267,6 +3281,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate {
     private func checkPremiumStatus() {
         let defaults = UserDefaults(suiteName: "group.com.yourapp.fontkeyboard") ?? .standard
         isPremiumUser = defaults.bool(forKey: "is_premium")
+        userTier = defaults.string(forKey: "tier") ?? "free"
+        canTranslateUnlimited = defaults.bool(forKey: "can_translate_unlimited")
     }
 
     // MARK: - UIScrollViewDelegate

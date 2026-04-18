@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'fonts_screen.dart';
 import 'emoticon_screen.dart';
 import 'special_chars_screen.dart';
 import 'favorites_screen.dart';
+import 'paywall_screen.dart';
+import '../services/subscription_service.dart';
 
 const _pink = Color(0xFFFF6B9D);
 
@@ -36,7 +39,29 @@ class _HomeScreenState extends State<HomeScreen> {
       _fontsKey.currentState?.onFavoritesChanged = () {
         _favoritesKey.currentState?.reload();
       };
+      _maybeShowLaunchPaywall();
     });
+  }
+
+  /// Show the paywall once per launch to free users (if not shown today).
+  Future<void> _maybeShowLaunchPaywall() async {
+    // Ensure the status is refreshed before deciding.
+    await SubscriptionService.instance.refreshStatus();
+    if (SubscriptionService.instance.isPremiumNow) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final today = _todayString();
+    final shownDate = prefs.getString('paywall_shown_date');
+    if (shownDate == today) return;
+    await prefs.setString('paywall_shown_date', today);
+
+    if (!mounted) return;
+    await PaywallScreen.show(context);
+  }
+
+  String _todayString() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
   void _onTabTapped(int index) {
@@ -55,12 +80,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Font Keyboard'),
+        title: const Text('Fonki'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              // TODO: 설정 화면 연결
+          ValueListenableBuilder<SubscriptionTier>(
+            valueListenable: SubscriptionService.instance.tierListenable,
+            builder: (ctx, tier, _) {
+              if (tier != SubscriptionTier.free) return const SizedBox.shrink();
+              return IconButton(
+                icon: const Icon(Icons.workspace_premium_rounded, color: _pink),
+                tooltip: '프리미엄',
+                onPressed: () => PaywallScreen.show(context),
+              );
             },
           ),
         ],

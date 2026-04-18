@@ -1,29 +1,158 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:adapty_flutter/adapty_flutter.dart';
 import '../services/subscription_service.dart';
 
 const _pink = Color(0xFFFF6B9D);
 
-class PaywallScreen extends StatefulWidget {
-  const PaywallScreen({super.key});
-
+/// PaywallScreen: Adapty UI paywall (placementId: `fonkii_premium`) with a
+/// native Dart fallback. Handles the `show_lifetime_plan` custom action by
+/// opening the "View more plans" popup.
+class PaywallScreen {
+  /// Show the Adapty paywall. Returns `true` if the user became premium during
+  /// the session (purchase or restore succeeded).
   static Future<bool> show(BuildContext context) async {
+    final sub = SubscriptionService.instance;
+    final paywall = await sub.getPremiumPaywall();
+
+    if (paywall != null && context.mounted) {
+      try {
+        final view = await AdaptyUI().createPaywallView(paywall: paywall);
+        // ignore: use_build_context_synchronously
+        final observer = _PaywallObserver(context);
+        AdaptyUI().registerPaywallEventsListener(observer, view.id);
+        await AdaptyUI().presentPaywallView(view);
+        await observer.done.future;
+        AdaptyUI().unregisterPaywallEventsListener(view.id);
+        return sub.isPremiumNow;
+      } catch (e) {
+        debugPrint('Adapty UI paywall error, falling back: $e');
+      }
+    }
+
+    if (!context.mounted) return sub.isPremiumNow;
+    // Fallback: native Dart bottom sheet
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => const PaywallScreen(),
+      builder: (_) => const _NativePaywallSheet(),
     );
     return result ?? false;
   }
 
-  @override
-  State<PaywallScreen> createState() => _PaywallScreenState();
+  /// Show the "View more plans" lifetime popup directly (triggered by the
+  /// `show_lifetime_plan` custom action, or manually).
+  static Future<void> showLifetimePopup(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _LifetimePlanSheet(),
+    );
+  }
 }
 
-class _PaywallScreenState extends State<PaywallScreen> {
+class _PaywallObserver extends AdaptyUIPaywallsEventsObserver {
+  _PaywallObserver(this.context);
+  final BuildContext context;
+  final done = Completer<void>();
+
+  void _complete() {
+    if (!done.isCompleted) done.complete();
+  }
+
+  @override
+  void paywallViewDidAppear(AdaptyUIPaywallView view) {}
+
+  @override
+  void paywallViewDidDisappear(AdaptyUIPaywallView view) {
+    _complete();
+  }
+
+  @override
+  void paywallViewDidPerformAction(
+      AdaptyUIPaywallView view, AdaptyUIAction action) {
+    if (action is CustomAction && action.action == 'show_lifetime_plan') {
+      PaywallScreen.showLifetimePopup(context);
+      return;
+    }
+    // Default: close/androidBack dismiss
+    switch (action) {
+      case const CloseAction():
+      case const AndroidSystemBackAction():
+        view.dismiss();
+        break;
+      default:
+        break;
+    }
+  }
+
+  @override
+  void paywallViewDidFinishPurchase(
+    AdaptyUIPaywallView view,
+    AdaptyPaywallProduct product,
+    AdaptyPurchaseResult purchaseResult,
+  ) {
+    view.dismiss();
+    SubscriptionService.instance.refreshStatus();
+  }
+
+  @override
+  void paywallViewDidFailPurchase(
+      AdaptyUIPaywallView view, AdaptyPaywallProduct product, AdaptyError error) {}
+
+  @override
+  void paywallViewDidFinishRestore(
+      AdaptyUIPaywallView view, AdaptyProfile profile) {
+    view.dismiss();
+    SubscriptionService.instance.refreshStatus();
+  }
+
+  @override
+  void paywallViewDidFailRestore(AdaptyUIPaywallView view, AdaptyError error) {}
+
+  @override
+  void paywallViewDidFailRendering(AdaptyUIPaywallView view, AdaptyError error) {
+    _complete();
+  }
+
+  @override
+  void paywallViewDidFailLoadingProducts(
+      AdaptyUIPaywallView view, AdaptyError error) {}
+
+  @override
+  void paywallViewDidSelectProduct(
+      AdaptyUIPaywallView view, String productId) {}
+
+  @override
+  void paywallViewDidStartPurchase(
+      AdaptyUIPaywallView view, AdaptyPaywallProduct product) {}
+
+  @override
+  void paywallViewDidStartRestore(AdaptyUIPaywallView view) {}
+}
+
+// Completer import via dart:async
+// ignore: directives_ordering
+
+// ══════════════════════════════════════════════════════════════════════════
+// Native fallback paywall (weekly / yearly)
+// ══════════════════════════════════════════════════════════════════════════
+
+class _NativePaywallSheet extends StatefulWidget {
+  const _NativePaywallSheet();
+
+  @override
+  State<_NativePaywallSheet> createState() => _NativePaywallSheetState();
+}
+
+class _NativePaywallSheetState extends State<_NativePaywallSheet> {
   final _sub = SubscriptionService.instance;
   bool _loading = false;
   String? _error;
@@ -50,7 +179,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
       } else {
         setState(() => _loading = false);
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -92,7 +221,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle bar
           Container(
             width: 40, height: 4,
             margin: const EdgeInsets.only(bottom: 20),
@@ -101,8 +229,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
-          // Icon
           Container(
             width: 72, height: 72,
             decoration: BoxDecoration(
@@ -119,20 +245,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   duration: 400.ms,
                   curve: Curves.elasticOut),
           const SizedBox(height: 16),
-
-          // Title
-          const Text(
-            '프리미엄으로 업그레이드',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
+          const Text('프리미엄으로 업그레이드',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text(
-            '모든 기능을 제한 없이 사용하세요',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-          ),
+          Text('모든 기능을 제한 없이 사용하세요',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           const SizedBox(height: 20),
-
-          // Feature list
           const _FeatureRow(icon: Icons.text_fields, text: '모든 폰트 스타일'),
           const SizedBox(height: 8),
           const _FeatureRow(icon: Icons.translate, text: '번역 무제한'),
@@ -143,8 +261,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
           const SizedBox(height: 8),
           const _FeatureRow(icon: Icons.favorite, text: '즐겨찾기'),
           const SizedBox(height: 24),
-
-          // Plan selection
           Row(
             children: [
               Expanded(
@@ -168,9 +284,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-
-          // CTA button
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: _loading
+                ? null
+                : () => PaywallScreen.showLifetimePopup(context),
+            child: Text('평생 이용권 보기',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+          ),
+          const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
             height: 54,
@@ -190,31 +312,20 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5),
                     )
-                  : const Text(
-                      '1주 무료체험 시작',
-                      style:
-                          TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                    ),
+                  : const Text('1주 무료체험 시작',
+                      style: TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w700)),
             ),
           ),
           const SizedBox(height: 6),
-
-          // Note
-          Text(
-            '무료체험 후 자동 결제 · 언제든 해지 가능',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-          ),
-
-          // Error
+          Text('무료체험 후 자동 결제 · 언제든 해지 가능',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
           if (_error != null) ...[
             const SizedBox(height: 8),
             Text(_error!,
                 style: TextStyle(fontSize: 13, color: Colors.red.shade400)),
           ],
-
           const SizedBox(height: 12),
-
-          // Restore + Later
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -239,6 +350,155 @@ class _PaywallScreenState extends State<PaywallScreen> {
   }
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// Lifetime plan popup (from custom action "show_lifetime_plan")
+// ══════════════════════════════════════════════════════════════════════════
+
+class _LifetimePlanSheet extends StatefulWidget {
+  const _LifetimePlanSheet();
+
+  @override
+  State<_LifetimePlanSheet> createState() => _LifetimePlanSheetState();
+}
+
+class _LifetimePlanSheetState extends State<_LifetimePlanSheet> {
+  final _sub = SubscriptionService.instance;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub.loadProducts();
+  }
+
+  Future<void> _purchase() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final success = await _sub.purchaseLifetime();
+      if (!mounted) return;
+      if (success) {
+        Navigator.pop(context);
+      } else {
+        setState(() => _loading = false);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = '구매 처리 중 오류가 발생했습니다';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          24, 8, 24, MediaQuery.of(context).viewPadding.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Container(
+            width: 72, height: 72,
+            decoration: BoxDecoration(
+              color: _pink.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.all_inclusive, size: 36, color: _pink),
+          ),
+          const SizedBox(height: 16),
+          const Text('평생 이용권',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text('한 번 결제하고 평생 사용하세요',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '평생 이용권은 번역 기능을 제외한 모든 기능을 제공합니다.',
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.grey.shade700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          const _FeatureRow(icon: Icons.text_fields, text: '모든 폰트 스타일'),
+          const SizedBox(height: 8),
+          const _FeatureRow(icon: Icons.emoji_emotions, text: '이모티콘/특수문자 전체'),
+          const SizedBox(height: 8),
+          const _FeatureRow(icon: Icons.gif_box, text: 'GIF 무제한'),
+          const SizedBox(height: 8),
+          const _FeatureRow(icon: Icons.favorite, text: '즐겨찾기'),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _purchase,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _pink,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: _pink.withValues(alpha: 0.5),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 24, height: 24,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : const Text('평생 이용권 구매',
+                      style: TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!,
+                style: TextStyle(fontSize: 13, color: Colors.red.shade400)),
+          ],
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _loading ? null : () => Navigator.pop(context),
+            child: Text('닫기',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Shared widgets
+// ══════════════════════════════════════════════════════════════════════════
+
 class _FeatureRow extends StatelessWidget {
   const _FeatureRow({required this.icon, required this.text});
   final IconData icon;
@@ -259,7 +519,8 @@ class _FeatureRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Text(text,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              style:
+                  const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
         ),
         const Icon(Icons.check_circle, size: 20, color: _pink),
       ],
@@ -302,8 +563,7 @@ class _PlanCard extends StatelessWidget {
           children: [
             if (badge != null)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 margin: const EdgeInsets.only(bottom: 6),
                 decoration: BoxDecoration(
                   color: _pink,
