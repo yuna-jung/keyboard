@@ -21,7 +21,14 @@ class SubscriptionService {
 
   final _tierNotifier = ValueNotifier<SubscriptionTier>(SubscriptionTier.free);
   ValueListenable<SubscriptionTier> get tierListenable => _tierNotifier;
-  SubscriptionTier get currentTier => _tierNotifier.value;
+
+  /// Effective tier used for gating. In DEBUG builds we force `premium` to
+  /// unlock all features for development/testing; release builds honor the
+  /// real Adapty profile.
+  SubscriptionTier get currentTier {
+    if (kDebugMode) return SubscriptionTier.premium;
+    return _tierNotifier.value;
+  }
 
   // Back-compat getters
   bool get isPremiumNow => currentTier != SubscriptionTier.free;
@@ -34,7 +41,7 @@ class SubscriptionService {
   }
 
   // Translation gating: only weekly/yearly can translate unlimited
-  // (free = daily limit enforced by keyboard; lifetime = blocked)
+  // (free = keyboard blocks; lifetime = blocked)
   bool get canTranslateUnlimited => currentTier == SubscriptionTier.premium;
 
   AdaptyPaywall? _paywall;
@@ -72,9 +79,11 @@ class SubscriptionService {
   }
 
   void _applyProfile(AdaptyProfile profile) {
-    final tier = _computeTier(profile);
-    _tierNotifier.value = tier;
-    _syncTierToAppGroup(tier);
+    final realTier = _computeTier(profile);
+    _tierNotifier.value = realTier;
+    // In DEBUG, sync as premium to keyboard extension so it unlocks too.
+    final effective = kDebugMode ? SubscriptionTier.premium : realTier;
+    _syncTierToAppGroup(effective);
   }
 
   Future<void> refreshStatus() async {

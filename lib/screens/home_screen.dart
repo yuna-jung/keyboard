@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'fonts_screen.dart';
@@ -44,7 +45,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Show the paywall once per launch to free users (if not shown today).
+  /// Skipped entirely in DEBUG builds.
   Future<void> _maybeShowLaunchPaywall() async {
+    if (kDebugMode) return; // dev: never show paywall
     // Ensure the status is refreshed before deciding.
     await SubscriptionService.instance.refreshStatus();
     if (SubscriptionService.instance.isPremiumNow) return;
