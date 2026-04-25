@@ -19,15 +19,24 @@ PODS:
     - AdaptyUIBuilder (= 3.15.7)
   - AdaptyUIBuilder (3.15.7):
     - AdaptyLogger (= 3.15.7)
+  - app_settings (5.1.1):
+    - Flutter
   - Flutter (1.0.0)
+  - share_plus (0.0.1):
+    - Flutter
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - url_launcher_ios (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - adapty_flutter (from `.symlinks/plugins/adapty_flutter/ios`)
+  - app_settings (from `.symlinks/plugins/app_settings/ios`)
   - Flutter (from `Flutter`)
+  - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 SPEC REPOS:
   trunk:
@@ -40,10 +49,16 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   adapty_flutter:
     :path: ".symlinks/plugins/adapty_flutter/ios"
+  app_settings:
+    :path: ".symlinks/plugins/app_settings/ios"
   Flutter:
     :path: Flutter
+  share_plus:
+    :path: ".symlinks/plugins/share_plus/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
+  url_launcher_ios:
+    :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
   Adapty: abebbbc8f0b3c5bb5fee60b56370157d1eb6f0fc
@@ -52,8 +67,11 @@ SPEC CHECKSUMS:
   AdaptyPlugin: 4613933dd9d1f5676bfd64d2cf413972be60513b
   AdaptyUI: 4cde24413c1a424eda3669c1580e4622c1e55e4a
   AdaptyUIBuilder: 50ddeffc81a5bcf3b1fe06b2a2eda24944cd3a03
+  app_settings: 5127ae0678de1dcc19f2293271c51d37c89428b2
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
+  url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 
 PODFILE CHECKSUM: 3bc8a882d91e4f55cdd3c141c9964ab269f16642
 

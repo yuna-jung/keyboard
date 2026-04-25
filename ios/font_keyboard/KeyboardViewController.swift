@@ -459,7 +459,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             switch self {
             case .fonts:        return "Aa"
             case .translate:    return "번역"
-            case .calculator:   return ""  // SF Symbol image used instead (plus.minus.circle)
+            case .calculator:   return ""  // SF Symbol image used instead (plusminus.circle)
             case .emoticon:     return "( • ɞ• )"
             case .textTemplate: return "💬"
             case .special:      return "✦"
@@ -1168,7 +1168,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let btn = UIButton(type: .system)
         if mode == .calculator {
             let config = UIImage.SymbolConfiguration(pointSize: mode.fontSize, weight: .semibold)
-            btn.setImage(UIImage(systemName: "plus.minus.circle", withConfiguration: config), for: .normal)
+            let img = UIImage(systemName: "plusminus.circle", withConfiguration: config)
+                   ?? UIImage(systemName: "multiply.square", withConfiguration: config)
+            btn.setImage(img, for: .normal)
         } else {
             btn.setTitle(mode.title, for: .normal)
         }
@@ -3459,7 +3461,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // Full Access check — keyboard extensions cannot make network
         // requests without Full Access in Settings.
         if !hasFullAccess {
-            showTranslateError("'전체 접근 허용'이 꺼져 있어요\n설정 → 일반 → 키보드 → 키보드 → Fonki Keyboard\n→ 전체 접근 허용 ON")
+            showTranslateError("'전체 접근 허용'이 꺼져 있어요\n설정 → 일반 → 키보드 → 키보드 → Fonkii Keyboard\n→ 전체 접근 허용 ON")
             print("[Translate] hasFullAccess = false — aborting network request")
             return
         }
@@ -3476,7 +3478,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // Free: subscription required (no free translations)
         if !canTranslateUnlimited {
-            showTranslateError("번역은 구독자 전용이에요\nFonki 앱에서 프리미엄 구독 후 이용해주세요 ✨")
+            showTranslateError("번역은 구독자 전용이에요\nFonkii 앱에서 프리미엄 구독 후 이용해주세요 ✨")
             return
         }
         #endif

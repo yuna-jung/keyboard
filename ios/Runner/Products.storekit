@@ -1,0 +1,198 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "48E41B5C",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "17.99",
+      "familyShareable" : false,
+      "internalID" : "6762086944",
+      "localizations" : [
+        {
+          "description" : "全フォント、絵文字、特殊文字が永久に使い放題",
+          "displayName" : "Fonkii 買い切り版",
+          "locale" : "ja"
+        },
+        {
+          "description" : "永久解鎖所有字體、表情和特殊字符",
+          "displayName" : "Fonkii 終身版",
+          "locale" : "zh_Hant"
+        },
+        {
+          "description" : "모든 폰트, 이모티콘, 특수문자 평생 무제한",
+          "displayName" : "Fonkii 평생 이용권",
+          "locale" : "ko"
+        },
+        {
+          "description" : "永久解锁所有字体、表情和特殊字符",
+          "displayName" : "Fonkii 终身版",
+          "locale" : "zh_Hans"
+        },
+        {
+          "description" : "All fonts, emoticons & special characters forever",
+          "displayName" : "Fonkii Lifetime",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "All fonts, emoticons & special characters forever",
+          "displayName" : "Fonkii Lifetime",
+          "locale" : "en_GB"
+        }
+      ],
+      "productID" : "com.yunajung.fonki.lifetime",
+      "referenceName" : "Fonkii Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6762085484",
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_developerTeamID" : "UW9QZCMPUX",
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 798833721.64685094,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "22028347",
+      "localizations" : [
+
+      ],
+      "name" : "Fonkii Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "6.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6762085797",
+          "introductoryOffer" : {
+            "displayPrice" : "3.99",
+            "internalID" : "14D1C200",
+            "numberOfPeriods" : 3,
+            "paymentMode" : "payAsYouGo",
+            "subscriptionPeriod" : "P1M"
+          },
+          "localizations" : [
+            {
+              "description" : "字體、表情、GIF及無限翻譯功能全解鎖",
+              "displayName" : "Fonkii 月訂閱",
+              "locale" : "zh_Hant"
+            },
+            {
+              "description" : "字体、表情、GIF及无限翻译功能全解锁",
+              "displayName" : "Fonkii 月订阅",
+              "locale" : "zh_Hans"
+            },
+            {
+              "description" : "フォント、絵文字、GIF、翻訳が使い放題",
+              "displayName" : "Fonkii 月間プラン",
+              "locale" : "ja"
+            },
+            {
+              "description" : "폰트, 이모티콘, GIF, AI 번역 무제한 이용",
+              "displayName" : "Fonkii 월간 구독",
+              "locale" : "ko"
+            },
+            {
+              "description" : "Fonts, kaomoji, GIFs & unlimited AI translation",
+              "displayName" : "Fonkii Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.yunajung.fonki.premium",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Fonkii Monthly",
+          "subscriptionGroupID" : "22028347",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "79.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6762086658",
+          "introductoryOffer" : {
+            "displayPrice" : "39.99",
+            "internalID" : "756E07F6",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "payAsYouGo",
+            "subscriptionPeriod" : "P1Y"
+          },
+          "localizations" : [
+            {
+              "description" : "All fonts, emoticons & unlimited translation for a year",
+              "displayName" : "Fonkii Yearly",
+              "locale" : "en_US"
+            },
+            {
+              "description" : "一年内解锁所有字体、表情和无限翻译",
+              "displayName" : "Fonkii 年度订阅",
+              "locale" : "zh_Hans"
+            },
+            {
+              "description" : "모든 폰트, 이모티콘, 특수문자, 번역 기능을 1년간 무제한으로 사용하세요",
+              "displayName" : "Fonkii 연간 구독",
+              "locale" : "ko"
+            },
+            {
+              "description" : "全フォント、絵文字、翻訳機能が1年間使い放題",
+              "displayName" : "Fonkii 年間プラン",
+              "locale" : "ja"
+            },
+            {
+              "description" : "一年內解鎖所有字體、表情和無限翻譯",
+              "displayName" : "Fonkii 年度訂閱",
+              "locale" : "zh_Hant"
+            }
+          ],
+          "productID" : "com.yunajung.fonki.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Fonkii Yearly",
+          "subscriptionGroupID" : "22028347",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

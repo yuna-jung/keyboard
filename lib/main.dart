@@ -28,7 +28,7 @@ class FontKeyboardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Fonki',
+      title: 'Fonkii',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
