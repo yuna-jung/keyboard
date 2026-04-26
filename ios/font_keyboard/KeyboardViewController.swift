@@ -1195,7 +1195,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func modeTapped(_ s: UIButton) {
-        showMode(Mode(rawValue: s.tag) ?? .fonts)
+        let mode = Mode(rawValue: s.tag) ?? .fonts
+        if mode == .translate {
+            // Refresh premium state from App Group, then gate the tab.
+            checkPremiumStatus()
+            guard canTranslateUnlimited else {
+                showToast("번역 기능은 월간/연간 구독에서 이용 가능해요 ✨")
+                return
+            }
+        }
+        showMode(mode)
     }
 
     // MARK: - Fonts Mode (QWERTY + Style Picker)

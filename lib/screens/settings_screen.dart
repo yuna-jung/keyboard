@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:app_settings/app_settings.dart';
+// share_plus / app_settings 패키지 임시 제거 (해당 핸들러는 no-op로 대체)
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -40,7 +39,7 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.ios_share,
             label: '앱 공유',
             isDark: isDark,
-            onTap: () => Share.share('https://apps.apple.com/app/fonkii'),
+            onTap: () {},
           ),
           _SettingTile(
             icon: Icons.music_note,
@@ -86,7 +85,7 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.lock_outline,
             label: '개인정보 보호 설정',
             isDark: isDark,
-            onTap: () => AppSettings.openAppSettings(),
+            onTap: () {},
           ),
           _SettingTile(
             icon: Icons.code,

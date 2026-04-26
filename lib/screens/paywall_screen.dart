@@ -14,7 +14,16 @@ class PaywallScreen {
   /// the session (purchase or restore succeeded).
   static Future<bool> show(BuildContext context) async {
     final sub = SubscriptionService.instance;
-    final paywall = await sub.getPremiumPaywall();
+    // Force Korean locale for the Adapty paywall presentation.
+    AdaptyPaywall? paywall;
+    try {
+      paywall = await Adapty().getPaywall(
+        placementId: 'fonkii_premium',
+        locale: 'ko',
+      );
+    } catch (e) {
+      debugPrint('getPaywall error: $e');
+    }
 
     if (paywall != null && context.mounted) {
       try {

@@ -26,7 +26,7 @@ class SubscriptionService {
   /// unlock all features for development/testing; release builds honor the
   /// real Adapty profile.
   SubscriptionTier get currentTier {
-    if (kDebugMode) return SubscriptionTier.premium;
+    if (kDebugMode) return SubscriptionTier.lifetime;
     return _tierNotifier.value;
   }
 
@@ -82,7 +82,7 @@ class SubscriptionService {
     final realTier = _computeTier(profile);
     _tierNotifier.value = realTier;
     // In DEBUG, sync as premium to keyboard extension so it unlocks too.
-    final effective = kDebugMode ? SubscriptionTier.premium : realTier;
+    final effective = kDebugMode ? SubscriptionTier.lifetime : realTier;
     _syncTierToAppGroup(effective);
   }
 
