@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fonkii – 개인정보처리방침</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --pink: #ff6b8a;
+      --blue-light: #ddf0ff;
+      --blue-soft: #f0f8ff;
+      --text: #2d2d2d;
+      --muted: #888;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+      background: var(--blue-soft);
+      color: var(--text);
+      line-height: 1.8;
+    }
+    header {
+      background: white;
+      border-bottom: 1px solid var(--blue-light);
+      padding: 24px 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 24px;
+      color: #000000;
+    }
+    header .badge {
+      background: var(--blue-light);
+      color: #000000;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+    .container {
+      max-width: 760px;
+      margin: 48px auto;
+      padding: 0 24px 80px;
+    }
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 40px;
+      color: #000000;
+      margin-bottom: 8px;
+    }
+    .updated {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 40px;
+    }
+    h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      margin: 36px 0 12px;
+      color: var(--text);
+    }
+    p { margin-bottom: 14px; font-weight: 300; }
+    ul { padding-left: 20px; margin-bottom: 14px; }
+    ul li { margin-bottom: 6px; font-weight: 300; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-weight: 300; font-size: 14px; }
+    th { background: var(--blue-light); padding: 10px 12px; text-align: left; font-weight: 500; }
+    td { padding: 10px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+    a { color: var(--pink); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 2px 16px rgba(100,180,255,0.08);
+    }
+    footer {
+      text-align: center;
+      padding: 32px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">Fonkii</span>
+    <span class="badge">개인정보처리방침</span>
+  </header>
+
+  <div class="container">
+    <h1>개인정보처리방침</h1>
+    <p class="updated">최종 업데이트: 2026년 4월 23일</p>
+
+    <div class="card">
+
+      <p>Fonkii("당사")는 개인정보보호법 등 관련 법령을 준수하며, 이용자의 개인정보를 소중히 보호합니다. 본 방침은 당사의 iOS 키보드 애플리케이션 이용 시 수집·이용·보유·파기하는 정보에 대해 설명합니다.</p>
+
+      <h2>1. 수집하는 개인정보 항목 및 수집 방법</h2>
+      <table>
+        <tr>
+          <th>수집 항목</th>
+          <th>수집 목적</th>
+          <th>수집 방법</th>
+        </tr>
+        <tr>
+          <td>번역 입력 텍스트</td>
+          <td>AI 번역 기능 제공</td>
+          <td>이용자가 번역 버튼 탭 시 자동 수집</td>
+        </tr>
+        <tr>
+          <td>구독 상태, 구매 확인 정보</td>
+          <td>프리미엄 기능 접근 확인</td>
+          <td>Apple App Store, Adapty SDK 통해 수집</td>
+        </tr>
+        <tr>
+          <td>익명화된 앱 사용 데이터</td>
+          <td>서비스 개선</td>
+          <td>앱 이용 중 자동 수집</td>
+        </tr>
+        <tr>
+          <td>iOS 버전, 기기 모델</td>
+          <td>앱 호환성 확인</td>
+          <td>앱 실행 시 자동 수집</td>
+        </tr>
+      </table>
+      <p>※ 번역 텍스트는 OpenAI API로 전송 후 즉시 처리되며, 당사 서버에 저장되지 않습니다.<br/>
+      ※ 이용자가 직접 입력하는 일반 타이핑 내용은 수집하지 않습니다.</p>
+
+      <h2>2. 개인정보의 보유 및 이용 기간</h2>
+      <table>
+        <tr>
+          <th>수집 항목</th>
+          <th>보유 기간</th>
+        </tr>
+        <tr>
+          <td>번역 입력 텍스트</td>
+          <td>번역 처리 완료 즉시 파기 (서버 미저장)</td>
+        </tr>
+        <tr>
+          <td>구독 상태 및 구매 정보</td>
+          <td>구독 종료 후 즉시 파기 (Apple/Adapty 정책에 따름)</td>
+        </tr>
+        <tr>
+          <td>익명화된 사용 데이터</td>
+          <td>수집일로부터 1년</td>
+        </tr>
+        <tr>
+          <td>즐겨찾기, 설정 등 로컬 데이터</td>
+          <td>이용자가 앱 삭제 시까지 기기 내 보관</td>
+        </tr>
+      </table>
+      <p>단, 관련 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
+
+      <h2>3. 개인정보 처리 위탁</h2>
+      <p>당사는 서비스 제공을 위해 다음과 같이 개인정보 처리를 위탁합니다:</p>
+      <table>
+        <tr>
+          <th>수탁업체</th>
+          <th>위탁 업무</th>
+          <th>보유 및 이용 기간</th>
+        </tr>
+        <tr>
+          <td>OpenAI (미국)</td>
+          <td>AI 번역 처리</td>
+          <td>번역 처리 완료 즉시</td>
+        </tr>
+        <tr>
+          <td>Adapty (미국)</td>
+          <td>구독 및 결제 관리</td>
+          <td>구독 종료 시까지</td>
+        </tr>
+        <tr>
+          <td>GIPHY (미국)</td>
+          <td>GIF 검색 기능 제공</td>
+          <td>검색 요청 처리 완료 즉시</td>
+        </tr>
+        <tr>
+          <td>Apple Inc. (미국)</td>
+          <td>앱스토어 결제 처리</td>
+          <td>Apple 정책에 따름</td>
+        </tr>
+      </table>
+
+      <h2>4. 개인정보의 국외 이전</h2>
+      <p>당사는 서비스 제공을 위해 이용자의 개인정보를 국외(미국)로 이전합니다. 각 수탁업체의 개인정보보호 정책은 아래를 참고하세요:</p>
+      <ul>
+        <li><a href="https://openai.com/privacy">OpenAI 개인정보처리방침</a></li>
+        <li><a href="https://adapty.io/privacy">Adapty 개인정보처리방침</a></li>
+        <li><a href="https://support.giphy.com/hc/en-us/articles/360032872931">GIPHY 개인정보처리방침</a></li>
+        <li><a href="https://www.apple.com/legal/privacy">Apple 개인정보처리방침</a></li>
+      </ul>
+
+      <h2>5. 키보드 접근 권한</h2>
+      <p>Fonkii는 AI 번역, GIF 검색 등 네트워크 기반 기능을 제공하기 위해 전체 접근 권한(Full Access)이 필요합니다. 전체 접근 권한은 설정 → 일반 → 키보드 → Fonkii에서 활성화할 수 있습니다.</p>
+      <p>당사의 키보드는 이용자가 일반적으로 입력하는 텍스트를 수집하거나 전송하지 않습니다. 번역 기능은 이용자가 번역 버튼을 탭하여 명시적으로 선택한 텍스트만 처리합니다.</p>
+
+      <h2>6. 이용자의 권리 및 행사 방법</h2>
+      <p>이용자는 다음과 같은 권리를 보유하며, 언제든지 행사할 수 있습니다:</p>
+      <ul>
+        <li>개인정보 열람 요청</li>
+        <li>개인정보 정정·삭제 요청</li>
+        <li>개인정보 처리 정지 요청</li>
+      </ul>
+      <p>권리 행사는 아래 문의처로 이메일을 통해 요청하실 수 있으며, 당사는 지체 없이 조치하겠습니다.</p>
+
+      <h2>7. 아동 개인정보 보호</h2>
+      <p>Fonkii는 만 14세 미만 아동을 대상으로 하지 않습니다. 만 14세 미만 아동의 개인정보를 의도적으로 수집하지 않으며, 해당 사실이 확인될 경우 즉시 파기합니다.</p>
+
+      <h2>8. 개인정보 보호책임자</h2>
+      <p>개인정보 처리에 관한 업무를 총괄하는 책임자는 다음과 같습니다:</p>
+      <ul>
+        <li><strong>성명:</strong> 정유나</li>
+        <li><strong>이메일:</strong> <a href="mailto:contact.rowan.00@gmail.com">contact.rowan.00@gmail.com</a></li>
+      </ul>
+
+      <h2>9. 방침 변경</h2>
+      <p>본 개인정보처리방침은 법령 또는 서비스 변경에 따라 업데이트될 수 있습니다. 변경 시 앱 내 공지 또는 상단의 "최종 업데이트" 날짜를 갱신하여 고지합니다.</p>
+
+      <h2>10. 문의</h2>
+      <p>개인정보 관련 문의사항은 아래로 연락해 주세요:<br/>
+      <a href="mailto:contact.rowan.00@gmail.com">contact.rowan.00@gmail.com</a></p>
+
+    </div>
+  </div>
+
+  <footer>
+    © 2026 Fonkii. All rights reserved.
+  </footer>
+</body>
+</html>
