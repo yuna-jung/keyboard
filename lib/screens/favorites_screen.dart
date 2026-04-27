@@ -4,7 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../models/favorite_item.dart';
 import '../services/favorites_service.dart';
 
-const _pink = Color(0xFFFF6B9D);
+const _pink = Color(0xFF5BC8F5);
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});

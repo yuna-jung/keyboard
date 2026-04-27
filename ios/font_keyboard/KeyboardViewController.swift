@@ -1,5 +1,5 @@
 import UIKit
-import AVFoundation
+import AudioToolbox
 
 // MARK: - Constants
 
@@ -1019,17 +1019,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
   .,︻╦╤─ ҉ - - 😂 - 😂-😂
   /﹋\"
 """#,
-            // 22
-            #"""
--------- 💞💖          💖💘-----------
-------💞💏💏💘💞💏💏💘--------
-------💘💏💏💏💏💏💏💞---------
-------💘💏💏💏💏💏💏💞--------
-----------💘💏💏💏💏💞------------
--------------💘💏💏💞---------------
------------------💘💞-----------------
- =======  MISS YOU=========
-"""#,
             // 23
             #"""
 ❤🔫🔫❤🔫🔫❤
@@ -1094,20 +1083,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 🟥🟥🟨🟨⬛🟨⬛🟨🟨🟥🟥
 🟥🟨🟨🟨🟨🟨🟨🟨🟨🟨🟥
 🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨
-"""#,
-            // 29
-            #"""
-⬜⬜⬛⬛⬛⬜⬜⬛⬛⬛⬜⬜
-⬛⬛⬛🟩⬛⬜⬜⬛🟩⬛⬛⬛
-⬛🟩⬛⬛🟩⬛⬛🟩⬛⬛🟩⬛
-⬛🟩⬛🟩🟩🟩🟩🟩🟩⬛🟩⬛
-⬛🟩🟩🟩⬛🟩🟩⬛🟩🟩🟩⬛
-⬛🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩⬛
-⬛🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩⬛
-⬛⬛🟩🟩🟩🟩🟩🟩🟩🟩⬛⬛
-⬜⬛⬛🟩⬛⬛⬛⬛🟩⬛⬛⬜
-⬜⬛🟩⬛⬛⬜⬜⬛⬛🟩⬛⬜
-⬜⬛⬛⬛⬜⬜⬜⬜⬛⬛⬛⬜
 """#,
             // 30
             #"""
@@ -1229,18 +1204,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // 키보드 클릭 소리 활성화
-        do {
-            try AVAudioSession.sharedInstance().setCategory(
-                .ambient,
-                mode: .default,
-                options: [.mixWithOthers]
-            )
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Audio session error: \(error)")
-        }
 
         view.backgroundColor = .white
 
@@ -1910,7 +1873,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             abcBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
             abcBtn.setWidth(48)
             abcBtn.addAction(UIAction { [weak self] _ in
-                UIDevice.current.playInputClick()
+                DispatchQueue.global(qos: .userInteractive).async {
+                    AudioServicesPlaySystemSound(1104)
+                }
                 self?.advanceToNextInputMode()
             }, for: .touchUpInside)
             bottomBar.addArrangedSubview(abcBtn)
@@ -2055,7 +2020,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         abcBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         abcBtn.setWidth(48)
         abcBtn.addAction(UIAction { [weak self] _ in
-            UIDevice.current.playInputClick()
+            DispatchQueue.global(qos: .userInteractive).async {
+                AudioServicesPlaySystemSound(1104)
+            }
             self?.advanceToNextInputMode()
         }, for: .touchUpInside)
         bottomBar.addArrangedSubview(abcBtn)
@@ -2179,7 +2146,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let globe = makeSpecialKey("🌐")
         globe.setWidth(44)
         globe.addAction(UIAction { [weak self] _ in
-            UIDevice.current.playInputClick()
+            DispatchQueue.global(qos: .userInteractive).async {
+                AudioServicesPlaySystemSound(1104)
+            }
             self?.advanceToNextInputMode()
         }, for: .touchUpInside)
         let del = makeSpecialKey("⌫")
@@ -2449,7 +2418,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         calcExpressionLabel?.text = calcExpression
         let showAC = (calcDisplay == "0" && calcPrevValue == nil && calcPendingOp == nil && calcExpression.isEmpty)
         calcACButton?.setTitle(showAC ? "AC" : "C", for: .normal)
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
     }
 
     @objc private func calcBackspaceLongPressed(_ gr: UILongPressGestureRecognizer) {
@@ -2462,7 +2433,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         calcExpression = ""
         calcDisplayButton?.setTitle(calcDisplay, for: .normal)
         calcExpressionLabel?.text = calcExpression
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
     }
 
     private func performCalc(_ a: Double, _ b: Double, _ op: String) -> Double {
@@ -2490,7 +2463,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func calcDisplayTapped() {
         textDocumentProxy.insertText(calcDisplay)
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
     }
 
     // MARK: - GIF Mode
@@ -3650,7 +3625,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func translateKeyTapped(_ s: UIButton) {
         guard let key = s.title(for: .normal) else { return }
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
         if isKoreanMode && !isTranslateNumberMode {
             handleHangulInput(key)
             // Auto-release one-shot shift → defer rebuild to next runloop for smoother typing
@@ -3667,14 +3644,18 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func translateSpaceTapped() {
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
         hgFlush()
         translateTargetAppend(" ")
     }
 
     @objc private func translateDeleteTapped() {
         performTranslateDelete()
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
     }
 
     /// Delete one unit without audio feedback — used by long-press repeat
@@ -3866,8 +3847,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func translateTriggered() {
         guard !translationInput.isEmpty else { return }
-        UIDevice.current.playInputClick()
-
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
         // Full Access check — keyboard extensions cannot make network
         // requests without Full Access in Settings.
         if !hasFullAccess {
@@ -3907,7 +3889,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let body: [String: Any] = [
             "model": "gpt-4o-mini",
             "messages": [
-                ["role": "system", "content": "You are a professional translator. Your goal is to translate the given text naturally and accurately while preserving the speaker's original tone, nuance, and intent.\n\nGuidelines:\n- Translate naturally as a native speaker would say it, not word-for-word\n- Preserve the original tone: casual/formal, emotional intensity, humor, sarcasm\n- Keep slang, abbreviations, and internet expressions in a culturally equivalent form\n- If the text contains emojis or emoticons, keep them as-is\n- Do not add explanations or notes — output only the translated text\n- If the source and target language are the same, return the text as-is\n\nTranslate from \(srcLang) to \(tgtLang)."],
+                ["role": "system", "content": "You are a professional translator. Translate the given text from \(srcLang) to \(tgtLang) staying close to the original wording.\n\nGuidelines:\n- Preserve the original meaning, tone, and word choice as faithfully as possible\n- Stay close to a literal translation; adjust only as needed for the target language to read naturally\n- Do NOT paraphrase or rephrase beyond what is necessary\n- Do NOT add expressions, embellishments, or details that are not in the original text\n- Preserve casual/formal register, emotional intensity, humor, and sarcasm exactly as in the source\n- Keep slang, abbreviations, and internet expressions in a closely matching equivalent — do not over-localize\n- Keep emojis and emoticons exactly as-is\n- Output only the translated text — no explanations, no notes\n- If source and target language are the same, return the text unchanged\n\nExample (Korean → English):\nSource: \"대체 누구신데 저한테 이러시는거죠\"\nGood: \"Who exactly are you, and why are you doing this to me?\"\nBad (too liberal): \"Who on earth are you to treat me like this?\""],
                 ["role": "user", "content": translationInput],
             ],
             "max_tokens": 500,
@@ -3999,7 +3981,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return
         }
         textDocumentProxy.insertText(lastTranslation)
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
         showToast("삽입됨")
     }
 
@@ -4345,7 +4329,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let style = styles[safeStyle]
         let converted = style.convert(ch)
         textDocumentProxy.insertText(converted)
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
         tapFeedback(s)
         if isShifted && !isCapsLock {
             isShifted = false
@@ -4357,12 +4343,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func spaceTapped() {
         textDocumentProxy.insertText(" ")
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
     }
 
     @objc private func backspaceTapped() {
         textDocumentProxy.deleteBackward()
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
     }
 
     // MARK: - Backspace long-press (repeat delete)
@@ -4390,12 +4380,22 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             deleteTickCount = 0
             deleteTranslateMode = (currentMode == .translate)
             performBackspaceForCurrentMode()
+            if textDocumentProxy.hasText || !translationInput.isEmpty {
+                DispatchQueue.global(qos: .userInteractive).async {
+                    AudioServicesPlaySystemSound(1104)
+                }
+            }
             deleteTimer?.invalidate()
             deleteTimer = Timer.scheduledTimer(
                 withTimeInterval: 0.1, repeats: true
             ) { [weak self] _ in
                 guard let self = self else { return }
                 self.performBackspaceForCurrentMode()
+                if self.textDocumentProxy.hasText || !self.translationInput.isEmpty {
+                    DispatchQueue.global(qos: .userInteractive).async {
+                        AudioServicesPlaySystemSound(1104)
+                    }
+                }
                 self.deleteTickCount += 1
                 // After ~0.5s of slow deletes, accelerate to 0.06s interval.
                 if self.deleteTickCount == 5 {
@@ -4403,7 +4403,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     self.deleteTimer = Timer.scheduledTimer(
                         withTimeInterval: 0.06, repeats: true
                     ) { [weak self] _ in
-                        self?.performBackspaceForCurrentMode()
+                        guard let self = self else { return }
+                        self.performBackspaceForCurrentMode()
+                        if self.textDocumentProxy.hasText || !self.translationInput.isEmpty {
+                            DispatchQueue.global(qos: .userInteractive).async {
+                                AudioServicesPlaySystemSound(1104)
+                            }
+                        }
                     }
                 }
             }
@@ -4528,7 +4534,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         } else {
             textDocumentProxy.insertText(text)
         }
-        UIDevice.current.playInputClick()
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
         tapFeedback(s)
     }
 

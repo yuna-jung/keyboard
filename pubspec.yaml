@@ -39,6 +39,7 @@ dependencies:
   flutter_animate: ^4.0.0
   adapty_flutter: ^3.15.5
   url_launcher: ^6.3.0
+  share_plus: ^13.1.0
 
 dev_dependencies:
   flutter_test:

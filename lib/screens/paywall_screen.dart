@@ -4,7 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:adapty_flutter/adapty_flutter.dart';
 import '../services/subscription_service.dart';
 
-const _pink = Color(0xFFFF6B9D);
+const _pink = Color(0xFF5BC8F5);
 
 /// PaywallScreen: Adapty UI paywall (placementId: `fonkii_premium`) with a
 /// native Dart fallback. Handles the `show_lifetime_plan` custom action by

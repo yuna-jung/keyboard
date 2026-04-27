@@ -4,7 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../services/subscription_service.dart';
 import 'paywall_screen.dart';
 
-const _pink = Color(0xFFFF6B9D);
+const _pink = Color(0xFF5BC8F5);
 const _freeLimit = 4;
 
 // ══════════════════════════════════════════════════════════════════════════════

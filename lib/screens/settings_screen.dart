@@ -1,12 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-// share_plus / app_settings 패키지 임시 제거 (해당 핸들러는 no-op로 대체)
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   Future<void> _open(String url) async {
     final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// Open a URL whose target depends on device language: Korean device gets
+  /// `koUrl`, everything else gets `enUrl`.
+  Future<void> _openUrl(BuildContext context, String koUrl, String enUrl) async {
+    final locale = Localizations.localeOf(context).languageCode;
+    final url = locale == 'ko' ? koUrl : enUrl;
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// Open the iOS Settings page for this app via the `app-settings:` scheme.
+  Future<void> _openAppSettings() async {
+    final uri = Uri.parse('app-settings:');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -39,53 +58,53 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.ios_share,
             label: '앱 공유',
             isDark: isDark,
-            onTap: () {},
-          ),
-          _SettingTile(
-            icon: Icons.music_note,
-            label: 'TikTok',
-            isDark: isDark,
-            onTap: () => _open('https://tiktok.com/@fonkii'),
-          ),
-          _SettingTile(
-            icon: Icons.camera_alt_outlined,
-            label: 'Instagram',
-            isDark: isDark,
-            onTap: () => _open('https://instagram.com/fonkii'),
+            onTap: () {
+              const appStoreUrl =
+                  'https://apps.apple.com/app/fonkii/id6762085484';
+              const message =
+                  'Fonkii 키보드로 더 재밌게 소통해요! 🎨\n$appStoreUrl';
+              SharePlus.instance.share(ShareParams(text: message));
+            },
           ),
           _SectionHeader(title: '도움말', isDark: isDark),
           _SettingTile(
             icon: Icons.support_agent,
             label: '고객 지원',
             isDark: isDark,
-            onTap: () => _open('mailto:support@fonkii.app'),
+            onTap: () => _open('mailto:contact.rowan.00@gmail.com'),
           ),
           _SettingTile(
             icon: Icons.help_outline,
             label: '지원 센터',
             isDark: isDark,
-            onTap: () => _open('https://yuna-jung.github.io/keyboard/'),
+            onTap: () => _open('mailto:contact.rowan.00@gmail.com'),
           ),
           _SectionHeader(title: '법적 고지', isDark: isDark),
           _SettingTile(
             icon: Icons.description_outlined,
             label: '서비스 약관',
             isDark: isDark,
-            onTap: () =>
-                _open('https://yuna-jung.github.io/keyboard/terms.html'),
+            onTap: () => _openUrl(
+              context,
+              'https://fonkii-keyboard.github.io/Fonkii/terms-of-service-ko.html',
+              'https://fonkii-keyboard.github.io/Fonkii/terms-of-service-en.html',
+            ),
           ),
           _SettingTile(
             icon: Icons.shield_outlined,
             label: '개인정보처리방침',
             isDark: isDark,
-            onTap: () =>
-                _open('https://yuna-jung.github.io/keyboard/privacy.html'),
+            onTap: () => _openUrl(
+              context,
+              'https://fonkii-keyboard.github.io/Fonkii/privacy-policy-ko.html',
+              'https://fonkii-keyboard.github.io/Fonkii/privacy-policy-en.html',
+            ),
           ),
           _SettingTile(
             icon: Icons.lock_outline,
             label: '개인정보 보호 설정',
             isDark: isDark,
-            onTap: () {},
+            onTap: _openAppSettings,
           ),
           _SettingTile(
             icon: Icons.code,

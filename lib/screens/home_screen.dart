@@ -4,7 +4,7 @@ import 'paywall_screen.dart';
 import 'settings_screen.dart';
 import 'subscription_screen.dart';
 
-const _pink = Color(0xFFFF6B9D);
+const _pink = Color(0xFF5BC8F5);
 
 /// HomeScreen: AppBar (logo + settings) + tabbed body (Chat / Subscription)
 /// + bottom navigation bar.
@@ -328,8 +328,10 @@ class _ChatInput extends StatelessWidget {
             child: TextField(
               controller: controller,
               focusNode: focusNode,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => onSend(),
+              maxLines: null,
+              minLines: 1,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
               style: TextStyle(
                 color: isDark ? Colors.white : Colors.black87,
               ),

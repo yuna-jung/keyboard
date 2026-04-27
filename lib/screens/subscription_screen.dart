@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/subscription_service.dart';
 import 'paywall_screen.dart';
 
-const _pink = Color(0xFFFF6B9D);
+const _pink = Color(0xFF5BC8F5);
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});

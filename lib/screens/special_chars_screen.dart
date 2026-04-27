@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-const _pink = Color(0xFFFF6B9D);
+const _pink = Color(0xFF5BC8F5);
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Data — 두 종류: 그리드 아이템(개별 문자) / 와이드 아이템(장식선·ASCII아트)
