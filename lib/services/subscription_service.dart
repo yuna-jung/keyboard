@@ -95,7 +95,7 @@ class SubscriptionService {
 
   void _syncTierToAppGroup(SubscriptionTier tier) {
     try {
-      const channel = MethodChannel('com.yourapp.fontkeyboard/appgroup');
+      const channel = MethodChannel('com.yunajung.fonki/appgroup');
       channel.invokeMethod('syncPremium', {
         'is_premium': tier != SubscriptionTier.free,
         'tier': tier.name,

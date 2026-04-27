@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 class AppGroupService {
-  static const _channel = MethodChannel('com.yourapp.fontkeyboard/appgroup');
+  static const _channel = MethodChannel('com.yunajung.fonki/appgroup');
 
   static Future<void> syncFavorites(List<String> jsonItems) async {
     try {

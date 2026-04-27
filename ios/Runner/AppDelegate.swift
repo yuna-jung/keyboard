@@ -3,7 +3,7 @@ import UIKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
-  private let appGroupID = "group.com.yourapp.fontkeyboard"
+  private let appGroupID = "group.com.yunajung.fonki"
 
   override func application(
     _ application: UIApplication,
@@ -14,7 +14,7 @@ import UIKit
     // ── App Group MethodChannel ──────────────────────────────────────────
     let controller = window?.rootViewController as! FlutterViewController
     let channel = FlutterMethodChannel(
-      name: "com.yourapp.fontkeyboard/appgroup",
+      name: "com.yunajung.fonki/appgroup",
       binaryMessenger: controller.binaryMessenger
     )
 

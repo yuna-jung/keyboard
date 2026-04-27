@@ -4,7 +4,7 @@ import UIKit
 // MARK: - Constants
 // ═══════════════════════════════════════════════════════════════════════════════
 
-private let appGroupID  = "group.com.yourapp.fontkeyboard"
+private let appGroupID  = "group.com.yunajung.fonki"
 private let pinkColor   = UIColor(red: 1.0, green: 0.42, blue: 0.62, alpha: 1.0)
 private let keyBG       = UIColor.white
 private let specialKeyBG = UIColor(white: 0.78, alpha: 1)

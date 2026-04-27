@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 
 // MARK: - Constants
 
@@ -66,12 +67,28 @@ private let _scMap: [Character: String] = [
 
 // Alien-looking glyphs (Canadian Aboriginal syllabics & Cherokee)
 private let _alienMap: [Character: String] = [
-    "a":"ᗩ","b":"ᗷ","c":"ᑕ","d":"ᗪ","e":"ᗴ","f":"ᖴ","g":"ᘜ","h":"ᕼ","i":"ᓮ","j":"ᒍ",
-    "k":"ᛕ","l":"ᒪ","m":"ᗰ","n":"ᑎ","o":"ᗝ","p":"ᑭ","q":"ᑫ","r":"ᖇ","s":"ᔕ","t":"ᖶ",
+    "a":"ᗩ","b":"ᗷ","c":"ᑕ","d":"ᗪ","e":"ᗴ","f":"ᖴ","g":"ᘜ","h":"ᕼ","i":"I","j":"ᒍ",
+    "k":"ᛕ","l":"ᒪ","m":"ᗰ","n":"ᑎ","o":"O","p":"ᑭ","q":"ᑫ","r":"ᖇ","s":"ᔕ","t":"ᖶ",
     "u":"ᑌ","v":"ᐯ","w":"ᗯ","x":"᙭","y":"Ƴ","z":"ᘔ",
-    "A":"ᗩ","B":"ᗷ","C":"ᑕ","D":"ᗪ","E":"ᗴ","F":"ᖴ","G":"ᘜ","H":"ᕼ","I":"ᓮ","J":"ᒍ",
-    "K":"ᛕ","L":"ᒪ","M":"ᗰ","N":"ᑎ","O":"ᗝ","P":"ᑭ","Q":"ᑫ","R":"ᖇ","S":"ᔕ","T":"ᖶ",
+    "A":"ᗩ","B":"ᗷ","C":"ᑕ","D":"ᗪ","E":"ᗴ","F":"ᖴ","G":"ᘜ","H":"ᕼ","I":"I","J":"ᒍ",
+    "K":"ᛕ","L":"ᒪ","M":"ᗰ","N":"ᑎ","O":"O","P":"ᑭ","Q":"ᑫ","R":"ᖇ","S":"ᔕ","T":"ᖶ",
     "U":"ᑌ","V":"ᐯ","W":"ᗯ","X":"᙭","Y":"Ƴ","Z":"ᘔ",
+]
+
+// Slightly cursive — mix of math italic + Sundanese/Cyrillic look-alikes
+private let _slightlyCursiveMap: [Character: String] = [
+    "a":"ᥲ","b":"𝘣","c":"ᥴ","d":"ᦔ","e":"ᥱ",
+    "f":"𝘧","g":"g","h":"һ","i":"і","j":"𝘫",
+    "k":"𝘬","l":"ᥣ","m":"𝘮","n":"𝘯","o":"𝘰",
+    "p":"𝘱","q":"𝘲","r":"r","s":"s","t":"𝗍",
+    "u":"ᥙ","v":"᥎","w":"𝘸","x":"𝘹","y":"ᥡ",
+    "z":"𝘻",
+    "A":"ᥲ","B":"𝘣","C":"ᥴ","D":"ᦔ","E":"ᥱ",
+    "F":"𝘧","G":"g","H":"һ","I":"і","J":"𝘫",
+    "K":"𝘬","L":"ᥣ","M":"𝘮","N":"𝘯","O":"𝘰",
+    "P":"𝘱","Q":"𝘲","R":"r","S":"s","T":"𝗍",
+    "U":"ᥙ","V":"᥎","W":"𝘸","X":"𝘹","Y":"ᥡ",
+    "Z":"𝘻",
 ]
 
 private let _itX: [Int: Int] = [0x68: 0x210E]
@@ -151,6 +168,7 @@ let allFontCategories: [(String, [FontStyleDef])] = [
         FontStyleDef(name: "Typewriter",   convert: { _oc($0, 0x1D670, 0x1D68A, 0x1D7F6) }),
         FontStyleDef(name: "Outline",      convert: { _oc($0, 0x1D538, 0x1D552, 0x1D7D8, _dbX) }),
         FontStyleDef(name: "Comic",        convert: { _cm($0, _alienMap) }),
+        FontStyleDef(name: "Cursive",      convert: { _cm($0, _slightlyCursiveMap) }),
     ]),
     ("모던", [
         FontStyleDef(name: "Wide",         convert: { _oc($0, 0xFF21, 0xFF41, 0xFF10) }),
@@ -454,7 +472,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Mode
 
     enum Mode: Int, CaseIterable {
-        case fonts = 0, translate, calculator, emoticon, textTemplate, special, dotArt, gif, favorites
+        case fonts = 0, translate, calculator, emoticon, textTemplate, special, dotArt, gif, favorites, palette
         var title: String {
             switch self {
             case .fonts:        return "Aa"
@@ -466,6 +484,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             case .dotArt:       return "⣿"
             case .gif:          return "GIF"
             case .favorites:    return "♥"
+            case .palette:      return ""  // SF Symbol image used instead (paintpalette.fill)
             }
         }
         var fontSize: CGFloat {
@@ -482,6 +501,32 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - State
 
     private var currentMode: Mode = .fonts
+
+    /// User-customizable accent color (default = mainPink). Persisted in
+    /// UserDefaults under "fonkii_accent_color". Setter triggers a UI refresh
+    /// via `applyAccentColor()`.
+    private var accentColor: UIColor {
+        get {
+            if let data = UserDefaults.standard.data(forKey: "fonkii_accent_color"),
+               let color = try? NSKeyedUnarchiver.unarchivedObject(ofClass: UIColor.self, from: data) {
+                return color
+            }
+            return mainPink
+        }
+        set {
+            if let data = try? NSKeyedArchiver.archivedData(
+                withRootObject: newValue, requiringSecureCoding: false) {
+                UserDefaults.standard.set(data, forKey: "fonkii_accent_color")
+            }
+            applyAccentColor()
+        }
+    }
+
+    /// Re-render the current mode so that all `accentColor` consumers pick up
+    /// the new color value.
+    private func applyAccentColor() {
+        showMode(currentMode)
+    }
     private var fontCatIndex = 0
     private var fontStyleIndex = 0
     private var fontPickerExpanded = false
@@ -952,7 +997,134 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 ⠀⠀⠀⢿⣆⠀⠈⣿⡄⠀⠀⠻⣷⣄⣀⣀⣀⣠⣴⠿⠁⠀⠀⠀⠀⠀
 ⠀⠀⠀⠈⢻⣧⠀⠘⠿⣶⣄⠀⠈⠈⠛⠛⠛⠋⠀⠀⣤⡾⠋⠀⠀⠀
 ⠀⠀⠀⠀⠀⠋⠀⠀⠀⠈⠹⠷⣦⣤⣤⣤⣤⡴⠾⠟⠋⠀⠀⠀⠀⠀
-"""
+""",
+            // 19
+            #"""
+😥    😫  😒😣😒
+😒😒  😒 😒    😲
+😩 😢 😲 😤    😠
+😒  😒😒 😞    😤
+😭    😖  😒😔😫
+"""#,
+            // 20
+            #"""
+  \😭/              💂
+     |          🔫👈|\
+     |                   |
+    / \                / \
+"""#,
+            // 21
+            #"""
+  (҂·_·)
+  .,︻╦╤─ ҉ - - 😂 - 😂-😂
+  /﹋\"
+"""#,
+            // 22
+            #"""
+-------- 💞💖          💖💘-----------
+------💞💏💏💘💞💏💏💘--------
+------💘💏💏💏💏💏💏💞---------
+------💘💏💏💏💏💏💏💞--------
+----------💘💏💏💏💏💞------------
+-------------💘💏💏💞---------------
+-----------------💘💞-----------------
+ =======  MISS YOU=========
+"""#,
+            // 23
+            #"""
+❤🔫🔫❤🔫🔫❤
+🔫🔫🔫🔫🔫🔫🔫
+🔫🔫🔫🔫🔫🔫🔫
+❤🔫🔫🔫🔫🔫❤
+❤❤🔫🔫🔫❤❤
+❤❤❤🔫❤❤❤
+"""#,
+            // 24
+            #"""
+(¯`♥´¯)..♥
+.`•.¸.•´(¯`♥´¯)..♥
+******.`•.¸.•´(¯`♥´¯)..♥
+************.`•.¸.•´(¯`♥´¯)..♥
+******************.`•.¸.•´……♥ ♥
+"""#,
+            // 25
+            #"""
+*♥.•´¸.•*´✶´♡ ¸.•*´´♡🌼🍃🌼🍃*
+*_🌈○💙_Good morning❤🌹*
+*💚.•´¸.•*´✶´♡ ¸.•*´´♡⛅*
+*° ☆ ° ˛*˛☆_Π____*。*˚☆*
+*˚ ˛★˛•˚ */______/~＼。˚ ˚ ˛*
+*˚ ˛•˛• ˚ ｜ 田田 ｜門｜ ˚*
+*🌴╬═🌴╬╬🌴╬╬🌴═╬╬═🌴*
+"""#,
+            // 26
+            #"""
+┏━━━━━ ✨┓
+┃✨BEST OF ┃
+┃LUCK🍀 FOR ┃
+┃  !!          ┃
+┃😍 HAPPY 😚┃
+┃*🆕* YEAR 🎉┃
+┃& I ♥YOU✨┃
+┗━━━━⋁━🎀
+                  ლ(╹◡╹ლ)
+"""#,
+            // 27
+            #"""
+🎅 🎁 🎄　　  ❄ ⛄ 🎅
+⛄　　   🎅　🎁　　  🎄
+💚　　　　🎄　　　　🎁
+❤　        Merry          ❄
+　🎁     Christmas!  ⛄
+　　❄　　　　　🎅
+　　　🎄　　　💚
+　　　　⛄　❤
+　    　　　✨
+"""#,
+            // 28
+            #"""
+🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨
+🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨
+🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨
+🟨⬛⬜🟨🟨🟨🟨🟨⬛⬜🟨
+🟨⬛⬛🟨🟨🟨🟨🟨⬛⬛🟨
+🟨⬛⬛🟨🟨⬛🟨🟨⬛⬛🟨
+🟥🟨🟨🟨🟨🟨🟨🟨🟨🟨🟥
+🟥🟥🟨🟨🟨⬛🟨🟨🟨🟥🟥
+🟥🟥🟨🟨⬛🟨⬛🟨🟨🟥🟥
+🟥🟨🟨🟨🟨🟨🟨🟨🟨🟨🟥
+🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨🟨
+"""#,
+            // 29
+            #"""
+⬜⬜⬛⬛⬛⬜⬜⬛⬛⬛⬜⬜
+⬛⬛⬛🟩⬛⬜⬜⬛🟩⬛⬛⬛
+⬛🟩⬛⬛🟩⬛⬛🟩⬛⬛🟩⬛
+⬛🟩⬛🟩🟩🟩🟩🟩🟩⬛🟩⬛
+⬛🟩🟩🟩⬛🟩🟩⬛🟩🟩🟩⬛
+⬛🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩⬛
+⬛🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩⬛
+⬛⬛🟩🟩🟩🟩🟩🟩🟩🟩⬛⬛
+⬜⬛⬛🟩⬛⬛⬛⬛🟩⬛⬛⬜
+⬜⬛🟩⬛⬛⬜⬜⬛⬛🟩⬛⬜
+⬜⬛⬛⬛⬜⬜⬜⬜⬛⬛⬛⬜
+"""#,
+            // 30
+            #"""
+⬜⬛⬛⬜⬜⬜⬜⬜⬛⬛⬜
+⬛⬛⬛⬛⬜⬜⬜⬛⬛⬛⬛
+⬛⬛⬛⬛⬜⬜⬜⬛⬛⬛⬛
+⬜⬛⬛⬛🏼⬛🏼⬛⬛⬛⬜
+⬜⬜⬛🏼🏼🏼🏼🏼⬛⬜⬜
+⬜⬜⬛🏼⬛🏼⬛🏼⬛⬜⬜
+⬜⬜🏼🏼⬛🏼⬛🏼🏼⬜⬜
+⬜⬜🏼🏼🏼⬛🏼🏼🏼⬜⬜
+⬜⬜⬜⬛🏼🏼🏼⬛⬜⬜⬜
+⬜⬜⬛⬛⬛⬛⬛⬛⬛⬜⬜
+⬜⬛⬛⬛⬛⬛⬛⬛⬛⬛⬜
+⬜⬜⬜🟥⬜🟥⬜🟥⬜⬜⬜
+⬜⬜⬜🟥🟥🟥🟥🟥⬜⬜⬜
+"""#
         ])
     ]
     private var selectedDotArtCat = 0
@@ -1057,6 +1229,19 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        // 키보드 클릭 소리 활성화
+        do {
+            try AVAudioSession.sharedInstance().setCategory(
+                .ambient,
+                mode: .default,
+                options: [.mixWithOthers]
+            )
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Audio session error: \(error)")
+        }
+
         view.backgroundColor = .white
 
         // 프리미엄 체크 (App Group UserDefaults 통해 메인 앱에서 동기화)
@@ -1152,6 +1337,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         case .favorites: buildFavoritesMode()
         case .textTemplate: buildTextTemplateMode()
         case .calculator: buildCalculatorMode()
+        case .palette:    break  // popup-based; modeTapped redirects
         }
     }
 
@@ -1171,6 +1357,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let img = UIImage(systemName: "plusminus.circle", withConfiguration: config)
                    ?? UIImage(systemName: "multiply.square", withConfiguration: config)
             btn.setImage(img, for: .normal)
+        } else if mode == .palette {
+            let config = UIImage.SymbolConfiguration(pointSize: mode.fontSize, weight: .semibold)
+            btn.setImage(UIImage(systemName: "paintpalette.fill", withConfiguration: config), for: .normal)
         } else {
             btn.setTitle(mode.title, for: .normal)
         }
@@ -1186,9 +1375,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private func updateModeBar() {
         for case let btn as UIButton in modeBar.arrangedSubviews {
             let sel = btn.tag == currentMode.rawValue
-            btn.backgroundColor = sel ? mainPink : .clear
+            btn.backgroundColor = sel ? accentColor : .clear
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
-            if btn.tag == Mode.calculator.rawValue {
+            if btn.tag == Mode.calculator.rawValue || btn.tag == Mode.palette.rawValue {
                 btn.tintColor = sel ? .white : .darkGray
             }
         }
@@ -1196,15 +1385,209 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func modeTapped(_ s: UIButton) {
         let mode = Mode(rawValue: s.tag) ?? .fonts
+        if mode == .palette {
+            showPalettePicker()
+            return
+        }
         if mode == .translate {
             // Refresh premium state from App Group, then gate the tab.
             checkPremiumStatus()
+            print("🔍 DEBUG - isPremiumUser: \(isPremiumUser), canTranslateUnlimited: \(canTranslateUnlimited), userTier: \(userTier)")
+            print("🔍 DEBUG - App Group: group.com.yunajung.fonki")
             guard canTranslateUnlimited else {
-                showToast("번역 기능은 월간/연간 구독에서 이용 가능해요 ✨")
+                showToast("잠금 (tier: \(userTier), premium: \(isPremiumUser))")
                 return
             }
         }
         showMode(mode)
+    }
+
+    // MARK: - Accent Color Palette
+
+    private static let paletteColors: [UIColor] = [
+        UIColor(red: 1.0,  green: 0.42, blue: 0.62, alpha: 1.0), // 핑크 (기본)
+        UIColor(red: 0.10, green: 0.10, blue: 0.10, alpha: 1.0), // 블랙
+        UIColor(red: 1.0,  green: 0.18, blue: 0.18, alpha: 1.0), // 레드
+        UIColor(red: 0.0,  green: 0.60, blue: 1.0,  alpha: 1.0), // 블루
+        UIColor(red: 0.20, green: 0.78, blue: 0.35, alpha: 1.0), // 그린
+        UIColor(red: 0.69, green: 0.32, blue: 0.87, alpha: 1.0), // 퍼플
+    ]
+
+    /// RGB-component equality check (UIColor identity is unstable across
+    /// archive/unarchive so direct == doesn't help).
+    private func colorsEqual(_ a: UIColor, _ b: UIColor) -> Bool {
+        var ar: CGFloat = 0, ag: CGFloat = 0, ab: CGFloat = 0, aa: CGFloat = 0
+        var br: CGFloat = 0, bg: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
+        a.getRed(&ar, green: &ag, blue: &ab, alpha: &aa)
+        b.getRed(&br, green: &bg, blue: &bb, alpha: &ba)
+        let tol: CGFloat = 0.015
+        return abs(ar - br) < tol && abs(ag - bg) < tol && abs(ab - bb) < tol
+    }
+
+    @objc private func showPalettePicker() {
+        let overlay = makeOverlay()
+        let stack = makePopupStack(in: overlay)
+        stack.spacing = 8
+
+        // Title
+        let title = UILabel()
+        title.text = "포인트 컬러"
+        title.font = .systemFont(ofSize: 15, weight: .bold)
+        title.textAlignment = .center
+        title.translatesAutoresizingMaskIntoConstraints = false
+        title.heightAnchor.constraint(equalToConstant: 26).isActive = true
+        stack.addArrangedSubview(title)
+
+        // Color grid: 4 rows × 3 cols
+        let cols = 3
+        let palette = Self.paletteColors
+        let rows = (palette.count + cols - 1) / cols
+        for rowIdx in 0..<rows {
+            let rowStack = UIStackView()
+            rowStack.axis = .horizontal
+            rowStack.spacing = 12
+            rowStack.distribution = .fillEqually
+            rowStack.translatesAutoresizingMaskIntoConstraints = false
+            rowStack.heightAnchor.constraint(equalToConstant: 36).isActive = true
+            for colIdx in 0..<cols {
+                let i = rowIdx * cols + colIdx
+                guard i < palette.count else { break }
+                let color = palette[i]
+                let isSel = colorsEqual(color, accentColor)
+                let btn = UIButton(type: .system)
+                btn.backgroundColor = color
+                btn.layer.cornerRadius = 18
+                btn.layer.masksToBounds = true
+                if isSel {
+                    let cfg = UIImage.SymbolConfiguration(pointSize: 14, weight: .bold)
+                    btn.setImage(UIImage(systemName: "checkmark", withConfiguration: cfg), for: .normal)
+                    btn.tintColor = .white
+                }
+                btn.addAction(UIAction { [weak self, weak overlay] _ in
+                    self?.accentColor = color
+                    overlay?.removeFromSuperview()
+                }, for: .touchUpInside)
+                rowStack.addArrangedSubview(btn)
+            }
+            stack.addArrangedSubview(rowStack)
+        }
+
+        // Custom HSB section header
+        let hsbHeader = UILabel()
+        hsbHeader.text = "커스텀 색상"
+        hsbHeader.font = .systemFont(ofSize: 12, weight: .semibold)
+        hsbHeader.textColor = .darkGray
+        hsbHeader.translatesAutoresizingMaskIntoConstraints = false
+        hsbHeader.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        stack.addArrangedSubview(hsbHeader)
+
+        // Initial RGB from current accentColor
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        accentColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+
+        let preview = UIView()
+        preview.backgroundColor = accentColor
+        preview.layer.cornerRadius = 18
+        preview.layer.masksToBounds = true
+        preview.translatesAutoresizingMaskIntoConstraints = false
+        preview.widthAnchor.constraint(equalToConstant: 36).isActive = true
+        preview.heightAnchor.constraint(equalToConstant: 36).isActive = true
+
+        let rSlider = UISlider(); rSlider.minimumValue = 0; rSlider.maximumValue = 255
+        rSlider.value = Float(r * 255); rSlider.minimumTrackTintColor = .systemRed
+        let gSlider = UISlider(); gSlider.minimumValue = 0; gSlider.maximumValue = 255
+        gSlider.value = Float(g * 255); gSlider.minimumTrackTintColor = .systemGreen
+        let bSlider = UISlider(); bSlider.minimumValue = 0; bSlider.maximumValue = 255
+        bSlider.value = Float(b * 255); bSlider.minimumTrackTintColor = .systemBlue
+
+        // Slider valueChanged → live preview only (no full UI rebuild).
+        // Commit (accentColor setter, which triggers showMode rebuild) happens
+        // ONLY when popup dismisses, so a slider drag = at most 1 rebuild total.
+        let valueChanged = UIAction { [weak rSlider, weak gSlider, weak bSlider, weak preview] _ in
+            guard let rs = rSlider, let gs = gSlider, let bs = bSlider, let pv = preview else { return }
+            pv.backgroundColor = UIColor(
+                red: CGFloat(rs.value) / 255,
+                green: CGFloat(gs.value) / 255,
+                blue: CGFloat(bs.value) / 255,
+                alpha: 1)
+        }
+        rSlider.addAction(valueChanged, for: .valueChanged)
+        gSlider.addAction(valueChanged, for: .valueChanged)
+        bSlider.addAction(valueChanged, for: .valueChanged)
+
+        stack.addArrangedSubview(makePaletteSliderRow("R", slider: rSlider))
+        stack.addArrangedSubview(makePaletteSliderRow("G", slider: gSlider))
+        stack.addArrangedSubview(makePaletteSliderRow("B", slider: bSlider))
+
+        // Preview row (centered)
+        let previewRow = UIStackView()
+        previewRow.axis = .horizontal
+        previewRow.alignment = .center
+        previewRow.distribution = .equalCentering
+        previewRow.translatesAutoresizingMaskIntoConstraints = false
+        previewRow.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        previewRow.addArrangedSubview(UIView())
+        previewRow.addArrangedSubview(preview)
+        previewRow.addArrangedSubview(UIView())
+        stack.addArrangedSubview(previewRow)
+
+        // Replace overlay's default tap-dismiss with one that commits the
+        // staged HSB color to accentColor BEFORE removing the overlay. This
+        // keeps the accentColor setter (and the heavy showMode rebuild) to a
+        // single invocation per popup session.
+        overlay.gestureRecognizers?.forEach { overlay.removeGestureRecognizer($0) }
+        let dismissTap = UITapGestureRecognizer(target: nil, action: nil)
+        dismissTap.addTarget(self, action: #selector(paletteOverlayTapped(_:)))
+        overlay.addGestureRecognizer(dismissTap)
+
+        // Stash slider+overlay refs so paletteOverlayTapped can read them.
+        // Weak ivars set just for this popup lifetime.
+        pendingPaletteOverlay = overlay
+        pendingRSlider = rSlider
+        pendingGSlider = gSlider
+        pendingBSlider = bSlider
+    }
+
+    private weak var pendingPaletteOverlay: UIView?
+    private weak var pendingRSlider: UISlider?
+    private weak var pendingGSlider: UISlider?
+    private weak var pendingBSlider: UISlider?
+
+    @objc private func paletteOverlayTapped(_ g: UITapGestureRecognizer) {
+        // If user adjusted any RGB slider, commit that staged color now.
+        if let rs = pendingRSlider, let gs = pendingGSlider, let bs = pendingBSlider {
+            var cr: CGFloat = 0, cg: CGFloat = 0, cb: CGFloat = 0, ca: CGFloat = 0
+            accentColor.getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
+            let stagedR = CGFloat(rs.value) / 255
+            let stagedG = CGFloat(gs.value) / 255
+            let stagedB = CGFloat(bs.value) / 255
+            let tol: CGFloat = 0.005
+            if abs(stagedR - cr) > tol || abs(stagedG - cg) > tol || abs(stagedB - cb) > tol {
+                accentColor = UIColor(red: stagedR, green: stagedG, blue: stagedB, alpha: 1)
+            }
+        }
+        pendingPaletteOverlay?.removeFromSuperview()
+        pendingPaletteOverlay = nil
+        pendingRSlider = nil
+        pendingGSlider = nil
+        pendingBSlider = nil
+    }
+
+    private func makePaletteSliderRow(_ label: String, slider: UISlider) -> UIStackView {
+        let row = UIStackView()
+        row.axis = .horizontal
+        row.spacing = 8
+        row.alignment = .center
+        row.translatesAutoresizingMaskIntoConstraints = false
+        row.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        let lab = UILabel()
+        lab.text = label
+        lab.font = .systemFont(ofSize: 12, weight: .semibold)
+        lab.textColor = .darkGray
+        lab.widthAnchor.constraint(equalToConstant: 16).isActive = true
+        row.addArrangedSubview(lab)
+        row.addArrangedSubview(slider)
+        return row
     }
 
     // MARK: - Fonts Mode (QWERTY + Style Picker)
@@ -1261,7 +1644,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.layer.cornerRadius = 14
             btn.contentEdgeInsets = UIEdgeInsets(top: 4, left: 12, bottom: 4, right: 12)
             let sel = i == safeCatIndex
-            btn.backgroundColor = sel ? mainPink : UIColor(white: 0.92, alpha: 1)
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
             btn.isExclusiveTouch = false
             btn.addTarget(self, action: #selector(fontCatTapped(_:)), for: .touchUpInside)
@@ -1308,11 +1691,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.layer.cornerRadius = 16
             btn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
             let sel = i == fontStyleIndex
-            btn.backgroundColor = sel ? mainPink : UIColor(white: 0.92, alpha: 1)
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
             if isFavoriteFont(style.name) {
                 btn.layer.borderWidth = 1.5
-                btn.layer.borderColor = mainPink.cgColor
+                btn.layer.borderColor = accentColor.cgColor
             }
             btn.isExclusiveTouch = false
             btn.addTarget(self, action: #selector(styleTapped(_:)), for: .touchUpInside)
@@ -1364,7 +1747,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
                 for key in row {
                     let btn = makeLetterKey(key)
-                    btn.addTarget(self, action: #selector(letterTapped(_:)), for: .touchUpInside)
+                    btn.addTarget(self, action: #selector(letterTapped(_:)), for: .touchDown)
                     rowStack.addArrangedSubview(btn)
                     letterKeys.append(btn)
                 }
@@ -1391,13 +1774,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     let shift = makeSpecialKey("⇧")
                     shift.addTarget(self, action: #selector(shiftTapped), for: .touchUpInside)
                     if isCapsLock {
-                        shift.backgroundColor = mainPink
+                        shift.backgroundColor = accentColor
                         shift.setTitle("", for: .normal)
                         let capsConfig = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
                         shift.setImage(UIImage(systemName: "capslock.fill", withConfiguration: capsConfig), for: .normal)
                         shift.tintColor = .white
                     } else if isShifted {
-                        shift.backgroundColor = mainPink
+                        shift.backgroundColor = accentColor
                         shift.setTitleColor(.white, for: .normal)
                     }
                     rowStack.addArrangedSubview(shift)
@@ -1406,7 +1789,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 for key in row {
                     let label = isShifted ? key.uppercased() : key
                     let btn = makeLetterKey(label)
-                    btn.addTarget(self, action: #selector(letterTapped(_:)), for: .touchUpInside)
+                    btn.addTarget(self, action: #selector(letterTapped(_:)), for: .touchDown)
                     rowStack.addArrangedSubview(btn)
                     letterKeys.append(btn)
                 }
@@ -1438,7 +1821,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottom.addArrangedSubview(space)
 
         let done = makeSpecialKey("완료")
-        done.backgroundColor = mainPink
+        done.backgroundColor = accentColor
         done.setTitleColor(.white, for: .normal)
         done.addTarget(self, action: #selector(returnTapped), for: .touchUpInside)
         done.setWidth(50)
@@ -1495,7 +1878,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.layer.cornerRadius = 14
             btn.contentEdgeInsets = UIEdgeInsets(top: 4, left: 14, bottom: 4, right: 14)
             let sel = i == selected
-            btn.backgroundColor = sel ? mainPink : UIColor(white: 0.92, alpha: 1)
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
             btn.tag = i
             btn.addAction(UIAction { _ in onCatChange(i) }, for: .touchUpInside)
@@ -1864,7 +2247,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         textDocumentProxy.insertText(textTemplates[idx].full)
         UIView.animate(withDuration: 0.06, animations: {
             s.transform = CGAffineTransform(scaleX: 0.97, y: 0.97)
-            s.backgroundColor = mainPink.withAlphaComponent(0.15)
+            s.backgroundColor = self.accentColor.withAlphaComponent(0.15)
         }) { _ in
             UIView.animate(withDuration: 0.06) {
                 s.transform = .identity
@@ -2146,7 +2529,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.layer.cornerRadius = 14
             btn.contentEdgeInsets = UIEdgeInsets(top: 4, left: 14, bottom: 4, right: 14)
             let sel = i == gifCategoryIndex
-            btn.backgroundColor = sel ? mainPink : UIColor(white: 0.92, alpha: 1)
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
             btn.tag = i
             btn.addTarget(self, action: #selector(gifCategoryTapped(_:)), for: .touchUpInside)
@@ -2237,6 +2620,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     private func fetchGiphy(append: Bool) {
+        print("🔍 GIF DEBUG - Starting fetch, apiKey length: \(giphyApiKey.count)")
         isLoadingGifs = true
         if !append {
             gifLoadingLabel?.text = "불러오는 중..."
@@ -2249,10 +2633,27 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         } else {
             urlString = "https://api.giphy.com/v1/gifs/trending?api_key=\(giphyApiKey)&limit=50&offset=\(gifOffset)&lang=ko"
         }
+        print("🔍 GIF DEBUG - URL: \(urlString)")
+        print("🔍 GIF DEBUG - API Key: \(giphyApiKey)")
         guard let url = URL(string: urlString) else { isLoadingGifs = false; return }
 
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             guard let self = self else { return }
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("🔍 GIF DEBUG - HTTP Status: \(httpResponse.statusCode)")
+            } else {
+                print("🔍 GIF DEBUG - HTTP Status: <no response>")
+            }
+            if let error = error {
+                print("🔍 GIF DEBUG - Network error: \(error.localizedDescription)")
+            }
+            if let data = data {
+                let bodyPreview = String(data: data, encoding: .utf8) ?? "<binary>"
+                print("🔍 GIF DEBUG - Body: \(bodyPreview.prefix(500))")
+            } else {
+                print("🔍 GIF DEBUG - Body: nil")
+            }
 
             guard let data = data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -2447,7 +2848,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let arrowLabel = UILabel()
         arrowLabel.text = "→"
         arrowLabel.font = .systemFont(ofSize: 14, weight: .bold)
-        arrowLabel.textColor = mainPink
+        arrowLabel.textColor = accentColor
         arrowLabel.textAlignment = .center
         arrowLabel.setWidth(20)
         topBar.addArrangedSubview(arrowLabel)
@@ -2455,7 +2856,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let tgtBtn = UIButton(type: .system)
         tgtBtn.setTitle(translateLangs[targetLangIndex].0 + " ▼", for: .normal)
         tgtBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
-        tgtBtn.setTitleColor(mainPink, for: .normal)
+        tgtBtn.setTitleColor(accentColor, for: .normal)
         tgtBtn.addTarget(self, action: #selector(translateTargetDropdown), for: .touchUpInside)
         topBar.addArrangedSubview(tgtBtn)
 
@@ -2487,7 +2888,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         inputField.font = .systemFont(ofSize: 15)
         inputField.textColor = .darkText
         inputField.backgroundColor = .clear
-        inputField.tintColor = mainPink
+        inputField.tintColor = accentColor
         inputField.returnKeyType = .done
         inputField.autocorrectionType = .no
         inputField.spellCheckingType = .no
@@ -2524,7 +2925,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let closeBtn = UIButton(type: .system)
         let closeConfig = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
         closeBtn.setImage(UIImage(systemName: "checkmark.circle.fill", withConfiguration: closeConfig), for: .normal)
-        closeBtn.tintColor = mainPink
+        closeBtn.tintColor = accentColor
         closeBtn.alpha = 0
         closeBtn.translatesAutoresizingMaskIntoConstraints = false
         closeBtn.addTarget(self, action: #selector(dismissTranslateKeyboard), for: .touchUpInside)
@@ -2630,7 +3031,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottom.addArrangedSubview(trBtn)
 
         let insBtn = makeSpecialKey("삽입")
-        insBtn.backgroundColor = mainPink; insBtn.setTitleColor(.white, for: .normal)
+        insBtn.backgroundColor = accentColor; insBtn.setTitleColor(.white, for: .normal)
         insBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         insBtn.setWidth(48)
         insBtn.addTarget(self, action: #selector(translateInsertTapped), for: .touchUpInside)
@@ -2711,7 +3112,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 if ri == 2 {
                     let shift = makeSpecialKey("⇧")
                     shift.addTarget(self, action: #selector(translateShiftTapped), for: .touchUpInside)
-                    if shifted { shift.backgroundColor = mainPink; shift.setTitleColor(.white, for: .normal) }
+                    if shifted { shift.backgroundColor = accentColor; shift.setTitleColor(.white, for: .normal) }
                     rowStack.addArrangedSubview(shift)
                 }
                 for key in row {
@@ -2764,7 +3165,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.tag = i; btn.layer.cornerRadius = 12
             btn.contentEdgeInsets = UIEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
             let sel = i == targetLangIndex
-            btn.backgroundColor = sel ? mainPink : UIColor(white: 0.92, alpha: 1)
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
             btn.addTarget(self, action: #selector(translateLangTapped(_:)), for: .touchUpInside)
             langRow.addArrangedSubview(btn)
@@ -2783,7 +3184,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         inputField.font = .systemFont(ofSize: 13)
         inputField.textColor = .darkText
         inputField.backgroundColor = .clear
-        inputField.tintColor = mainPink
+        inputField.tintColor = accentColor
         inputField.returnKeyType = .done
         inputField.delegate = self
         inputField.translatesAutoresizingMaskIntoConstraints = false
@@ -2799,7 +3200,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let pasteBtn = UIButton(type: .system)
         pasteBtn.setTitle("📋 붙여넣기", for: .normal)
         pasteBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
-        pasteBtn.setTitleColor(mainPink, for: .normal)
+        pasteBtn.setTitleColor(accentColor, for: .normal)
         pasteBtn.addTarget(self, action: #selector(translatePasteTapped), for: .touchUpInside)
         actionRow.addArrangedSubview(pasteBtn)
 
@@ -2863,7 +3264,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottomBar.addArrangedSubview(translateBtn)
 
         let insertBtn = makeSpecialKey("번역 삽입")
-        insertBtn.backgroundColor = mainPink
+        insertBtn.backgroundColor = accentColor
         insertBtn.setTitleColor(.white, for: .normal)
         insertBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
         insertBtn.addTarget(self, action: #selector(translateInsertTapped), for: .touchUpInside)
@@ -2930,7 +3331,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.tag = i; btn.layer.cornerRadius = 11
             btn.contentEdgeInsets = UIEdgeInsets(top: 2, left: 7, bottom: 2, right: 7)
             let sel = i == targetLangIndex
-            btn.backgroundColor = sel ? mainPink : UIColor(white: 0.92, alpha: 1)
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
             btn.addTarget(self, action: #selector(translateLangTapped(_:)), for: .touchUpInside)
             langRow.addArrangedSubview(btn)
@@ -2943,7 +3344,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let pasteBtn = UIButton(type: .system)
         pasteBtn.setTitle("📋 붙여넣기", for: .normal)
         pasteBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
-        pasteBtn.setTitleColor(mainPink, for: .normal)
+        pasteBtn.setTitleColor(accentColor, for: .normal)
         pasteBtn.addTarget(self, action: #selector(translatePasteAndTranslate), for: .touchUpInside)
         actionRow.addArrangedSubview(pasteBtn)
         let clearBtn = UIButton(type: .system)
@@ -2963,7 +3364,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         inputField.font = .systemFont(ofSize: 11)
         inputField.textColor = .darkText
         inputField.backgroundColor = .white
-        inputField.tintColor = mainPink
+        inputField.tintColor = accentColor
         inputField.returnKeyType = .done
         inputField.delegate = self
         inputField.layer.cornerRadius = 6; inputField.layer.masksToBounds = true
@@ -3039,7 +3440,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     let shift = makeSpecialKey("⇧")
                     shift.addTarget(self, action: #selector(translateShiftTapped), for: .touchUpInside)
                     if shifted {
-                        shift.backgroundColor = mainPink
+                        shift.backgroundColor = accentColor
                         shift.setTitleColor(.white, for: .normal)
                     }
                     rowStack.addArrangedSubview(shift)
@@ -3092,7 +3493,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottom.addArrangedSubview(trBtn)
 
         let insBtn = makeSpecialKey("삽입")
-        insBtn.backgroundColor = mainPink; insBtn.setTitleColor(.white, for: .normal)
+        insBtn.backgroundColor = accentColor; insBtn.setTitleColor(.white, for: .normal)
         insBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
         insBtn.setWidth(40)
         insBtn.addTarget(self, action: #selector(translateInsertTapped), for: .touchUpInside)
@@ -3118,7 +3519,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let overlay = makeOverlay()
         let stack = makePopupStack(in: overlay)
         for (i, lang) in translateLangs.enumerated() {
-            let btn = makePopupButton(title: lang.0, color: i == sourceLangIndex ? mainPink : .darkGray) {
+            let btn = makePopupButton(title: lang.0, color: i == sourceLangIndex ? accentColor : .darkGray) {
                 overlay.removeFromSuperview()
                 self.sourceLangIndex = i
                 self.showMode(.translate)
@@ -3131,7 +3532,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let overlay = makeOverlay()
         let stack = makePopupStack(in: overlay)
         for (i, lang) in translateLangs.enumerated() {
-            let btn = makePopupButton(title: lang.0, color: i == targetLangIndex ? mainPink : .darkGray) {
+            let btn = makePopupButton(title: lang.0, color: i == targetLangIndex ? accentColor : .darkGray) {
                 overlay.removeFromSuperview()
                 self.targetLangIndex = i
                 self.showMode(.translate)
@@ -3660,7 +4061,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.layer.cornerRadius = 14
             btn.contentEdgeInsets = UIEdgeInsets(top: 4, left: 12, bottom: 4, right: 12)
             let sel = i == favCategoryIndex
-            btn.backgroundColor = sel ? mainPink : UIColor(white: 0.92, alpha: 1)
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
             btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
             btn.tag = i
             btn.addTarget(self, action: #selector(favCategoryTapped(_:)), for: .touchUpInside)
@@ -3889,7 +4290,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     btn.backgroundColor = .white
                     btn.layer.cornerRadius = 10
                     btn.layer.borderWidth = 1
-                    btn.layer.borderColor = mainPink.cgColor
+                    btn.layer.borderColor = accentColor.cgColor
                     btn.setTitleColor(.darkGray, for: .normal)
                     btn.setHeight(44)
                     btn.accessibilityIdentifier = style.name
@@ -4143,7 +4544,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private static let favKeyEmoticon = "favorites"
     private static let favKeyDotArt   = "favorites_dotart"
     private static let favKeyGif      = "favorites_gif"
-    private static let favAppGroup    = "group.com.yourapp.fontkeyboard"
+    private static let favAppGroup    = "group.com.yunajung.fonki"
     private static let maxFav         = 100
 
     private var favCategoryIndex = 0
@@ -4278,7 +4679,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         let stack = makePopupStack(in: overlay)
 
-        let favBtn = makePopupButton(title: "♥ 즐겨찾기 추가", color: mainPink) {
+        let favBtn = makePopupButton(title: "♥ 즐겨찾기 추가", color: accentColor) {
             overlay.removeFromSuperview()
             self.addFavorite(text, key: favKey)
         }
@@ -4392,10 +4793,18 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Premium Check (via App Group UserDefaults synced from main app)
 
     private func checkPremiumStatus() {
-        let defaults = UserDefaults(suiteName: "group.com.yourapp.fontkeyboard") ?? .standard
+        let appGroupID = "group.com.yunajung.fonki"
+        guard let defaults = UserDefaults(suiteName: appGroupID) else {
+            isPremiumUser = false
+            userTier = "free"
+            canTranslateUnlimited = false
+            return
+        }
         isPremiumUser = defaults.bool(forKey: "is_premium")
         userTier = defaults.string(forKey: "tier") ?? "free"
         canTranslateUnlimited = defaults.bool(forKey: "can_translate_unlimited")
+
+        print("🔍 Premium check - tier: \(userTier), premium: \(isPremiumUser), canTranslate: \(canTranslateUnlimited)")
     }
 
     // MARK: - UIScrollViewDelegate
@@ -4464,7 +4873,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                        options: [.allowUserInteraction, .curveEaseInOut],
                        animations: {
             btn.transform = CGAffineTransform(scaleX: 0.92, y: 0.92)
-            btn.backgroundColor = mainPink.withAlphaComponent(0.15)
+            btn.backgroundColor = self.accentColor.withAlphaComponent(0.15)
         }) { _ in
             UIView.animate(withDuration: 0.05, delay: 0,
                            options: [.allowUserInteraction, .curveEaseInOut]) {
