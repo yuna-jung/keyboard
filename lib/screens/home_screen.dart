@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/subscription_service.dart';
 import 'paywall_screen.dart';
 import 'settings_screen.dart';
@@ -103,8 +104,10 @@ class _HomeScreenState extends State<HomeScreen> {
 // ══════════════════════════════════════════════════════════════════════════
 
 class _ChatMessage {
-  _ChatMessage({required this.text, required this.fromMe});
-  final String text;
+  _ChatMessage({this.text, this.gifUrl, required this.fromMe})
+      : assert(text != null || gifUrl != null);
+  final String? text;
+  final String? gifUrl;
   final bool fromMe;
 }
 
@@ -151,6 +154,10 @@ class _ChatTabState extends State<_ChatTab> {
       _messages.add(_ChatMessage(text: t, fromMe: true));
       _input.clear();
     });
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         _scroll.animateTo(
@@ -160,6 +167,63 @@ class _ChatTabState extends State<_ChatTab> {
         );
       }
     });
+  }
+
+  static const _appGroupChannel =
+      MethodChannel('com.yunajung.fonki/appgroup');
+
+  /// Paste handler: first checks the App Group stash that the keyboard
+  /// extension writes when copying a GIF (which the standard Clipboard API
+  /// can't see — GIFs are copied as `com.compuserve.gif` binary data, not
+  /// plain text). Falls back to text clipboard if no GIF URL is queued.
+  Future<void> _pasteFromClipboard() async {
+    String? gifUrl;
+    try {
+      gifUrl = await _appGroupChannel.invokeMethod<String>('getLastCopiedGifUrl');
+    } catch (_) {
+      gifUrl = null;
+    }
+    if (!mounted) return;
+
+    if (gifUrl != null) {
+      final lower = gifUrl.toLowerCase();
+      final looksLikeGif = lower.contains('giphy.com') ||
+          lower.endsWith('.gif') ||
+          lower.contains('.gif?');
+      if (looksLikeGif) {
+        setState(() {
+          _messages.add(_ChatMessage(gifUrl: gifUrl, fromMe: true));
+        });
+        _scrollToBottom();
+        // Consume the stash so the same GIF doesn't keep re-pasting.
+        try {
+          await _appGroupChannel.invokeMethod('clearLastCopiedGifUrl');
+        } catch (_) {}
+        return;
+      }
+    }
+
+    // Fallback — plain text clipboard (Giphy URL pasted manually, or
+    // ordinary text the user wants to drop into the input field).
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    if (text == null || text.isEmpty) return;
+    if (!mounted) return;
+
+    final lower = text.toLowerCase();
+    final looksLikeGif = lower.contains('giphy.com') ||
+        lower.endsWith('.gif') ||
+        lower.contains('.gif?');
+    if (looksLikeGif) {
+      setState(() {
+        _messages.add(_ChatMessage(gifUrl: text, fromMe: true));
+      });
+      _scrollToBottom();
+    } else {
+      _input.text = text;
+      _input.selection =
+          TextSelection.collapsed(offset: _input.text.length);
+    }
   }
 
   Future<void> _openPaywall() async {
@@ -221,6 +285,7 @@ class _ChatTabState extends State<_ChatTab> {
                       controller: _input,
                       focusNode: _focus,
                       onSend: _send,
+                      onPaste: _pasteFromClipboard,
                       isDark: isDark,
                     ),
                   ],
@@ -275,32 +340,101 @@ class _ChatBubble extends StatelessWidget {
     final bg = me ? _pink : (isDark ? const Color(0xFF2C2C2E) : Colors.white);
     final fg = me ? Colors.white : (isDark ? Colors.white : Colors.black87);
 
+    final radius = BorderRadius.only(
+      topLeft: const Radius.circular(16),
+      topRight: const Radius.circular(16),
+      bottomLeft: Radius.circular(me ? 16 : 4),
+      bottomRight: Radius.circular(me ? 4 : 16),
+    );
+
+    final Widget content;
+    if (message.gifUrl != null) {
+      final stillUrl = message.gifUrl!;
+      final animatedUrl = message.gifUrl!;
+      content = GestureDetector(
+        onTap: () {
+          showDialog<void>(
+            context: context,
+            barrierColor: Colors.black.withValues(alpha: 0.92),
+            builder: (_) => Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.all(16),
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: InteractiveViewer(
+                  child: Image.network(
+                    animatedUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(
+                        Icons.broken_image, color: Colors.white, size: 48),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+        child: ClipRRect(
+          borderRadius: radius,
+          child: Image.network(
+            stillUrl,
+            width: 200,
+            fit: BoxFit.cover,
+            loadingBuilder: (_, child, progress) => progress == null
+                ? child
+                : SizedBox(
+                    width: 200,
+                    height: 120,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: isDark
+                            ? Colors.white54
+                            : Colors.grey.shade400,
+                      ),
+                    ),
+                  ),
+            errorBuilder: (_, _, _) => Container(
+              width: 200,
+              height: 120,
+              color: isDark
+                  ? const Color(0xFF2C2C2E)
+                  : Colors.grey.shade200,
+              alignment: Alignment.center,
+              child: Icon(Icons.broken_image,
+                  color: isDark
+                      ? Colors.white38
+                      : Colors.grey.shade500),
+            ),
+          ),
+        ),
+      );
+    } else {
+      content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(color: bg, borderRadius: radius),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 300),
+          child: SingleChildScrollView(
+            child: Text(
+              message.text ?? '',
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 15,
+                color: fg,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment:
             me ? MainAxisAlignment.end : MainAxisAlignment.start,
-        children: [
-          Flexible(
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(me ? 16 : 4),
-                  bottomRight: Radius.circular(me ? 4 : 16),
-                ),
-              ),
-              child: Text(
-                message.text,
-                style: TextStyle(fontSize: 15, color: fg, height: 1.35),
-              ),
-            ),
-          ),
-        ],
+        children: [Flexible(child: content)],
       ),
     );
   }
@@ -311,11 +445,13 @@ class _ChatInput extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onSend,
+    required this.onPaste,
     required this.isDark,
   });
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onSend;
+  final VoidCallback onPaste;
   final bool isDark;
 
   @override
@@ -325,16 +461,48 @@ class _ChatInput extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 120),
+              child: TextField(
               controller: controller,
               focusNode: focusNode,
-              maxLines: null,
+              maxLines: 5,
               minLines: 1,
+              maxLength: 1000,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               keyboardType: TextInputType.multiline,
               textInputAction: TextInputAction.newline,
               style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 16,
                 color: isDark ? Colors.white : Colors.black87,
               ),
+              // Intercept the system Paste button so a copied GIF lands as a
+              // GIF bubble (not raw text). Routes through `_pasteFromClipboard`
+              // which checks the App Group for the keyboard's last-copied URL
+              // before falling back to the OS clipboard's plain text.
+              //
+              // Force-inject the paste item: GIFs are stashed in App Group
+              // UserDefaults, never on `UIPasteboard.general`, so Flutter's
+              // `contextMenuButtonItems` would otherwise omit "Paste" whenever
+              // the system clipboard is empty — leaving the user with no way
+              // to drop a copied GIF into the chat.
+              contextMenuBuilder: (context, editableTextState) {
+                final items = editableTextState.contextMenuButtonItems
+                    .where((i) => i.type != ContextMenuButtonType.paste)
+                    .toList();
+                items.add(ContextMenuButtonItem(
+                  type: ContextMenuButtonType.paste,
+                  onPressed: () {
+                    ContextMenuController.removeAny();
+                    onPaste();
+                  },
+                ));
+                return AdaptiveTextSelectionToolbar.buttonItems(
+                  anchors: editableTextState.contextMenuAnchors,
+                  buttonItems: items,
+                );
+              },
               decoration: InputDecoration(
                 hintText: '메시지 입력...',
                 hintStyle: TextStyle(
@@ -349,7 +517,9 @@ class _ChatInput extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                   borderSide: BorderSide.none,
                 ),
+                counterText: '',
               ),
+            ),
             ),
           ),
           const SizedBox(width: 6),

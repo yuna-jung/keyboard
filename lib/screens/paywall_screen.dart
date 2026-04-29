@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:adapty_flutter/adapty_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/subscription_service.dart';
 
 const _pink = Color(0xFF5BC8F5);
@@ -85,10 +86,18 @@ class _PaywallObserver extends AdaptyUIPaywallsEventsObserver {
   }
 
   @override
-  void paywallViewDidPerformAction(
-      AdaptyUIPaywallView view, AdaptyUIAction action) {
+  Future<void> paywallViewDidPerformAction(
+      AdaptyUIPaywallView view, AdaptyUIAction action) async {
     if (action is CustomAction && action.action == 'show_lifetime_plan') {
       PaywallScreen.showLifetimePopup(context);
+      return;
+    }
+    // Terms / Privacy / external link buttons
+    if (action is OpenUrlAction) {
+      final uri = Uri.tryParse(action.url);
+      if (uri != null && await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
       return;
     }
     // Default: close/androidBack dismiss

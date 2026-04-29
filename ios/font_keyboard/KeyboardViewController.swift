@@ -156,6 +156,50 @@ private let _wingMap: [Character: String] = [
     "U":"♴","V":"♵","W":"♶","X":"♷","Y":"♸","Z":"♹"
 ]
 
+/// Inverse of every `_cm`-driven map currently registered in fontStyles.
+/// Maps a styled scalar (e.g. ᗩ) back to its plain ASCII counterpart, so a
+/// follow-up font conversion can recognise the character.
+///
+/// Several source maps (`_alienMap`, `_slightlyCursiveMap`, `_subMap`) use the
+/// same styled glyph for both upper and lowercase ASCII (e.g. `"s":"ᔕ"` and
+/// `"S":"ᔕ"` in `_alienMap`). Swift's dictionary iteration order is
+/// non-deterministic, so plain first-write-wins would let the case stored in
+/// the inverse table flip between launches and corrupt re-conversions like
+/// "miss" → "MISS". Prefer lowercase: lowercase is the natural rest state for
+/// re-typing and matches the lowercase result the user expects.
+private let _cmReverseMap: [UInt32: UInt32] = {
+    var rev: [UInt32: UInt32] = [:]
+    let sources: [[Character: String]] = [
+        _alienMap, _slightlyCursiveMap, _scMap, _supMap, _subMap,
+    ]
+    for map in sources {
+        for (asciiKey, styledValue) in map {
+            guard let kScalar = asciiKey.unicodeScalars.first?.value,
+                  let vScalar = styledValue.unicodeScalars.first?.value else { continue }
+            // Skip identity entries (e.g. _slightlyCursiveMap "g" → "g").
+            if kScalar == vScalar { continue }
+            let isLower = (kScalar >= 0x61 && kScalar <= 0x7A)
+            if rev[vScalar] == nil || isLower { rev[vScalar] = kScalar }
+        }
+    }
+    return rev
+}()
+
+/// Inverse of `_udMap` (Flip). The Flip style applies `_udMap` per character
+/// and then reverses the whole string; to undo it we reverse-map each scalar
+/// and reverse the resulting string back. Detection of any flipped scalar in
+/// the input triggers the final reverse — see `normalizeToASCII`.
+private let _udReverseMap: [UInt32: UInt32] = {
+    var rev: [UInt32: UInt32] = [:]
+    for (asciiKey, styledValue) in _udMap {
+        guard let kScalar = asciiKey.unicodeScalars.first?.value,
+              let vScalar = styledValue.unicodeScalars.first?.value else { continue }
+        if kScalar == vScalar { continue }
+        if rev[vScalar] == nil { rev[vScalar] = kScalar }
+    }
+    return rev
+}()
+
 let allFontCategories: [(String, [FontStyleDef])] = [
     ("클래식", [
         FontStyleDef(name: "Normal",       convert: { $0 }),
@@ -1355,10 +1399,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         if mode == .translate {
             // Refresh premium state from App Group, then gate the tab.
             checkPremiumStatus()
+            #if DEBUG
             print("🔍 DEBUG - isPremiumUser: \(isPremiumUser), canTranslateUnlimited: \(canTranslateUnlimited), userTier: \(userTier)")
             print("🔍 DEBUG - App Group: group.com.yunajung.fonki")
+            #endif
             guard canTranslateUnlimited else {
-                showToast("잠금 (tier: \(userTier), premium: \(isPremiumUser))")
+                if userTier == "lifetime" {
+                    showToast("번역 기능은 월간/연간 구독에서 이용 가능해요 ✨")
+                } else {
+                    showToast("번역 기능은 구독자 전용이에요 ✨")
+                }
                 return
             }
         }
@@ -2232,9 +2282,23 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// Calculator button with auto-rounding corner radius (= bounds.height / 2),
     /// producing a pill/circle shape matching the native iOS calculator.
     private final class CalcButton: UIButton {
+        /// Snapshot of the button's intended background color, set once in
+        /// makeCalcButton. We restore to this value when the highlight ends.
+        var currentBgColor: UIColor = .clear
+
         override func layoutSubviews() {
             super.layoutSubviews()
             layer.cornerRadius = bounds.height / 2
+        }
+
+        override var isHighlighted: Bool {
+            didSet {
+                UIView.animate(withDuration: 0.08) {
+                    self.backgroundColor = self.isHighlighted
+                        ? self.currentBgColor.withAlphaComponent(0.6)
+                        : self.currentBgColor
+                }
+            }
         }
     }
 
@@ -2280,10 +2344,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         container.addSubview(gridStack)
 
         let topRows: [[(String, CalcKind)]] = [
-            [("AC", .function), ("+/-", .function), ("%", .function), ("÷", .op)],
-            [("7", .digit),     ("8", .digit),      ("9", .digit),    ("×", .op)],
-            [("4", .digit),     ("5", .digit),      ("6", .digit),    ("−", .op)],
-            [("1", .digit),     ("2", .digit),      ("3", .digit),    ("+", .op)],
+            [("⌫", .function), ("AC", .function),  ("%", .function), ("÷", .op)],
+            [("7", .digit),    ("8", .digit),      ("9", .digit),    ("×", .op)],
+            [("4", .digit),    ("5", .digit),      ("6", .digit),    ("−", .op)],
+            [("1", .digit),    ("2", .digit),      ("3", .digit),    ("+", .op)],
         ]
 
         for row in topRows {
@@ -2299,19 +2363,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             gridStack.addArrangedSubview(rowStack)
         }
 
-        // Row 5: 0 (double width) + . + =
+        // Row 5: +/- + 0 + . + =  (all single-width, matches the 4-col grid)
         let row5 = UIStackView()
         row5.axis = .horizontal
         row5.spacing = 4
-        row5.distribution = .fill
-        let zeroBtn = makeCalcButton(title: "0", kind: .digit)
-        let dotBtn = makeCalcButton(title: ".", kind: .digit)
-        let eqBtn = makeCalcButton(title: "=", kind: .op)
-        row5.addArrangedSubview(zeroBtn)
-        row5.addArrangedSubview(dotBtn)
-        row5.addArrangedSubview(eqBtn)
-        dotBtn.widthAnchor.constraint(equalTo: eqBtn.widthAnchor).isActive = true
-        zeroBtn.widthAnchor.constraint(equalTo: dotBtn.widthAnchor, multiplier: 2, constant: 4).isActive = true
+        row5.distribution = .fillEqually
+        row5.addArrangedSubview(makeCalcButton(title: "+/-", kind: .function))
+        row5.addArrangedSubview(makeCalcButton(title: "0", kind: .digit))
+        row5.addArrangedSubview(makeCalcButton(title: ".", kind: .digit))
+        row5.addArrangedSubview(makeCalcButton(title: "=", kind: .op))
         gridStack.addArrangedSubview(row5)
 
         NSLayoutConstraint.activate([
@@ -2333,24 +2393,32 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     private func makeCalcButton(title: String, kind: CalcKind) -> UIButton {
-        let btn = CalcButton(type: .system)
+        // .custom (not .system) avoids the fade-in/fade-out title-tint animation
+        // that UIKit applies on tap, which looked like a flicker on our colored
+        // calculator buttons.
+        let btn = CalcButton(type: .custom)
         btn.setTitle(title, for: .normal)
         btn.titleLabel?.font = .systemFont(ofSize: 22, weight: .medium)
         btn.setTitleColor(.white, for: .normal)
+        btn.adjustsImageWhenHighlighted = false
+        btn.showsTouchWhenHighlighted = false
+        let bg: UIColor
         switch kind {
         case .digit:
-            btn.backgroundColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)      // #333333
+            bg = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)      // #333333
             btn.addTarget(self, action: #selector(calcKeyTapped(_:)), for: .touchUpInside)
         case .op:
-            btn.backgroundColor = UIColor(red: 1.0, green: 0.584, blue: 0.0, alpha: 1)    // #FF9500
+            bg = UIColor(red: 1.0, green: 0.584, blue: 0.0, alpha: 1)    // #FF9500
             btn.addTarget(self, action: #selector(calcKeyTapped(_:)), for: .touchUpInside)
         case .function:
-            btn.backgroundColor = UIColor(red: 0.647, green: 0.647, blue: 0.647, alpha: 1) // #A5A5A5
+            bg = UIColor(red: 0.647, green: 0.647, blue: 0.647, alpha: 1) // #A5A5A5
             btn.addTarget(self, action: #selector(calcKeyTapped(_:)), for: .touchUpInside)
         case .empty:
-            btn.backgroundColor = .clear
+            bg = .clear
             btn.isEnabled = false
         }
+        btn.backgroundColor = bg
+        btn.currentBgColor = bg
         return btn
     }
 
@@ -2381,6 +2449,18 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         case "C":
             calcDisplay = "0"
             calcJustEvaluated = false
+        case "⌫":
+            // Delete the last digit; show "0" once the display is empty.
+            if calcJustEvaluated {
+                // After "=" the display is the result — backspace clears it.
+                calcDisplay = "0"
+                calcJustEvaluated = false
+                if calcPrevValue == nil { calcExpression = "" }
+            } else if calcDisplay.count > 1 {
+                calcDisplay.removeLast()
+            } else {
+                calcDisplay = "0"
+            }
         case "+/-":
             if let d = Double(calcDisplay) { calcDisplay = formatCalcValue(-d) }
         case "%":
@@ -2796,6 +2876,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     return
                 }
                 UIPasteboard.general.setData(data, forPasteboardType: "com.compuserve.gif")
+                // Stash the URL in the App Group so the host Flutter app
+                // can pick it up via its paste button.
+                let defaults = UserDefaults(suiteName: "group.com.yunajung.fonki")
+                defaults?.set(gif.originalURL.absoluteString, forKey: "lastCopiedGifUrl")
                 self?.showToast("GIF가 복사되었습니다")
             }
         }.resume()
@@ -3868,10 +3952,36 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return
         }
 
-        // Free: subscription required (no free translations)
+        // Free tier: 5 translations/day, resetting at local midnight. Premium
+        // users (`canTranslateUnlimited == true`) skip this entirely. Counter
+        // lives in App Group UserDefaults so it survives extension lifecycle
+        // and is shared with the host app.
         if !canTranslateUnlimited {
-            showTranslateError("번역은 구독자 전용이에요\nFonkii 앱에서 프리미엄 구독 후 이용해주세요 ✨")
-            return
+            let appGroupID = "group.com.yunajung.fonki"
+            let defaults = UserDefaults(suiteName: appGroupID)
+
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dateFormatter.timeZone = TimeZone.current
+            let today = dateFormatter.string(from: Date())
+
+            let storedDate = defaults?.string(forKey: "translateDailyDate")
+            var count = (storedDate == today)
+                ? (defaults?.integer(forKey: "translateDailyCount") ?? 0)
+                : 0
+
+            if count >= 5 {
+                translateResultLabel?.text =
+                    "오늘 무료 번역 횟수(5회)를 모두 사용했어요.\n구독하면 무제한으로 사용할 수 있어요."
+                translateResultLabel?.textColor = .systemOrange
+                translateResultLabel?.numberOfLines = 0
+                return
+            }
+
+            count += 1
+            defaults?.set(count, forKey: "translateDailyCount")
+            defaults?.set(today, forKey: "translateDailyDate")
         }
         #endif
 
@@ -3889,7 +3999,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let body: [String: Any] = [
             "model": "gpt-4o-mini",
             "messages": [
-                ["role": "system", "content": "You are a professional translator. Translate the given text from \(srcLang) to \(tgtLang) staying close to the original wording.\n\nGuidelines:\n- Preserve the original meaning, tone, and word choice as faithfully as possible\n- Stay close to a literal translation; adjust only as needed for the target language to read naturally\n- Do NOT paraphrase or rephrase beyond what is necessary\n- Do NOT add expressions, embellishments, or details that are not in the original text\n- Preserve casual/formal register, emotional intensity, humor, and sarcasm exactly as in the source\n- Keep slang, abbreviations, and internet expressions in a closely matching equivalent — do not over-localize\n- Keep emojis and emoticons exactly as-is\n- Output only the translated text — no explanations, no notes\n- If source and target language are the same, return the text unchanged\n\nExample (Korean → English):\nSource: \"대체 누구신데 저한테 이러시는거죠\"\nGood: \"Who exactly are you, and why are you doing this to me?\"\nBad (too liberal): \"Who on earth are you to treat me like this?\""],
+                ["role": "system", "content": "You are a professional translator. Translate the given text from \(srcLang) to \(tgtLang).\n\nPrinciples:\n- Stay close to the original — do not add, remove, or paraphrase beyond what is written\n- Preserve the exact emotion, tone, and nuance of the source text\n- Use natural, everyday language that a native speaker would actually say\n- The context is unknown (could be social media, casual chat, formal message) — do not assume or adjust register beyond what the source text implies\n- If the source is blunt, keep it blunt. If warm, keep it warm. If formal, keep it formal.\n- Never generate new sentences or meanings not present in the source\n- Keep emojis, emoticons, and punctuation exactly as-is\n- Output only the translated text — no explanations, alternatives, or notes\n- If source and target language are the same, return the text unchanged"],
                 ["role": "user", "content": translationInput],
             ],
             "max_tokens": 500,
@@ -4390,11 +4500,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 withTimeInterval: 0.1, repeats: true
             ) { [weak self] _ in
                 guard let self = self else { return }
+                // Bail out if there's nothing left to delete — stop the whole
+                // repeat loop instead of letting it fire silently.
+                guard self.textDocumentProxy.hasText || !self.translationInput.isEmpty else {
+                    self.deleteTimer?.invalidate()
+                    self.deleteTimer = nil
+                    return
+                }
                 self.performBackspaceForCurrentMode()
-                if self.textDocumentProxy.hasText || !self.translationInput.isEmpty {
-                    DispatchQueue.global(qos: .userInteractive).async {
-                        AudioServicesPlaySystemSound(1104)
-                    }
+                DispatchQueue.global(qos: .userInteractive).async {
+                    AudioServicesPlaySystemSound(1104)
                 }
                 self.deleteTickCount += 1
                 // After ~0.5s of slow deletes, accelerate to 0.06s interval.
@@ -4404,11 +4519,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                         withTimeInterval: 0.06, repeats: true
                     ) { [weak self] _ in
                         guard let self = self else { return }
+                        guard self.textDocumentProxy.hasText || !self.translationInput.isEmpty else {
+                            self.deleteTimer?.invalidate()
+                            self.deleteTimer = nil
+                            return
+                        }
                         self.performBackspaceForCurrentMode()
-                        if self.textDocumentProxy.hasText || !self.translationInput.isEmpty {
-                            DispatchQueue.global(qos: .userInteractive).async {
-                                AudioServicesPlaySystemSound(1104)
-                            }
+                        DispatchQueue.global(qos: .userInteractive).async {
+                            AudioServicesPlaySystemSound(1104)
                         }
                     }
                 }
@@ -4451,8 +4569,214 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         textDocumentProxy.insertText("\n")
     }
 
+    /// Convert math-alphanumeric / fullwidth Unicode codepoints back to their
+    /// plain ASCII counterparts so a follow-up `convert()` can re-style them.
+    /// Anything outside the recognised ranges passes through unchanged.
+    private func normalizeToASCII(_ text: String) -> String {
+        // BMP fallbacks Apple chose for the "reserved" math-alphanumeric slots
+        // (e.g. italic ℎ, script ℬ/ℰ/ℱ/ℋ/…, fraktur ℭ/ℌ/…, double-struck ℂ/ℕ/…).
+        let bmpExceptions: [UInt32: UInt32] = [
+            0x210E: 0x68,                              // h (italic)
+            0x212C: 0x42, 0x2130: 0x45, 0x2131: 0x46, // B / E / F (script upper)
+            0x210B: 0x48, 0x2110: 0x49, 0x2112: 0x4C, // H / I / L
+            0x2133: 0x4D, 0x211B: 0x52,                // M / R
+            0x212F: 0x65, 0x210A: 0x67, 0x2134: 0x6F, // e / g / o (script lower)
+            0x212D: 0x43, 0x210C: 0x48, 0x2111: 0x49, // C / H / I (fraktur)
+            0x211C: 0x52, 0x2128: 0x5A,                // R / Z
+            0x2102: 0x43, 0x210D: 0x48, 0x2115: 0x4E, // C / H / N (double-struck)
+            0x2119: 0x50, 0x211A: 0x51, 0x211D: 0x52, // P / Q / R
+            0x2124: 0x5A,                              // Z
+        ]
+        // Each Latin-alphabet block in U+1D400..U+1D6A3 is exactly 26 chars,
+        // alternating uppercase / lowercase. List the start of each.
+        let upperBlocks: [UInt32] = [
+            0x1D400, 0x1D434, 0x1D468, 0x1D49C, 0x1D4D0, 0x1D504, 0x1D538,
+            0x1D56C, 0x1D5A0, 0x1D5D4, 0x1D608, 0x1D63C, 0x1D670,
+        ]
+        let lowerBlocks: [UInt32] = [
+            0x1D41A, 0x1D44E, 0x1D482, 0x1D4B6, 0x1D4EA, 0x1D51E, 0x1D552,
+            0x1D586, 0x1D5BA, 0x1D5EE, 0x1D622, 0x1D656, 0x1D68A,
+        ]
+        // Digit blocks in U+1D7CE..U+1D7FF — each 10 chars.
+        let digitBlocks: [UInt32] = [0x1D7CE, 0x1D7D8, 0x1D7E2, 0x1D7EC, 0x1D7F6]
+
+        func mapScalar(_ v: UInt32) -> UInt32 {
+            if let m = bmpExceptions[v] { return m }
+            for base in upperBlocks where v >= base && v < base + 26 {
+                return 0x41 + (v - base)
+            }
+            for base in lowerBlocks where v >= base && v < base + 26 {
+                return 0x61 + (v - base)
+            }
+            for base in digitBlocks where v >= base && v < base + 10 {
+                return 0x30 + (v - base)
+            }
+            // Fullwidth Latin / digits (used by the "Wide" style).
+            if v >= 0xFF21 && v <= 0xFF3A { return 0x41 + (v - 0xFF21) }
+            if v >= 0xFF41 && v <= 0xFF5A { return 0x61 + (v - 0xFF41) }
+            if v >= 0xFF10 && v <= 0xFF19 { return 0x30 + (v - 0xFF10) }
+            // Bubble: Ⓐ-Ⓩ (U+24B6-24CF) / ⓐ-ⓩ (U+24D0-24E9).
+            if v >= 0x24B6 && v <= 0x24CF { return 0x41 + (v - 0x24B6) }
+            if v >= 0x24D0 && v <= 0x24E9 { return 0x61 + (v - 0x24D0) }
+            // Square / Chunky / Block — three uppercase-only enclosed blocks.
+            if v >= 0x1F130 && v <= 0x1F149 { return 0x41 + (v - 0x1F130) }
+            if v >= 0x1F150 && v <= 0x1F169 { return 0x41 + (v - 0x1F150) }
+            if v >= 0x1F170 && v <= 0x1F189 { return 0x41 + (v - 0x1F170) }
+            // _cm-style maps (Comic / Cursive / Small Caps / Super / Sub) —
+            // their styled glyphs sit outside the math-alphanumeric blocks,
+            // so we go through the inverted lookup table.
+            if let m = _cmReverseMap[v] { return m }
+            // Flip (_udMap) — undo the per-char substitution. We do NOT reverse
+            // the string afterwards: most of `_udMap` is bidirectional (b↔q,
+            // d↔p, n↔u, m↔w, M↔W, 6↔9, …), so plain ASCII input would falsely
+            // trigger a reverse and scramble unrelated styles like Bold.
+            // Trade-off: re-converting Flip-styled text loses the original
+            // word order, which beats wrecking every other style.
+            //
+            // Gate the lookup on `v > 0x7F`: even for one-way lookups, the
+            // ASCII halves of the bidirectional pairs (n→u, q→b, p→d, …) are
+            // valid keys in the inverted table, so unstyled text would still
+            // be rewritten without this guard.
+            if v > 0x7F, let m = _udReverseMap[v] { return m }
+            return v
+        }
+
+        var out = ""
+        out.reserveCapacity(text.unicodeScalars.count)
+        for scalar in text.unicodeScalars {
+            let v = scalar.value
+            // Drop combining marks left over from previous styles like Sad
+            // (`\u{0308}`), Clouds (`\u{0353}\u{033D}`), Chaos (`\u{0489}`),
+            // Arrows (`\u{20D7}`), etc. — otherwise the next conversion stacks
+            // its own decoration on top of these.
+            let isCombining =
+                (v >= 0x0300 && v <= 0x036F) ||  // basic combining diacritics
+                (v >= 0x1AB0 && v <= 0x1AFF) ||  // combining diacritics extended
+                (v >= 0x1DC0 && v <= 0x1DFF) ||  // combining diacritics supplement
+                (v >= 0x20D0 && v <= 0x20FF) ||  // combining symbols
+                (v >= 0xFE20 && v <= 0xFE2F) ||  // combining half marks
+                (v >= 0xA670 && v <= 0xA67F) ||  // combining Cyrillic (꙰ U+A670)
+                (v >= 0x1CD0 && v <= 0x1CFF) ||  // Vedic extensions (combining)
+                (v >= 0x0600 && v <= 0x0605) || // Arabic combining/format marks
+                v == 0x0489                      // Cyrillic millions sign
+            if isCombining { continue }
+
+            // Wrapping glyphs left over from Cloudy (`☁X`), Candy (`♡X♡`) and
+            // Box (`[X]`). Strip them so the inner letter survives for the
+            // next conversion.
+            let isWrapping =
+                v == 0x2601 ||  // ☁
+                v == 0x2661 ||  // ♡
+                v == 0x005B ||  // [
+                v == 0x005D     // ]
+            if isWrapping { continue }
+
+            if let mapped = UnicodeScalar(mapScalar(v)) {
+                out.unicodeScalars.append(mapped)
+            } else {
+                out.unicodeScalars.append(scalar)
+            }
+        }
+        return out
+    }
+
     @objc private func styleTapped(_ s: UIButton) {
         fontStyleIndex = s.tag
+
+        #if DEBUG
+        print("[styleTapped] translateInputField: \(String(describing: translateInputField))")
+        print("[styleTapped] isFirstResponder: \(translateInputField?.isFirstResponder ?? false)")
+        print("[styleTapped] currentMode: \(currentMode)")
+        print("[styleTapped] selectedText: \(String(describing: textDocumentProxy.selectedText))")
+        #endif
+
+        let cats = visibleFontCategories()
+        let safeCat = min(fontCatIndex, max(cats.count - 1, 0))
+        let styles = cats.isEmpty ? [] : cats[safeCat].1
+        guard !styles.isEmpty else { showMode(.fonts); return }
+        let safeStyle = min(fontStyleIndex, styles.count - 1)
+        let convert = styles[safeStyle].convert
+
+        // Translate tab: when our own UITextView is focused, the host
+        // textDocumentProxy isn't pointing at it, so selectedText would be
+        // nil. Operate on the UITextView directly using NSRange.
+        if let tv = translateInputField, tv.isFirstResponder {
+            let fullText = tv.text ?? ""
+            let nsText = fullText as NSString
+            let range = tv.selectedRange
+            if range.length > 0 {
+                // Replace the selected slice in place; move cursor to the end
+                // of the converted segment (selection collapses).
+                let portion = nsText.substring(with: range)
+                let converted = convert(normalizeToASCII(portion))
+                tv.text = nsText.replacingCharacters(in: range, with: converted)
+                let cursor = range.location + (converted as NSString).length
+                tv.selectedRange = NSRange(location: cursor, length: 0)
+            } else {
+                // No selection → convert the whole field; cursor lands at end.
+                let converted = convert(normalizeToASCII(fullText))
+                tv.text = converted
+                tv.selectedRange = NSRange(
+                    location: (converted as NSString).length, length: 0)
+            }
+            // Keep the translation input model in sync.
+            translationInput = tv.text ?? ""
+            DispatchQueue.global(qos: .userInteractive).async {
+                AudioServicesPlaySystemSound(1104)
+            }
+            showMode(.fonts)
+            return
+        }
+
+        // If the host app reports a non-empty selection, convert it.
+        //
+        // Hosts disagree on what `deleteBackward()` does to a selection:
+        //  • Selection-aware (UITextField/UITextView in Notes, KakaoTalk, …)
+        //    wipe the entire selected range on the first call. Looping would
+        //    over-delete past the original selection.
+        //  • Selection-unaware (Flutter `FlutterTextInputView` and similar
+        //    UITextInput shims) only delete one grapheme before the cursor,
+        //    leaving the rest of the selection intact.
+        //
+        // Probe at runtime: fire one `deleteBackward()`, wait long enough for
+        // the platform-channel round-trip Flutter needs, then re-read
+        // `selectedText`. If it's gone the host handled the whole selection;
+        // otherwise we finish the job by deleting the remaining `count - 1`
+        // scalars. Sound, cursor-bounce and `showMode(.fonts)` all run after
+        // the probe so the picker UI doesn't update before the host caught up.
+        if let selected = textDocumentProxy.selectedText, !selected.isEmpty {
+            let converted = convert(normalizeToASCII(selected))
+            let scalarCount = selected.unicodeScalars.count
+
+            textDocumentProxy.deleteBackward()
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                guard let self = self else { return }
+
+                if let stillSelected = self.textDocumentProxy.selectedText,
+                   !stillSelected.isEmpty {
+                    // Selection-unaware host (Flutter, …) — finish the delete
+                    // ourselves. We already fired one deleteBackward, so loop
+                    // `scalarCount - 1` more times.
+                    for _ in 0..<max(scalarCount - 1, 0) {
+                        self.textDocumentProxy.deleteBackward()
+                    }
+                }
+                self.textDocumentProxy.insertText(converted)
+
+                let len = converted.utf16.count
+                self.textDocumentProxy.adjustTextPosition(byCharacterOffset: -len)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    self?.textDocumentProxy.adjustTextPosition(byCharacterOffset: len)
+                }
+                DispatchQueue.global(qos: .userInteractive).async {
+                    AudioServicesPlaySystemSound(1104)
+                }
+                self.showMode(.fonts)
+            }
+            return
+        }
+
         showMode(.fonts)
     }
 
@@ -4644,6 +4968,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             DispatchQueue.main.async {
                 guard let data = data else { self?.showToast("다운로드 실패"); return }
                 UIPasteboard.general.setData(data, forPasteboardType: "com.compuserve.gif")
+                let defaults = UserDefaults(suiteName: "group.com.yunajung.fonki")
+                defaults?.set(url.absoluteString, forKey: "lastCopiedGifUrl")
                 self?.showToast("GIF가 복사되었습니다")
             }
         }.resume()

@@ -51,6 +51,18 @@ import UIKit
         defaults?.synchronize()
         result(nil)
 
+      case "getLastCopiedGifUrl":
+        // Read the URL written by the keyboard extension when a GIF is copied.
+        let defaults = UserDefaults(suiteName: self.appGroupID)
+        result(defaults?.string(forKey: "lastCopiedGifUrl"))
+
+      case "clearLastCopiedGifUrl":
+        // Wipe the stash after the host app has consumed it.
+        let defaults = UserDefaults(suiteName: self.appGroupID)
+        defaults?.removeObject(forKey: "lastCopiedGifUrl")
+        defaults?.synchronize()
+        result(nil)
+
       default:
         result(FlutterMethodNotImplemented)
       }

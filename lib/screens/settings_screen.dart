@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -13,9 +15,11 @@ class SettingsScreen extends StatelessWidget {
   }
 
   /// Open a URL whose target depends on device language: Korean device gets
-  /// `koUrl`, everything else gets `enUrl`.
+  /// `koUrl`, everything else gets `enUrl`. Uses `Platform.localeName`
+  /// (e.g. "ko_KR") so detection works regardless of MaterialApp's
+  /// supportedLocales configuration.
   Future<void> _openUrl(BuildContext context, String koUrl, String enUrl) async {
-    final locale = Localizations.localeOf(context).languageCode;
+    final locale = Platform.localeName.split('_').first;
     final url = locale == 'ko' ? koUrl : enUrl;
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
@@ -105,15 +109,6 @@ class SettingsScreen extends StatelessWidget {
             label: '개인정보 보호 설정',
             isDark: isDark,
             onTap: _openAppSettings,
-          ),
-          _SettingTile(
-            icon: Icons.code,
-            label: '오픈소스 라이브러리',
-            isDark: isDark,
-            onTap: () => showLicensePage(
-              context: context,
-              applicationName: 'Fonkii',
-            ),
           ),
           const SizedBox(height: 32),
         ],
