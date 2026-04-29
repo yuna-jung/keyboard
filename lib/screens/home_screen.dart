@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/subscription_service.dart';
+import 'guide_screen.dart';
 import 'paywall_screen.dart';
 import 'settings_screen.dart';
 import 'subscription_screen.dart';
@@ -64,13 +65,14 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _selectedIndex,
         children: const [
           _ChatTab(),
+          GuideScreen(),
           SubscriptionScreen(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (i) {
-          if (i == 1) {
+          if (i == 2) {
             // Subscription tab → open Adapty paywall directly without switching tab
             PaywallScreen.show(context);
             return;
@@ -87,6 +89,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.chat_bubble_outline),
             activeIcon: Icon(Icons.chat_bubble),
             label: '체험하기',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.help_outline),
+            activeIcon: Icon(Icons.help),
+            label: '가이드',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.workspace_premium_outlined),
@@ -409,22 +416,35 @@ class _ChatBubble extends StatelessWidget {
         ),
       );
     } else {
+      // Detect dot-art by the presence of Braille codepoints (U+2800-U+28FF).
+      // Dot-art needs `softWrap: false` + horizontal scroll to keep its grid
+      // intact; ordinary text/emoticon messages should wrap naturally so the
+      // bubble doesn't blow out into a single long horizontal strip.
+      final isDotArt = message.text?.runes
+              .any((r) => r >= 0x2800 && r <= 0x28FF) ??
+          false;
+      final textWidget = Text(
+        message.text ?? '',
+        softWrap: !isDotArt,
+        style: TextStyle(
+          fontSize: 13,
+          color: fg,
+          height: 1.2,
+          letterSpacing: 0,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      );
       content = Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(color: bg, borderRadius: radius),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 300),
-          child: SingleChildScrollView(
-            child: Text(
-              message.text ?? '',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 15,
-                color: fg,
-                height: 1.35,
-              ),
-            ),
-          ),
+          child: isDotArt
+              ? SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SingleChildScrollView(child: textWidget),
+                )
+              : SingleChildScrollView(child: textWidget),
         ),
       );
     }
@@ -473,9 +493,10 @@ class _ChatInput extends StatelessWidget {
               keyboardType: TextInputType.multiline,
               textInputAction: TextInputAction.newline,
               style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 16,
+                fontSize: 14,
                 color: isDark ? Colors.white : Colors.black87,
+                height: 1.2,
+                letterSpacing: 0,
               ),
               // Intercept the system Paste button so a copied GIF lands as a
               // GIF bubble (not raw text). Routes through `_pasteFromClipboard`

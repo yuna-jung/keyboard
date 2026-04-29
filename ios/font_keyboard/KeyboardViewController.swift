@@ -178,6 +178,11 @@ private let _cmReverseMap: [UInt32: UInt32] = {
                   let vScalar = styledValue.unicodeScalars.first?.value else { continue }
             // Skip identity entries (e.g. _slightlyCursiveMap "g" → "g").
             if kScalar == vScalar { continue }
+            // Drop ASCII→ASCII fallbacks (e.g. _slightlyCursiveMap "S":"s",
+            // "R":"r", "G":"g" — and _alienMap "i":"I", "o":"O"). Storing
+            // these in the inverse table would make `normalizeToASCII`
+            // rewrite plain typed letters into a different case.
+            if vScalar < 0x80 { continue }
             let isLower = (kScalar >= 0x61 && kScalar <= 0x7A)
             if rev[vScalar] == nil || isLower { rev[vScalar] = kScalar }
         }
@@ -4114,18 +4119,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let emoFavs    = loadFavList(Self.favKeyEmoticon)
         let dotArtFavs = loadFavList(Self.favKeyDotArt)
         let gifFavs    = loadFavList(Self.favKeyGif)
-        // Font favorites — resolve names saved under "favoriteFonts" to their
-        // FontStyleDef entries; silently drop any name that no longer exists.
-        let fontFavDefs: [FontStyleDef] = {
-            let names = loadFavoriteFontNames()
-            guard !names.isEmpty else { return [] }
-            var byName: [String: FontStyleDef] = [:]
-            for (_, styles) in allFontCategories {
-                for s in styles where byName[s.name] == nil { byName[s.name] = s }
-            }
-            return names.compactMap { byName[$0] }
-        }()
-        let allEmpty   = emoFavs.isEmpty && dotArtFavs.isEmpty && gifFavs.isEmpty && fontFavDefs.isEmpty
+        // Font favorites surface in the Aa tab now — this tab no longer
+        // duplicates them, so we don't fetch / render the font list here.
+        let allEmpty   = emoFavs.isEmpty && dotArtFavs.isEmpty && gifFavs.isEmpty
 
         let container = UIView()
         container.translatesAutoresizingMaskIntoConstraints = false
@@ -4213,26 +4209,23 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             gridStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -10),
         ])
 
-        // Determine what to show
-        let showFont   = favCategoryIndex == 0 || favCategoryIndex == 1
-        let showEmo    = favCategoryIndex == 0 || favCategoryIndex == 2 || favCategoryIndex == 3
-        let showDotArt = favCategoryIndex == 0 || favCategoryIndex == 4
-        let showGif    = favCategoryIndex == 0 || favCategoryIndex == 5
+        // Determine what to show. Categories: 0=전체, 1=이모티콘, 2=특수문자,
+        // 3=도트아트, 4=GIF. Emoticon and Special share the same favorites
+        // store, so both indices light it up.
+        let showEmo    = favCategoryIndex == 0 || favCategoryIndex == 1 || favCategoryIndex == 2
+        let showDotArt = favCategoryIndex == 0 || favCategoryIndex == 3
+        let showGif    = favCategoryIndex == 0 || favCategoryIndex == 4
         let filteredEmo = showEmo ? emoFavs : []
         let filteredDA  = showDotArt ? dotArtFavs : []
         let filteredGif = showGif ? gifFavs : []
-        let filteredFont = showFont ? fontFavDefs : []
 
-        let totalEmpty = filteredEmo.isEmpty && filteredDA.isEmpty && filteredGif.isEmpty && filteredFont.isEmpty
+        let totalEmpty = filteredEmo.isEmpty && filteredDA.isEmpty && filteredGif.isEmpty
 
         if totalEmpty {
             let emptyLabel = UILabel()
-            let fontOnly = favCategoryIndex == 1
-            emptyLabel.text = fontOnly
-                ? "폰트를 꾹 눌러서 즐겨찾기에 추가하세요"
-                : (allEmpty
-                    ? "이모티콘이나 특수문자를 꾹 누르면\n즐겨찾기에 추가돼요 ♥"
-                    : "이 카테고리에 즐겨찾기가 없어요")
+            emptyLabel.text = allEmpty
+                ? "이모티콘이나 특수문자를 꾹 누르면\n즐겨찾기에 추가돼요 ♥"
+                : "이 카테고리에 즐겨찾기가 없어요"
             emptyLabel.numberOfLines = 0
             emptyLabel.textColor = .lightGray
             emptyLabel.textAlignment = .center
@@ -4367,66 +4360,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             }
         }
 
-        // Font favorite rows — 2 cols, styled name serves as visual sample.
-        if !filteredFont.isEmpty {
-            let cols = 2
-            let chunked = stride(from: 0, to: filteredFont.count, by: cols).map {
-                Array(filteredFont[$0..<min($0 + cols, filteredFont.count)])
-            }
-            for row in chunked {
-                let rowStack = UIStackView()
-                rowStack.axis = .horizontal
-                rowStack.distribution = .fillEqually
-                rowStack.spacing = 5
-                for style in row {
-                    let btn = UIButton(type: .system)
-                    btn.setTitle(displayFontName(style), for: .normal)
-                    btn.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
-                    btn.titleLabel?.adjustsFontSizeToFitWidth = true
-                    btn.titleLabel?.minimumScaleFactor = 0.5
-                    btn.backgroundColor = .white
-                    btn.layer.cornerRadius = 10
-                    btn.layer.borderWidth = 1
-                    btn.layer.borderColor = accentColor.cgColor
-                    btn.setTitleColor(.darkGray, for: .normal)
-                    btn.setHeight(44)
-                    btn.accessibilityIdentifier = style.name
-                    btn.addTarget(self, action: #selector(favFontTapped(_:)), for: .touchUpInside)
-                    let lp = UILongPressGestureRecognizer(target: self, action: #selector(favFontLongPressed(_:)))
-                    lp.minimumPressDuration = 0.5
-                    btn.addGestureRecognizer(lp)
-                    rowStack.addArrangedSubview(btn)
-                }
-                for _ in 0..<(cols - row.count) { rowStack.addArrangedSubview(UIView()) }
-                gridStack.addArrangedSubview(rowStack)
-            }
-        }
-    }
-
-    @objc private func favFontTapped(_ sender: UIButton) {
-        guard let name = sender.accessibilityIdentifier else { return }
-        let cats = visibleFontCategories()
-        for (ci, cat) in cats.enumerated() {
-            if let si = cat.1.firstIndex(where: { $0.name == name }) {
-                fontCatIndex = ci
-                fontStyleIndex = si
-                savedFontScrollOffset = .zero
-                showMode(.fonts)
-                return
-            }
-        }
-    }
-
-    @objc private func favFontLongPressed(_ gesture: UILongPressGestureRecognizer) {
-        guard gesture.state == .began,
-              let btn = gesture.view as? UIButton,
-              let name = btn.accessibilityIdentifier else { return }
-        var favs = loadFavoriteFontNames()
-        favs.removeAll { $0 == name }
-        saveFavoriteFontNames(favs)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        showToast("즐겨찾기 제거됨")
-        showMode(.favorites)
     }
 
     // MARK: - Key Actions
@@ -4883,7 +4816,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private static let maxFav         = 100
 
     private var favCategoryIndex = 0
-    private let favCategoryNames = ["전체", "폰트", "이모티콘", "특수문자", "도트아트", "GIF"]
+    private let favCategoryNames = ["전체", "이모티콘", "특수문자", "도트아트", "GIF"]
 
     private func favDefaults() -> UserDefaults {
         UserDefaults(suiteName: Self.favAppGroup) ?? .standard
