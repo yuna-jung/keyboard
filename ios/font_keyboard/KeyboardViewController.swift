@@ -2321,7 +2321,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         calcExpressionLabel = exprLabel
 
         // Display (tap → insertText)
-        let displayBtn = UIButton(type: .system)
+        // `.custom` (not `.system`) — `.system` cross-dissolves the title on
+        // every `setTitle(...)` call, which shows up as a flicker each time
+        // calcKeyTapped updates the digit display.
+        let displayBtn = UIButton(type: .custom)
         displayBtn.setTitle(calcDisplay, for: .normal)
         displayBtn.titleLabel?.font = .systemFont(ofSize: 30, weight: .light)
         displayBtn.titleLabel?.adjustsFontSizeToFitWidth = true
