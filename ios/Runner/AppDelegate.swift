@@ -4,6 +4,11 @@ import UIKit
 @main
 @objc class AppDelegate: FlutterAppDelegate {
   private let appGroupID = "group.com.yunajung.fonki"
+  private var appGroupChannel: FlutterMethodChannel?
+  /// Set when the keyboard extension launches us via `fonkii://paywall` before
+  /// Flutter's Dart-side method handler is wired up. Drained by Dart via
+  /// `consumePendingPaywall` once `HomeScreen` finishes its first build.
+  private var pendingPaywall = false
 
   override func application(
     _ application: UIApplication,
@@ -17,6 +22,7 @@ import UIKit
       name: "com.yunajung.fonki/appgroup",
       binaryMessenger: controller.binaryMessenger
     )
+    appGroupChannel = channel
 
     channel.setMethodCallHandler { [weak self] (call, result) in
       guard let self = self else { return }
@@ -63,11 +69,35 @@ import UIKit
         defaults?.synchronize()
         result(nil)
 
+      case "consumePendingPaywall":
+        // Cold-start drain: Dart polls this once on startup to handle a
+        // `fonkii://paywall` URL that arrived before the Dart-side method
+        // handler was registered.
+        let pending = self.pendingPaywall
+        self.pendingPaywall = false
+        result(pending)
+
       default:
         result(FlutterMethodNotImplemented)
       }
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// Handle `fonkii://paywall` deep links coming from the keyboard extension's
+  /// "1주 무료 체험 시작하기" button. We both flip the cold-start flag *and*
+  /// fire `openPaywall` immediately — warm starts catch the live event, cold
+  /// starts fall back to the flag drain.
+  override func application(_ application: UIApplication,
+                            open url: URL,
+                            options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+    if url.scheme?.lowercased() == "fonkii",
+       url.host?.lowercased() == "paywall" {
+      pendingPaywall = true
+      appGroupChannel?.invokeMethod("openPaywall", arguments: nil)
+      return true
+    }
+    return super.application(application, open: url, options: options)
   }
 }

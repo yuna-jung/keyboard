@@ -40,9 +40,16 @@ class SubscriptionService {
     return n;
   }
 
-  // Translation gating: only weekly/yearly can translate unlimited
-  // (free = keyboard blocks; lifetime = blocked)
-  bool get canTranslateUnlimited => currentTier == SubscriptionTier.premium;
+  // Translation gating: only paid weekly/yearly subscribers translate
+  // unlimited. Free tier is blocked at the keyboard level, lifetime is
+  // blocked, and free-trial premium users are throttled to 10/day.
+  bool get canTranslateUnlimited =>
+      currentTier == SubscriptionTier.premium && !_isInTrialNow;
+
+  /// Cached view of `_isInFreeTrial(lastProfile)` for synchronous getters.
+  /// Updated on every `_applyProfile` call. DEBUG forces it to false to keep
+  /// development unthrottled.
+  bool _isInTrialNow = false;
 
   AdaptyPaywall? _paywall;
   List<AdaptyPaywallProduct>? _products;
@@ -78,12 +85,36 @@ class SubscriptionService {
     return SubscriptionTier.free;
   }
 
+  /// Whether the user's currently-active premium subscription is still in its
+  /// introductory free trial. Trial users keep premium-tier gating (so they
+  /// can open the translate tab) but are *not* `canTranslateUnlimited` — the
+  /// keyboard's 10/day counter applies. Once the trial converts to a paid
+  /// renewal, `activeIntroductoryOfferType` clears and translation becomes
+  /// unlimited.
+  ///
+  /// Adapty exposes the offer kind on both subscriptions and access levels.
+  /// We check the active subscription so paid intro offers (`pay_as_you_go`,
+  /// `pay_up_front`) don't get throttled — only literal `free_trial` does.
+  bool _isInFreeTrial(AdaptyProfile profile) {
+    for (final sub in profile.subscriptions.values) {
+      if (sub.isActive && sub.activeIntroductoryOfferType == 'free_trial') {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void _applyProfile(AdaptyProfile profile) {
     final realTier = _computeTier(profile);
     _tierNotifier.value = realTier;
+    final inTrial = _isInFreeTrial(profile);
     // In DEBUG, sync as premium to keyboard extension so it unlocks too.
+    // DEBUG also force-clears the trial flag so testers get unlimited
+    // translation without touching their real Adapty profile.
     final effective = kDebugMode ? SubscriptionTier.premium : realTier;
-    _syncTierToAppGroup(effective);
+    final effectiveTrial = kDebugMode ? false : inTrial;
+    _isInTrialNow = effectiveTrial;
+    _syncTierToAppGroup(effective, isInTrial: effectiveTrial);
   }
 
   Future<void> refreshStatus() async {
@@ -93,13 +124,17 @@ class SubscriptionService {
     } catch (_) {}
   }
 
-  void _syncTierToAppGroup(SubscriptionTier tier) {
+  void _syncTierToAppGroup(SubscriptionTier tier, {bool isInTrial = false}) {
     try {
       const channel = MethodChannel('com.yunajung.fonki/appgroup');
       channel.invokeMethod('syncPremium', {
         'is_premium': tier != SubscriptionTier.free,
         'tier': tier.name,
-        'can_translate_unlimited': tier == SubscriptionTier.premium,
+        // Trial users keep tier=premium (so the lock screen + translate tab
+        // open up) but lose unlimited translation, which routes them through
+        // the keyboard's 10/day daily counter.
+        'can_translate_unlimited':
+            tier == SubscriptionTier.premium && !isInTrial,
       });
     } catch (_) {}
   }

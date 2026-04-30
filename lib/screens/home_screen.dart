@@ -20,20 +20,76 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
+  /// Same channel name as `_ChatTabState._appGroupChannel`. Dart-side handlers
+  /// are global per channel name, so we hook listening here (HomeScreen owns
+  /// the navigator context needed to push the paywall).
+  static const _appGroupChannel = MethodChannel('com.yunajung.fonki/appgroup');
+
+  /// Guard against the paywall being pushed twice. Two events can race here:
+  /// the warm-start `openPaywall` invokeMethod and the cold-start
+  /// `consumePendingPaywall` drain (AppDelegate fires both for safety on a
+  /// single deep-link). The flag flips on entry and resets when the bottom
+  /// sheet closes.
+  bool _paywallShowing = false;
+
   @override
   void initState() {
     super.initState();
     SubscriptionService.instance.tierListenable.addListener(_onTier);
+    // Live `openPaywall` events from native `fonkii://paywall` deep links.
+    _appGroupChannel.setMethodCallHandler(_handleNativeCall);
+    // Cold-start drain — if AppDelegate received the URL before this handler
+    // was wired up, the pending flag is still set on the native side.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _drainPendingPaywall();
+    });
   }
 
   @override
   void dispose() {
     SubscriptionService.instance.tierListenable.removeListener(_onTier);
+    _appGroupChannel.setMethodCallHandler(null);
     super.dispose();
   }
 
   void _onTier() {
     if (mounted) setState(() {});
+  }
+
+  Future<dynamic> _handleNativeCall(MethodCall call) async {
+    if (call.method == 'openPaywall') {
+      _showPaywall();
+    }
+    return null;
+  }
+
+  Future<void> _drainPendingPaywall() async {
+    try {
+      final pending =
+          await _appGroupChannel.invokeMethod<bool>('consumePendingPaywall');
+      if (pending == true) _showPaywall();
+    } catch (_) {
+      // Native handler not registered yet on first launch — ignore; live
+      // `openPaywall` events still flow through `setMethodCallHandler`.
+    }
+  }
+
+  void _showPaywall() {
+    if (!mounted) return;
+    if (_paywallShowing) return;
+    _paywallShowing = true;
+    // Defer to the next frame so `context` is mounted under the Navigator.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        _paywallShowing = false;
+        return;
+      }
+      try {
+        await PaywallScreen.show(context);
+      } finally {
+        if (mounted) _paywallShowing = false;
+      }
+    });
   }
 
   @override
@@ -481,12 +537,10 @@ class _ChatInput extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 120),
-              child: TextField(
+            child: TextField(
               controller: controller,
               focusNode: focusNode,
-              maxLines: 5,
+              maxLines: 4,
               minLines: 1,
               maxLength: 1000,
               maxLengthEnforcement: MaxLengthEnforcement.enforced,
@@ -540,7 +594,6 @@ class _ChatInput extends StatelessWidget {
                 ),
                 counterText: '',
               ),
-            ),
             ),
           ),
           const SizedBox(width: 6),

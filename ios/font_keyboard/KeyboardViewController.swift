@@ -1324,6 +1324,18 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         updateModeBar()
         clearContent()
 
+        // Subscriber gate: any non-translate tab renders the in-keyboard lock
+        // view for free-tier users. Translate has its own toast at modeTapped
+        // (it distinguishes lifetime from free with a more specific message),
+        // and DEBUG builds bypass for development. Both premium and
+        // premium_lifetime have `isPremiumUser == true` and pass through.
+        #if !DEBUG
+        if mode != .translate && !isPremiumUser {
+            buildLockedMode()
+            return
+        }
+        #endif
+
         switch mode {
         case .fonts:     buildFontsMode()
         case .emoticon:  buildGridMode(categories: emoticonCategories,
@@ -1358,6 +1370,74 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         letterKeys.removeAll()
         translationFieldView?.removeFromSuperview()
         translationFieldView = nil
+    }
+
+    /// Full-bleed lock view shown in place of the requested tab when a
+    /// non-subscriber lands on a gated mode. Tapping the CTA bounces to the
+    /// host app's paywall via the `fonkii://paywall` URL scheme registered in
+    /// Runner/Info.plist.
+    private func buildLockedMode() {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(container)
+        pinToEdges(container, in: contentView)
+        container.heightAnchor.constraint(equalToConstant: tabContainerHeight).isActive = true
+
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 14
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -24),
+        ])
+
+        let icon = UIImageView(image: UIImage(systemName: "lock.fill"))
+        icon.tintColor = accentColor
+        icon.contentMode = .scaleAspectFit
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.heightAnchor.constraint(equalToConstant: 38).isActive = true
+        icon.widthAnchor.constraint(equalToConstant: 38).isActive = true
+
+        let title = UILabel()
+        title.text = "Fonkii 프리미엄을 구독하고\n모든 기능을 사용해보세요!"
+        title.numberOfLines = 0
+        title.textAlignment = .center
+        title.font = .systemFont(ofSize: 14, weight: .medium)
+        title.textColor = .darkText
+
+        let button = UIButton(type: .custom)
+        button.setTitle("1주 무료 체험 시작하기", for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
+        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = accentColor
+        button.layer.cornerRadius = 20
+        button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 22, bottom: 10, right: 22)
+        button.addTarget(self, action: #selector(openPaywallApp), for: .touchUpInside)
+
+        stack.addArrangedSubview(icon)
+        stack.addArrangedSubview(title)
+        stack.addArrangedSubview(button)
+    }
+
+    /// Walk the responder chain to find the host `UIApplication` and open the
+    /// `fonkii://paywall` deep link. Keyboard extensions can't reference
+    /// `UIApplication.shared` directly, so the responder-chain trick is the
+    /// portable way to launch the containing app.
+    @objc private func openPaywallApp() {
+        guard let url = URL(string: "fonkii://paywall") else { return }
+        var responder: UIResponder? = self
+        while let r = responder {
+            if let app = r as? UIApplication {
+                app.open(url, options: [:], completionHandler: nil)
+                return
+            }
+            responder = r.next
+        }
     }
 
     // MARK: - Mode Bar
@@ -1397,26 +1477,43 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func modeTapped(_ s: UIButton) {
         let mode = Mode(rawValue: s.tag) ?? .fonts
-        if mode == .palette {
-            showPalettePicker()
-            return
-        }
+
+        // Translate keeps its own messaging (distinguishes lifetime from free).
+        // Trial users have isPremiumUser=true but canTranslateUnlimited=false
+        // — they must reach `translateTriggered` so the 10/day counter applies,
+        // so we gate on tier/membership here, not on the unlimited flag.
         if mode == .translate {
-            // Refresh premium state from App Group, then gate the tab.
             checkPremiumStatus()
             #if DEBUG
             print("🔍 DEBUG - isPremiumUser: \(isPremiumUser), canTranslateUnlimited: \(canTranslateUnlimited), userTier: \(userTier)")
             print("🔍 DEBUG - App Group: group.com.yunajung.fonki")
             #endif
-            guard canTranslateUnlimited else {
-                if userTier == "lifetime" {
-                    showToast("번역 기능은 월간/연간 구독에서 이용 가능해요 ✨")
-                } else {
-                    showToast("번역 기능은 구독자 전용이에요 ✨")
-                }
+            if userTier == "lifetime" {
+                showToast("번역 기능은 월간/연간 구독에서 이용 가능해요 ✨")
                 return
             }
+            guard isPremiumUser else {
+                showToast("번역 기능은 구독자 전용이에요 ✨")
+                return
+            }
+            showMode(mode)
+            return
         }
+
+        if mode == .palette {
+            // Non-subscribers see the in-keyboard lock view (showMode renders
+            // it). Subscribers get the popup picker.
+            #if !DEBUG
+            checkPremiumStatus()
+            if !isPremiumUser {
+                showMode(.palette)
+                return
+            }
+            #endif
+            showPalettePicker()
+            return
+        }
+
         showMode(mode)
     }
 
@@ -3960,7 +4057,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return
         }
 
-        // Free tier: 5 translations/day, resetting at local midnight. Premium
+        // Free tier: 10 translations/day, resetting at local midnight. Premium
         // users (`canTranslateUnlimited == true`) skip this entirely. Counter
         // lives in App Group UserDefaults so it survives extension lifecycle
         // and is shared with the host app.
@@ -3979,9 +4076,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 ? (defaults?.integer(forKey: "translateDailyCount") ?? 0)
                 : 0
 
-            if count >= 5 {
+            if count >= 10 {
                 translateResultLabel?.text =
-                    "오늘 무료 번역 횟수(5회)를 모두 사용했어요.\n구독하면 무제한으로 사용할 수 있어요."
+                    "오늘 무료 번역 횟수(10회)를 모두 사용했어요.\n구독하면 무제한으로 사용할 수 있어요."
                 translateResultLabel?.textColor = .systemOrange
                 translateResultLabel?.numberOfLines = 0
                 return

@@ -13,6 +13,12 @@ const _pink = Color(0xFF5BC8F5);
 class PaywallScreen {
   /// Show the Adapty paywall. Returns `true` if the user became premium during
   /// the session (purchase or restore succeeded).
+  ///
+  /// Falls back to a native Dart sheet only when the Adapty UI paywall could
+  /// not be *created* (no paywall config, `createPaywallView` threw). Once a
+  /// view object exists the user has already seen — or is about to see — the
+  /// real paywall, so any error during presentation/dismissal is swallowed
+  /// rather than triggering a second sheet on top.
   static Future<bool> show(BuildContext context) async {
     final sub = SubscriptionService.instance;
     // Force Korean locale for the Adapty paywall presentation.
@@ -26,23 +32,37 @@ class PaywallScreen {
       debugPrint('getPaywall error: $e');
     }
 
+    AdaptyUIPaywallView? view;
     if (paywall != null && context.mounted) {
       try {
-        final view = await AdaptyUI().createPaywallView(paywall: paywall);
-        // ignore: use_build_context_synchronously
-        final observer = _PaywallObserver(context);
-        AdaptyUI().registerPaywallEventsListener(observer, view.id);
-        await AdaptyUI().presentPaywallView(view);
-        await observer.done.future;
-        AdaptyUI().unregisterPaywallEventsListener(view.id);
-        return sub.isPremiumNow;
+        view = await AdaptyUI().createPaywallView(paywall: paywall);
       } catch (e) {
-        debugPrint('Adapty UI paywall error, falling back: $e');
+        debugPrint('Adapty UI createPaywallView error, falling back: $e');
       }
     }
 
+    if (view != null) {
+      // ignore: use_build_context_synchronously
+      final observer = _PaywallObserver(context);
+      AdaptyUI().registerPaywallEventsListener(observer, view.id);
+      try {
+        await AdaptyUI().presentPaywallView(view);
+        await observer.done.future;
+      } catch (e) {
+        debugPrint('Adapty UI present/dismiss error: $e');
+      } finally {
+        try {
+          AdaptyUI().unregisterPaywallEventsListener(view.id);
+        } catch (_) {}
+      }
+      // The user saw the Adapty UI paywall. Never show the Flutter fallback
+      // on top, regardless of any transient errors above.
+      return sub.isPremiumNow;
+    }
+
     if (!context.mounted) return sub.isPremiumNow;
-    // Fallback: native Dart bottom sheet
+    // Fallback: native Dart bottom sheet — only reached when no Adapty view
+    // could be constructed.
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
