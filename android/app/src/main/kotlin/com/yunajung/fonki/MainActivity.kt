@@ -1,4 +1,4 @@
-package com.example.font_keyboard
+package com.yunajung.fonki
 
 import io.flutter.embedding.android.FlutterActivity
 
