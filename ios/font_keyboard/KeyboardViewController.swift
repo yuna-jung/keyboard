@@ -1188,6 +1188,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private weak var translateCounterLabel: UILabel?
     private weak var translateResultLabel: UILabel?
     private var translationFieldView: UIView?
+    /// In-flight OpenAI request, kept so a fresh `translateTriggered` tap can
+    /// cancel a still-pending one — protects against double-taps and avoids
+    /// the older response winning a race against the newer one.
+    private var translationTask: URLSessionDataTask?
 
     // Calculator state
     private var calcDisplay = "0"
@@ -4120,7 +4124,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = jsonData
 
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        // Cancel any still-pending request before kicking off a new one so a
+        // double-tap on the translate button (or fast retap) can't race two
+        // responses into `translateResultLabel`.
+        translationTask?.cancel()
+        translationTask = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
 
@@ -4181,7 +4189,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 self.translateResultLabel?.text = self.lastTranslation
                 self.translateResultLabel?.textColor = .darkText
             }
-        }.resume()
+        }
+        translationTask?.resume()
     }
 
     private func showTranslateError(_ message: String) {
@@ -5257,10 +5266,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         btn.backgroundColor = keyBG
         btn.setTitleColor(.black, for: .normal)
         btn.layer.cornerRadius = 5
-        btn.layer.shadowColor = UIColor.black.cgColor
-        btn.layer.shadowOffset = CGSize(width: 0, height: 1)
-        btn.layer.shadowOpacity = 0.15
-        btn.layer.shadowRadius = 0.5
+        btn.layer.borderWidth = 1.0
+        // Theme-aware border. `accentColor` returns the user's saved palette
+        // pick (UserDefaults `"fonkii_accent_color"`) or falls back to
+        // `mainPink` (≈ #FF6BA0). showMode() rebuilds the keys on every mode
+        // switch, so a fresh palette pick reaches new keys automatically.
+        btn.layer.borderColor = accentColor.withAlphaComponent(0.5).cgColor
         btn.adjustsImageWhenHighlighted = false
         return btn
     }
@@ -5272,6 +5283,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         btn.backgroundColor = specialKeyBG
         btn.setTitleColor(.black, for: .normal)
         btn.layer.cornerRadius = 5
+        btn.layer.borderWidth = 1.0
+        btn.layer.borderColor = accentColor.withAlphaComponent(0.5).cgColor
         btn.adjustsImageWhenHighlighted = false
         return btn
     }

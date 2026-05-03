@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- Tab bar (mode switcher: Aa / 번역 / GIF / …) -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:scrollbars="none"
+        android:fillViewport="true"
+        android:background="#F5F5F5">
+        <LinearLayout
+            android:id="@+id/tab_bar"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"/>
+    </HorizontalScrollView>
+
+    <!-- Keypad area (per-tab content gets injected here) -->
+    <FrameLayout
+        android:id="@+id/keypad_area"
+        android:layout_width="match_parent"
+        android:layout_height="260dp"/>
+
+</LinearLayout>
