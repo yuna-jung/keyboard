@@ -128,12 +128,17 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (i) {
-          if (i == 2) {
-            // Subscription tab → open Adapty paywall directly without switching tab
-            PaywallScreen.show(context);
-            return;
-          }
+          // Always reflect the selected tab. Without this, tapping 구독 left
+          // `_selectedIndex` at 0 (chat) and the Adapty paywall floated on
+          // top of the chat — closing it dropped the user back into chat,
+          // not the subscription screen.
           setState(() => _selectedIndex = i);
+          if (i == 2) {
+            // Open the Adapty paywall on top of `SubscriptionScreen` so that
+            // dismissing it (StoreKit cancel, X button, swipe down…) reveals
+            // the subscription page underneath rather than another tab.
+            PaywallScreen.show(context);
+          }
         },
         backgroundColor: isDark ? Colors.black : Colors.white,
         selectedItemColor: _pink,

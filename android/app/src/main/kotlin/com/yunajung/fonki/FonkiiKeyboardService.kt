@@ -39,7 +39,7 @@ import org.json.JSONArray
  */
 class FonkiiKeyboardService : InputMethodService() {
 
-    enum class Mode { FONTS, EMOTICON, SPECIAL, DOT_ART, GIF, FAVORITES, CALCULATOR, PALETTE }
+    enum class Mode { FONTS, TRANSLATE, EMOTICON, SPECIAL, DOT_ART, GIF, FAVORITES, CALCULATOR, PALETTE }
 
     // ── Theme ────────────────────────────────────────────────────────────
     private val PINK = Color.parseColor("#FF6BA0")
@@ -67,6 +67,31 @@ class FonkiiKeyboardService : InputMethodService() {
     private var calcPrev: Double? = null
     private var calcOp: String? = null
     private var calcJustEvaluated = false
+
+    // ── Translate state ──────────────────────────────────────────────────
+    /// (Korean display label, OpenAI prompt name) — order mirrors iOS
+    /// `translateLangs`, but with localized labels for the picker.
+    private val translateLanguages: List<Pair<String, String>> = listOf(
+        "한국어" to "Korean",
+        "영어" to "English",
+        "일본어" to "Japanese",
+        "중국어(간체)" to "Chinese (Simplified)",
+        "중국어(번체)" to "Chinese (Traditional)",
+        "스페인어" to "Spanish",
+        "프랑스어" to "French",
+        "독일어" to "German",
+        "러시아어" to "Russian",
+        "아랍어" to "Arabic",
+    )
+    private var fromLangIndex = 0
+    private var toLangIndex = 1
+    private var translateInputBuf = StringBuilder()
+    private var translateResultStr = ""
+    private var isTranslateKoreanMode = true
+    private var isTranslateShifted = false
+    private var isTranslateLoading = false
+    private var translateInputView: TextView? = null
+    private var translateResultView: TextView? = null
 
     // ── Long-press delete plumbing ───────────────────────────────────────
     private val deleteHandler = Handler(Looper.getMainLooper())
@@ -101,6 +126,7 @@ class FonkiiKeyboardService : InputMethodService() {
         tabButtons.clear()
         val tabs = listOf(
             "Aa" to Mode.FONTS,
+            "번역" to Mode.TRANSLATE,
             "😀" to Mode.EMOTICON,
             "✦" to Mode.SPECIAL,
             "도트" to Mode.DOT_ART,
@@ -148,8 +174,15 @@ class FonkiiKeyboardService : InputMethodService() {
         updateTabHighlight()
         val area = keypadArea ?: return
         area.removeAllViews()
+        // Translate-mode views are recreated; clear stale references so we
+        // don't keep handing out a TextView that's no longer in the hierarchy.
+        if (mode != Mode.TRANSLATE) {
+            translateInputView = null
+            translateResultView = null
+        }
         when (mode) {
             Mode.FONTS -> buildFontsView(area)
+            Mode.TRANSLATE -> buildTranslateView(area)
             Mode.EMOTICON -> buildGridView(area, KeyboardData.emoticonCategories, emoticonCatIndex,
                 cols = 3) { emoticonCatIndex = it; showMode(Mode.EMOTICON) }
             Mode.SPECIAL -> buildGridView(area, KeyboardData.specialCategories, specialCatIndex,
@@ -742,6 +775,359 @@ class FonkiiKeyboardService : InputMethodService() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
+    }
+
+    // ── Translate ────────────────────────────────────────────────────────
+    private fun buildTranslateView(area: FrameLayout) {
+        val root = vlinear()
+
+        // 1) Language picker bar — tap label to cycle through `translateLanguages`,
+        //    swap arrow flips from ↔ to, 🗑 clears both panes.
+        val langBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val fromBtn = makeLangButton(translateLanguages[fromLangIndex].first) {
+            fromLangIndex = (fromLangIndex + 1) % translateLanguages.size
+            showMode(Mode.TRANSLATE)
+        }
+        val arrow = TextView(this).apply {
+            text = "→"
+            gravity = Gravity.CENTER
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setTextColor(DARK_TEXT)
+        }
+        val toBtn = makeLangButton(translateLanguages[toLangIndex].first) {
+            toLangIndex = (toLangIndex + 1) % translateLanguages.size
+            showMode(Mode.TRANSLATE)
+        }
+        val swapBtn = makeKey("↔", isWide = false) {
+            val tmp = fromLangIndex; fromLangIndex = toLangIndex; toLangIndex = tmp
+            showMode(Mode.TRANSLATE)
+        }
+        val clearBtn = makeKey("🗑", isWide = false) {
+            translateInputBuf.clear()
+            translateResultStr = ""
+            showMode(Mode.TRANSLATE)
+        }
+        langBar.addView(fromBtn, LinearLayout.LayoutParams(0, dp(28), 3f).apply {
+            setMargins(dp(4), dp(2), dp(2), dp(2))
+        })
+        langBar.addView(arrow, LinearLayout.LayoutParams(dp(20), dp(28)))
+        langBar.addView(toBtn, LinearLayout.LayoutParams(0, dp(28), 3f).apply {
+            setMargins(dp(2), dp(2), dp(4), dp(2))
+        })
+        langBar.addView(swapBtn, LinearLayout.LayoutParams(dp(36), dp(28)).apply {
+            setMargins(dp(2), dp(2), dp(2), dp(2))
+        })
+        langBar.addView(clearBtn, LinearLayout.LayoutParams(dp(36), dp(28)).apply {
+            setMargins(dp(2), dp(2), dp(4), dp(2))
+        })
+        root.addView(langBar, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(32)
+        ))
+
+        // 2) Side-by-side input / result panes. Inputs come from the in-IME
+        //    keypad (commit-to-host is intentionally skipped) — `commit` only
+        //    fires when the user taps "삽입" with a non-empty result.
+        val ioRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+        val inputView = TextView(this).apply {
+            text = if (translateInputBuf.isEmpty()) "텍스트를 입력하세요" else translateInputBuf.toString()
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextColor(if (translateInputBuf.isEmpty()) Color.GRAY else DARK_TEXT)
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+            background = roundedBg(LIGHT_GRAY, dp(8).toFloat(), BORDER)
+            gravity = Gravity.TOP or Gravity.START
+        }
+        val resultView = TextView(this).apply {
+            text = if (translateResultStr.isEmpty()) "번역 결과가 여기에 표시돼요" else translateResultStr
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextColor(if (translateResultStr.isEmpty()) Color.GRAY else DARK_TEXT)
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+            background = roundedBg(LIGHT_GRAY, dp(8).toFloat(), BORDER)
+            gravity = Gravity.TOP or Gravity.START
+        }
+        translateInputView = inputView
+        translateResultView = resultView
+        ioRow.addView(inputView, LinearLayout.LayoutParams(0, dp(56), 1f).apply {
+            setMargins(dp(4), dp(2), dp(2), dp(2))
+        })
+        ioRow.addView(resultView, LinearLayout.LayoutParams(0, dp(56), 1f).apply {
+            setMargins(dp(2), dp(2), dp(4), dp(2))
+        })
+        root.addView(ioRow, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(60)
+        ))
+
+        // 3) Keypad rows — Korean jamo or English QWERTY based on
+        //    `isTranslateKoreanMode`. Note: jamo are appended raw (no Hangul
+        //    syllable composition); gpt-4o-mini handles either form well
+        //    enough for short translation prompts.
+        val koreanRows = listOf(
+            listOf("ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅅ", "ㅛ", "ㅕ", "ㅑ", "ㅐ", "ㅔ"),
+            listOf("ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅎ", "ㅗ", "ㅓ", "ㅏ", "ㅣ"),
+            listOf("ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅠ", "ㅜ", "ㅡ"),
+        )
+        val englishRows = listOf(
+            "qwertyuiop".toCharArray().map { it.toString() },
+            "asdfghjkl".toCharArray().map { it.toString() },
+            "zxcvbnm".toCharArray().map { it.toString() },
+        )
+        val rows = if (isTranslateKoreanMode) koreanRows else englishRows
+        for (row in rows) {
+            val rowL = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            for (key in row) {
+                val display = if (!isTranslateKoreanMode && isTranslateShifted) key.uppercase() else key
+                val btn = makeKey(display, isWide = false) {
+                    appendTranslateInput(display)
+                    if (isTranslateShifted && !isTranslateKoreanMode) {
+                        isTranslateShifted = false
+                        showMode(Mode.TRANSLATE)
+                    }
+                }
+                rowL.addView(btn, LinearLayout.LayoutParams(0, dp(36), 1f).apply {
+                    setMargins(dp(2), dp(2), dp(2), dp(2))
+                })
+            }
+            root.addView(rowL, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+        }
+
+        // 4) Bottom bar — 한/영, 번역, space, 삽입, ⌫.
+        val bottom = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        val langSwitch = makeKey("한/영", isWide = false) {
+            isTranslateKoreanMode = !isTranslateKoreanMode
+            showMode(Mode.TRANSLATE)
+        }
+        val translateBtn = makeKey("번역", isWide = false, accent = true) { performTranslate() }
+        val space = makeKey("space", isWide = false) { appendTranslateInput(" ") }
+        val insertBtn = makeKey("삽입", isWide = false, accent = true) {
+            if (translateResultStr.isEmpty()) {
+                showToast("먼저 번역해주세요")
+            } else {
+                commit(translateResultStr)
+            }
+        }
+        val backBtn = makeKey("⌫", isWide = false) { /* bindTranslateBackspace */ }
+        bindTranslateBackspace(backBtn)
+
+        bottom.addView(langSwitch, LinearLayout.LayoutParams(0, dp(36), 1.4f).apply {
+            setMargins(dp(2), dp(2), dp(2), dp(2))
+        })
+        bottom.addView(translateBtn, LinearLayout.LayoutParams(0, dp(36), 1.4f).apply {
+            setMargins(dp(2), dp(2), dp(2), dp(2))
+        })
+        bottom.addView(space, LinearLayout.LayoutParams(0, dp(36), 3f).apply {
+            setMargins(dp(2), dp(2), dp(2), dp(2))
+        })
+        bottom.addView(insertBtn, LinearLayout.LayoutParams(0, dp(36), 1.4f).apply {
+            setMargins(dp(2), dp(2), dp(2), dp(2))
+        })
+        bottom.addView(backBtn, LinearLayout.LayoutParams(0, dp(36), 1f).apply {
+            setMargins(dp(2), dp(2), dp(2), dp(2))
+        })
+        root.addView(bottom, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+
+        area.addView(root, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+    }
+
+    private fun makeLangButton(label: String, onTap: () -> Unit): TextView {
+        return TextView(this).apply {
+            text = "$label  ▼"
+            gravity = Gravity.CENTER
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            setTextColor(DARK_TEXT)
+            background = roundedBg(Color.WHITE, dp(14).toFloat(), BORDER)
+            setOnClickListener { onTap() }
+        }
+    }
+
+    private fun appendTranslateInput(text: String) {
+        // Hard cap at 200 chars (matches iOS translate input limit).
+        if (translateInputBuf.length >= 200) return
+        translateInputBuf.append(text)
+        translateInputView?.text = translateInputBuf.toString()
+        translateInputView?.setTextColor(DARK_TEXT)
+    }
+
+    private fun translateBackspaceOnce() {
+        if (translateInputBuf.isNotEmpty()) {
+            translateInputBuf.deleteCharAt(translateInputBuf.length - 1)
+            if (translateInputBuf.isEmpty()) {
+                translateInputView?.text = "텍스트를 입력하세요"
+                translateInputView?.setTextColor(Color.GRAY)
+            } else {
+                translateInputView?.text = translateInputBuf.toString()
+            }
+        }
+    }
+
+    /// Tap = single delete, hold = repeat at 50ms cadence (mirrors the
+    /// global `bindDeleteButton` but routes to the in-IME translate buffer
+    /// rather than the host text field).
+    @SuppressLint("ClickableViewAccessibility")
+    private fun bindTranslateBackspace(btn: View) {
+        val handler = deleteHandler
+        val repeater = object : Runnable {
+            override fun run() {
+                translateBackspaceOnce()
+                handler.postDelayed(this, 50L)
+            }
+        }
+        btn.setOnClickListener { translateBackspaceOnce() }
+        btn.setOnLongClickListener {
+            handler.removeCallbacks(repeater)
+            handler.post(repeater)
+            true
+        }
+        btn.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+                handler.removeCallbacks(repeater)
+            }
+            false
+        }
+    }
+
+    private fun performTranslate() {
+        val text = translateInputBuf.toString().trim()
+        if (text.isEmpty()) {
+            showToast("번역할 텍스트를 입력하세요")
+            return
+        }
+        if (!canTranslate()) {
+            showToast("오늘 무료 번역 횟수(10회)를 모두 사용했어요\n구독하면 무제한으로 사용할 수 있어요")
+            return
+        }
+        val key = getOpenAIKey()
+        if (key.isEmpty()) {
+            showToast("OpenAI API 키가 설정되지 않았습니다")
+            return
+        }
+        if (isTranslateLoading) return
+        isTranslateLoading = true
+        translateResultView?.text = "번역 중…"
+        translateResultView?.setTextColor(Color.GRAY)
+
+        callOpenAI(
+            text,
+            translateLanguages[fromLangIndex].second,
+            translateLanguages[toLangIndex].second,
+        ) { result, success ->
+            isTranslateLoading = false
+            translateResultStr = if (success) result else ""
+            translateResultView?.text = result
+            translateResultView?.setTextColor(if (success) DARK_TEXT else Color.RED)
+            if (success) incrementTranslateCount()
+        }
+    }
+
+    private fun callOpenAI(
+        text: String,
+        fromLang: String,
+        toLang: String,
+        onResult: (String, Boolean) -> Unit,
+    ) {
+        Thread {
+            val main = Handler(Looper.getMainLooper())
+            try {
+                val url = java.net.URL("https://api.openai.com/v1/chat/completions")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 15000
+                conn.readTimeout = 30000
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.setRequestProperty("Authorization", "Bearer ${getOpenAIKey()}")
+                conn.doOutput = true
+
+                val systemMsg = "Translate the following text from $fromLang to $toLang. " +
+                        "Preserve emoji and emoticons. Output only the translated text — no explanations."
+                val body = org.json.JSONObject().apply {
+                    put("model", "gpt-4o-mini")
+                    put("messages", org.json.JSONArray().apply {
+                        put(org.json.JSONObject().apply {
+                            put("role", "system"); put("content", systemMsg)
+                        })
+                        put(org.json.JSONObject().apply {
+                            put("role", "user"); put("content", text)
+                        })
+                    })
+                    put("max_tokens", 500)
+                    put("temperature", 0.1)
+                }
+                conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+
+                val code = conn.responseCode
+                val response = if (code in 200..299) {
+                    conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                } else {
+                    conn.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
+                }
+
+                if (code in 200..299) {
+                    val translated = try {
+                        org.json.JSONObject(response)
+                            .getJSONArray("choices")
+                            .getJSONObject(0)
+                            .getJSONObject("message")
+                            .getString("content")
+                            .trim()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    main.post {
+                        if (translated != null) onResult(translated, true)
+                        else onResult("응답 파싱 실패", false)
+                    }
+                } else {
+                    main.post { onResult("HTTP $code", false) }
+                }
+            } catch (e: Exception) {
+                main.post { onResult("번역 실패: ${e.message ?: "unknown"}", false) }
+            }
+        }.start()
+    }
+
+    private fun getOpenAIKey(): String {
+        return getSharedPreferences("fonkii_prefs", Context.MODE_PRIVATE)
+            .getString("openai_key", "") ?: ""
+    }
+
+    private fun canTranslate(): Boolean {
+        val prefs = getSharedPreferences("fonkii_prefs", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("is_premium", false)) return true
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            .format(java.util.Date())
+        val savedDate = prefs.getString("translate_date", "")
+        val count = if (savedDate == today) prefs.getInt("translate_count", 0) else 0
+        return count < 10
+    }
+
+    private fun incrementTranslateCount() {
+        val prefs = getSharedPreferences("fonkii_prefs", Context.MODE_PRIVATE)
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            .format(java.util.Date())
+        val savedDate = prefs.getString("translate_date", "")
+        val count = if (savedDate == today) prefs.getInt("translate_count", 0) else 0
+        prefs.edit()
+            .putString("translate_date", today)
+            .putInt("translate_count", count + 1)
+            .apply()
     }
 
     // ── Common bottom bar (🌐 + ⌫) ───────────────────────────────────────

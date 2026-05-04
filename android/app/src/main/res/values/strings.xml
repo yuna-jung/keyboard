@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="subtype_default">Fonkii 키보드</string>
+    <!-- OpenAI key placeholder. The runtime IME reads from SharedPreferences
+         (`fonkii_prefs` / key `openai_key`); the host Flutter app is expected
+         to write the real key there. This entry only documents the contract. -->
+    <string name="openai_api_key">YOUR_OPENAI_KEY_HERE</string>
 </resources>
