@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/subscription_service.dart';
 import 'guide_screen.dart';
-import 'paywall_screen.dart';
 import 'settings_screen.dart';
-import 'subscription_screen.dart';
 
 const _pink = Color(0xFF5BC8F5);
 
-/// HomeScreen: AppBar (logo + settings) + tabbed body (Chat / Subscription)
-/// + bottom navigation bar.
+/// HomeScreen: AppBar (logo + settings) + tabbed body (Chat / Guide) + bottom
+/// navigation bar.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,78 +16,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-
-  /// Same channel name as `_ChatTabState._appGroupChannel`. Dart-side handlers
-  /// are global per channel name, so we hook listening here (HomeScreen owns
-  /// the navigator context needed to push the paywall).
-  static const _appGroupChannel = MethodChannel('com.yunajung.fonki/appgroup');
-
-  /// Guard against the paywall being pushed twice. Two events can race here:
-  /// the warm-start `openPaywall` invokeMethod and the cold-start
-  /// `consumePendingPaywall` drain (AppDelegate fires both for safety on a
-  /// single deep-link). The flag flips on entry and resets when the bottom
-  /// sheet closes.
-  bool _paywallShowing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    SubscriptionService.instance.tierListenable.addListener(_onTier);
-    // Live `openPaywall` events from native `fonkii://paywall` deep links.
-    _appGroupChannel.setMethodCallHandler(_handleNativeCall);
-    // Cold-start drain — if AppDelegate received the URL before this handler
-    // was wired up, the pending flag is still set on the native side.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _drainPendingPaywall();
-    });
-  }
-
-  @override
-  void dispose() {
-    SubscriptionService.instance.tierListenable.removeListener(_onTier);
-    _appGroupChannel.setMethodCallHandler(null);
-    super.dispose();
-  }
-
-  void _onTier() {
-    if (mounted) setState(() {});
-  }
-
-  Future<dynamic> _handleNativeCall(MethodCall call) async {
-    if (call.method == 'openPaywall') {
-      _showPaywall();
-    }
-    return null;
-  }
-
-  Future<void> _drainPendingPaywall() async {
-    try {
-      final pending =
-          await _appGroupChannel.invokeMethod<bool>('consumePendingPaywall');
-      if (pending == true) _showPaywall();
-    } catch (_) {
-      // Native handler not registered yet on first launch — ignore; live
-      // `openPaywall` events still flow through `setMethodCallHandler`.
-    }
-  }
-
-  void _showPaywall() {
-    if (!mounted) return;
-    if (_paywallShowing) return;
-    _paywallShowing = true;
-    // Defer to the next frame so `context` is mounted under the Navigator.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) {
-        _paywallShowing = false;
-        return;
-      }
-      try {
-        await PaywallScreen.show(context);
-      } finally {
-        if (mounted) _paywallShowing = false;
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,24 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
         children: const [
           _ChatTab(),
           GuideScreen(),
-          SubscriptionScreen(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (i) {
-          // Always reflect the selected tab. Without this, tapping 구독 left
-          // `_selectedIndex` at 0 (chat) and the Adapty paywall floated on
-          // top of the chat — closing it dropped the user back into chat,
-          // not the subscription screen.
-          setState(() => _selectedIndex = i);
-          if (i == 2) {
-            // Open the Adapty paywall on top of `SubscriptionScreen` so that
-            // dismissing it (StoreKit cancel, X button, swipe down…) reveals
-            // the subscription page underneath rather than another tab.
-            PaywallScreen.show(context);
-          }
-        },
+        onTap: (i) => setState(() => _selectedIndex = i),
         backgroundColor: isDark ? Colors.black : Colors.white,
         selectedItemColor: _pink,
         unselectedItemColor: isDark ? Colors.white38 : Colors.grey,
@@ -155,11 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.help_outline),
             activeIcon: Icon(Icons.help),
             label: '가이드',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.workspace_premium_outlined),
-            activeIcon: Icon(Icons.workspace_premium),
-            label: '구독',
           ),
         ],
       ),
@@ -197,22 +104,11 @@ class _ChatTabState extends State<_ChatTab> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    SubscriptionService.instance.tierListenable.addListener(_onTier);
-  }
-
-  @override
   void dispose() {
-    SubscriptionService.instance.tierListenable.removeListener(_onTier);
     _input.dispose();
     _scroll.dispose();
     _focus.dispose();
     super.dispose();
-  }
-
-  void _onTier() {
-    if (mounted) setState(() {});
   }
 
   void _send() {
@@ -294,105 +190,63 @@ class _ChatTabState extends State<_ChatTab> {
     }
   }
 
-  Future<void> _openPaywall() async {
-    if (SubscriptionService.instance.isPremiumNow) return;
-    await PaywallScreen.show(context);
-    if (mounted) setState(() {});
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgChat = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF5F5F5);
-    final isPremium = SubscriptionService.instance.isPremiumNow;
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       behavior: HitTestBehavior.opaque,
       child: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        child: Column(
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: bgChat,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Fonkii 키보드 체험하기',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isDark
-                                ? Colors.white60
-                                : Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        itemCount: _messages.length,
-                        itemBuilder: (_, i) =>
-                            _ChatBubble(message: _messages[i], isDark: isDark),
-                      ),
-                    ),
-                    _ChatInput(
-                      controller: _input,
-                      focusNode: _focus,
-                      onSend: _send,
-                      onPaste: _pasteFromClipboard,
-                      isDark: isDark,
-                    ),
-                  ],
-                ),
-              ),
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: bgChat,
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                onPressed: isPremium ? null : _openPaywall,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isPremium
-                      ? (isDark ? Colors.grey.shade800 : Colors.grey.shade300)
-                      : _pink,
-                  foregroundColor: isPremium
-                      ? (isDark ? Colors.white60 : Colors.grey.shade700)
-                      : Colors.white,
-                  disabledBackgroundColor:
-                      isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                  disabledForegroundColor:
-                      isDark ? Colors.white60 : Colors.grey.shade700,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Fonkii 키보드 체험하기',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? Colors.white60
+                            : Colors.grey.shade600,
+                      ),
+                    ),
                   ),
-                  elevation: 0,
                 ),
-                child: Text(
-                  isPremium ? '✓ 프리미엄 이용 중' : '✨ 프리미엄 시작하기',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700),
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scroll,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    itemCount: _messages.length,
+                    itemBuilder: (_, i) =>
+                        _ChatBubble(message: _messages[i], isDark: isDark),
+                  ),
                 ),
-              ),
+                _ChatInput(
+                  controller: _input,
+                  focusNode: _focus,
+                  onSend: _send,
+                  onPaste: _pasteFromClipboard,
+                  isDark: isDark,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    ),
     );
   }
 }

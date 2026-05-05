@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../services/subscription_service.dart';
-import 'paywall_screen.dart';
 
 const _pink = Color(0xFF5BC8F5);
-const _freeLimit = 4;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Data
@@ -146,21 +143,6 @@ class EmoticonScreen extends StatefulWidget {
 
 class _EmoticonScreenState extends State<EmoticonScreen> {
   int _selectedIndex = 0;
-  final _sub = SubscriptionService.instance;
-
-  @override
-  void initState() {
-    super.initState();
-    _sub.premiumStatus.addListener(_onPremiumChanged);
-  }
-
-  void _onPremiumChanged() => setState(() {});
-
-  @override
-  void dispose() {
-    _sub.premiumStatus.removeListener(_onPremiumChanged);
-    super.dispose();
-  }
 
   void _copy(String text) {
     Clipboard.setData(ClipboardData(text: text));
@@ -176,10 +158,6 @@ class _EmoticonScreenState extends State<EmoticonScreen> {
           duration: const Duration(seconds: 1),
         ),
       );
-  }
-
-  void _showPaywall() {
-    PaywallScreen.show(context);
   }
 
   @override
@@ -225,12 +203,9 @@ class _EmoticonScreenState extends State<EmoticonScreen> {
             itemCount: emoticons.length,
             itemBuilder: (context, index) {
               final emoticon = emoticons[index];
-              final locked = !_sub.isPremiumNow && index >= _freeLimit;
-
               return _EmoticonTile(
                 emoticon: emoticon,
-                locked: locked,
-                onTap: locked ? _showPaywall : () => _copy(emoticon),
+                onTap: () => _copy(emoticon),
               )
                   .animate()
                   .fadeIn(duration: 250.ms, delay: (30 * index).ms)
@@ -304,18 +279,16 @@ class _CategoryChip extends StatelessWidget {
 class _EmoticonTile extends StatelessWidget {
   const _EmoticonTile({
     required this.emoticon,
-    required this.locked,
     required this.onTap,
   });
 
   final String emoticon;
-  final bool locked;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: locked ? Colors.grey.shade100 : Colors.white,
+      color: Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -325,37 +298,19 @@ class _EmoticonTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: Colors.grey.shade200),
           ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(6),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    emoticon,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: locked ? Colors.grey.shade400 : Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                emoticon,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
                 ),
+                textAlign: TextAlign.center,
               ),
-              if (locked)
-                Positioned(
-                  right: 4,
-                  top: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text('🔒', style: TextStyle(fontSize: 10)),
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
       ),

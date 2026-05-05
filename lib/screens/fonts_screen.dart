@@ -4,8 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../models/font_style_model.dart';
 import '../services/unicode_converter.dart';
 import '../services/favorites_service.dart';
-import '../services/subscription_service.dart';
-import 'paywall_screen.dart';
 
 const _pink = Color(0xFF5BC8F5);
 
@@ -21,7 +19,6 @@ class FontsScreenState extends State<FontsScreen> {
   final _focusNode = FocusNode();
   final _converter = UnicodeConverter.instance;
   final _favoritesService = FavoritesService();
-  final _sub = SubscriptionService.instance;
   Set<String> _favoriteSet = {};
   VoidCallback? onFavoritesChanged;
 
@@ -30,10 +27,7 @@ class FontsScreenState extends State<FontsScreen> {
     super.initState();
     _loadFavorites();
     _focusNode.addListener(() => setState(() {}));
-    _sub.premiumStatus.addListener(_onPremiumChanged);
   }
-
-  void _onPremiumChanged() => setState(() {});
 
   Future<void> _loadFavorites() async {
     final items = await _favoritesService.getFavorites();
@@ -44,7 +38,6 @@ class FontsScreenState extends State<FontsScreen> {
 
   @override
   void dispose() {
-    _sub.premiumStatus.removeListener(_onPremiumChanged);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -75,10 +68,6 @@ class FontsScreenState extends State<FontsScreen> {
     }
     setState(() {});
     onFavoritesChanged?.call();
-  }
-
-  void _showPaywall() {
-    PaywallScreen.show(context);
   }
 
   @override
@@ -159,7 +148,6 @@ class FontsScreenState extends State<FontsScreen> {
                       isFavorite: isFav,
                       onCopy: () => _copyToClipboard(converted),
                       onToggleFavorite: () => _toggleFavorite(converted, style.name),
-                      onLockedTap: _showPaywall,
                     )
                         .animate()
                         .fadeIn(
@@ -192,7 +180,6 @@ class _StyleCard extends StatelessWidget {
     required this.isFavorite,
     required this.onCopy,
     required this.onToggleFavorite,
-    required this.onLockedTap,
   });
 
   final FontStyleModel style;
@@ -200,12 +187,9 @@ class _StyleCard extends StatelessWidget {
   final bool isFavorite;
   final VoidCallback onCopy;
   final VoidCallback onToggleFavorite;
-  final VoidCallback onLockedTap;
 
   @override
   Widget build(BuildContext context) {
-    final locked = style.isPremium && !SubscriptionService.instance.isPremiumNow;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 0,
@@ -215,35 +199,26 @@ class _StyleCard extends StatelessWidget {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: locked ? onLockedTap : onCopy,
+        onTap: onCopy,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              // ── 텍스트 영역 ───────────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          style.name,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade500,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (locked) ...[
-                          const SizedBox(width: 4),
-                          const Text('🔒', style: TextStyle(fontSize: 11)),
-                        ],
-                      ],
+                    Text(
+                      style.name,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      locked ? _mask(converted) : converted,
+                      converted,
                       style: const TextStyle(fontSize: 18, height: 1.3),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -251,33 +226,22 @@ class _StyleCard extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // ── 액션 버튼 ─────────────────────────────────────
-              if (!locked) ...[
-                _ActionButton(
-                  icon: isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: isFavorite ? _pink : Colors.grey.shade400,
-                  onTap: onToggleFavorite,
-                ),
-                const SizedBox(width: 4),
-                _ActionButton(
-                  icon: Icons.copy_rounded,
-                  color: Colors.grey.shade400,
-                  onTap: onCopy,
-                ),
-              ] else
-                Icon(Icons.chevron_right, color: Colors.grey.shade300),
+              _ActionButton(
+                icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: isFavorite ? _pink : Colors.grey.shade400,
+                onTap: onToggleFavorite,
+              ),
+              const SizedBox(width: 4),
+              _ActionButton(
+                icon: Icons.copy_rounded,
+                color: Colors.grey.shade400,
+                onTap: onCopy,
+              ),
             ],
           ),
         ),
       ),
     );
-  }
-
-  /// 프리미엄 잠금 시 앞 3글자만 보여주고 나머지 블러 처리 느낌
-  String _mask(String text) {
-    if (text.length <= 3) return text;
-    return '${text.substring(0, 3)}••••';
   }
 }
 

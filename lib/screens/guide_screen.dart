@@ -27,7 +27,6 @@ class GuideScreen extends StatelessWidget {
             'Fonkii 키보드로 전환 후 Aa 탭 선택',
             '원하는 폰트 카테고리를 고르고 폰트 알약을 탭',
             '선택한 폰트로 그대로 타이핑됩니다',
-            '이미 입력된 텍스트를 선택하고 폰트 알약을 탭하면\n해당 폰트로 즉시 변환됩니다',
           ],
         ),
         SizedBox(height: 12),

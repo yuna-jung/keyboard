@@ -18,10 +18,26 @@ val keystoreProperties = Properties().apply {
     }
 }
 
+// Load `android/local.properties` (gitignored). Carries third-party API keys
+// (currently GIPHY) into BuildConfig so the IME can read them without
+// shipping the secret in any tracked file. Missing key falls back to "" —
+// fresh checkouts still build; the GIF tab will toast a setup notice.
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        load(FileInputStream(localPropertiesFile))
+    }
+}
+val giphyApiKey: String = (localProperties["GIPHY_API_KEY"] as String?) ?: ""
+
 android {
     namespace = "com.yunajung.fonki"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    buildFeatures {
+        buildConfig = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -62,6 +78,10 @@ android {
             } else {
                 signingConfigs.getByName("release")
             }
+            buildConfigField("String", "GIPHY_API_KEY", "\"$giphyApiKey\"")
+        }
+        debug {
+            buildConfigField("String", "GIPHY_API_KEY", "\"$giphyApiKey\"")
         }
     }
 }

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/home_screen.dart';
-import 'services/subscription_service.dart';
 
 const _pink = Color(0xFF5BC8F5);
 
-const _adaptyPublicKey = 'public_live_3DOX3Si9.vj8Cmt2zJnmbSqUZYtfk';
-
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -15,10 +12,6 @@ void main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-  // Adapty 초기화
-  if (_adaptyPublicKey != 'YOUR_ADAPTY_PUBLIC_KEY') {
-    await SubscriptionService.instance.initialize(_adaptyPublicKey);
-  }
   runApp(const FontKeyboardApp());
 }
 

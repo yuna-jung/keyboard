@@ -11,16 +11,8 @@ class UnicodeConverter {
 
   // ── Style definitions ──────────────────────────────────────────────────
   final List<FontStyleModel> _styles = [
-    FontStyleModel(
-      name: 'Normal',
-      convert: _normal,
-      isPremium: false,
-    ),
-    FontStyleModel(
-      name: 'Bold',
-      convert: _bold,
-      isPremium: false,
-    ),
+    FontStyleModel(name: 'Normal', convert: _normal),
+    FontStyleModel(name: 'Bold', convert: _bold),
     FontStyleModel(name: 'Italic', convert: _italic),
     FontStyleModel(name: 'Bold Italic', convert: _boldItalic),
     FontStyleModel(name: 'Script', convert: _script),

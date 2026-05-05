@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
@@ -15,14 +16,17 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.yunajung.fonki.BuildConfig
 import org.json.JSONArray
 
 /**
@@ -39,10 +43,20 @@ import org.json.JSONArray
  */
 class FonkiiKeyboardService : InputMethodService() {
 
-    enum class Mode { FONTS, TRANSLATE, EMOTICON, SPECIAL, DOT_ART, GIF, FAVORITES, CALCULATOR, PALETTE }
+    enum class Mode { FONTS, EMOTICON, SPECIAL, DOT_ART, GIF, FAVORITES, CALCULATOR, PALETTE }
 
     // ── Theme ────────────────────────────────────────────────────────────
-    private val PINK = Color.parseColor("#FF6BA0")
+    /// Default accent — used when the user hasn't picked a palette color yet.
+    private val DEFAULT_ACCENT = Color.parseColor("#FF6BA0")
+    /// User-customizable accent. Stored in SharedPreferences `fonkii_prefs`
+    /// under key `"fonkii_accent_color"` (mirrors iOS `accentColor` /
+    /// `"fonkii_accent_color"` in NSUserDefaults). Read every access so a
+    /// `setAccentColor` write is reflected the next time `showMode` rebuilds
+    /// any tab. The legacy name `PINK` is kept so existing call sites don't
+    /// need a mass rename — semantically it's the active accent now.
+    private val PINK: Int
+        get() = getSharedPreferences("fonkii_prefs", Context.MODE_PRIVATE)
+            .getInt("fonkii_accent_color", DEFAULT_ACCENT)
     private val DARK_TEXT = Color.parseColor("#222222")
     private val LIGHT_GRAY = Color.parseColor("#F5F5F5")
     private val BORDER = Color.parseColor("#DDDDDD")
@@ -57,7 +71,21 @@ class FonkiiKeyboardService : InputMethodService() {
     private var currentMode = Mode.FONTS
     private var fontCatIndex = 0
     private var fontStyleIndex = 0
+    /// Live references to the font-style pills currently in view.
+    /// `selectFontStyle` walks this map to repaint selection state without
+    /// rebuilding the whole tab — preserves the picker's scroll offset.
+    private val fontStyleButtons = mutableMapOf<Int, TextView>()
     private var isShifted = false
+    /// `true` while the inline category row is shown above the font row.
+    /// Toggled by the ▼/▲ button next to the font scroll. Resets to false
+    /// after a category is picked so the row auto-hides.
+    private var isCategoryExpanded = false
+    /// Aa-tab keypad mode: false = QWERTY, true = number/symbol page.
+    /// `isSymbolPage2` only matters when `isNumberMode == true` and toggles
+    /// between the 123 (digits + common punct) and #+= (brackets + symbols)
+    /// pages — mirrors iOS `isNumberMode` / `isSymbolPage2`.
+    private var isNumberMode = false
+    private var isSymbolPage2 = false
     private var emoticonCatIndex = 0
     private var specialCatIndex = 0
 
@@ -68,36 +96,27 @@ class FonkiiKeyboardService : InputMethodService() {
     private var calcOp: String? = null
     private var calcJustEvaluated = false
 
-    // ── Translate state ──────────────────────────────────────────────────
-    /// (Korean display label, OpenAI prompt name) — order mirrors iOS
-    /// `translateLangs`, but with localized labels for the picker.
-    private val translateLanguages: List<Pair<String, String>> = listOf(
-        "한국어" to "Korean",
-        "영어" to "English",
-        "일본어" to "Japanese",
-        "중국어(간체)" to "Chinese (Simplified)",
-        "중국어(번체)" to "Chinese (Traditional)",
-        "스페인어" to "Spanish",
-        "프랑스어" to "French",
-        "독일어" to "German",
-        "러시아어" to "Russian",
-        "아랍어" to "Arabic",
-    )
-    private var fromLangIndex = 0
-    private var toLangIndex = 1
-    private var translateInputBuf = StringBuilder()
-    private var translateResultStr = ""
-    private var isTranslateKoreanMode = true
-    private var isTranslateShifted = false
-    private var isTranslateLoading = false
-    private var translateInputView: TextView? = null
-    private var translateResultView: TextView? = null
+    // ── GIF state ────────────────────────────────────────────────────────
+    private data class GifItem(val id: String, val originalUrl: String, val thumbUrl: String)
+    /// `null` = trending feed, otherwise a search query (Korean label or
+    /// English keyword from the category bar / EditText).
+    private var gifQuery: String? = null
+    private var gifResults: List<GifItem> = emptyList()
+    private var gifLoading: Boolean = false
+    /// Hop counter so a stale fetch landing late can't overwrite a newer one.
+    private var gifFetchToken: Int = 0
+    /// Set true once the trending feed has fired off at least once — prevents
+    /// rebuilding the GIF tab from re-fetching on every redraw.
+    private var gifInitialFetchTriggered: Boolean = false
 
     // ── Long-press delete plumbing ───────────────────────────────────────
     private val deleteHandler = Handler(Looper.getMainLooper())
     private val deleteRepeater = object : Runnable {
         override fun run() {
-            currentInputConnection?.deleteSurroundingText(1, 0)
+            // Route through `backspace()` so surrogate-pair-aware deletion
+            // (Bold/Script/etc. supplementary glyphs) is consistent with
+            // single-tap delete.
+            backspace()
             deleteHandler.postDelayed(this, 50L)
         }
     }
@@ -126,13 +145,12 @@ class FonkiiKeyboardService : InputMethodService() {
         tabButtons.clear()
         val tabs = listOf(
             "Aa" to Mode.FONTS,
-            "번역" to Mode.TRANSLATE,
+            "계산" to Mode.CALCULATOR,
             "😀" to Mode.EMOTICON,
             "✦" to Mode.SPECIAL,
             "도트" to Mode.DOT_ART,
             "GIF" to Mode.GIF,
             "♥" to Mode.FAVORITES,
-            "계산" to Mode.CALCULATOR,
             "🎨" to Mode.PALETTE,
         )
         for ((label, mode) in tabs) {
@@ -160,7 +178,9 @@ class FonkiiKeyboardService : InputMethodService() {
                 GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
                     cornerRadius = dp(16).toFloat()
-                    setColor(Color.parseColor("#FFEAF2"))
+                    // Tinted accent (~15% alpha) so the selected tab matches
+                    // the user's palette pick instead of being stuck on pink.
+                    setColor(Color.argb(38, Color.red(PINK), Color.green(PINK), Color.blue(PINK)))
                 }
             } else null
         }
@@ -174,15 +194,8 @@ class FonkiiKeyboardService : InputMethodService() {
         updateTabHighlight()
         val area = keypadArea ?: return
         area.removeAllViews()
-        // Translate-mode views are recreated; clear stale references so we
-        // don't keep handing out a TextView that's no longer in the hierarchy.
-        if (mode != Mode.TRANSLATE) {
-            translateInputView = null
-            translateResultView = null
-        }
         when (mode) {
             Mode.FONTS -> buildFontsView(area)
-            Mode.TRANSLATE -> buildTranslateView(area)
             Mode.EMOTICON -> buildGridView(area, KeyboardData.emoticonCategories, emoticonCatIndex,
                 cols = 3) { emoticonCatIndex = it; showMode(Mode.EMOTICON) }
             Mode.SPECIAL -> buildGridView(area, KeyboardData.specialCategories, specialCatIndex,
@@ -199,65 +212,77 @@ class FonkiiKeyboardService : InputMethodService() {
     private fun buildFontsView(area: FrameLayout) {
         val root = vlinear()
 
-        // Defensive bounds — categories/styles never shrink in normal flow,
-        // but keep the index sane after data edits.
         val cats = FontConverter.fontCategories
         if (fontCatIndex !in cats.indices) fontCatIndex = 0
-        val currentCat = cats[fontCatIndex]
         if (fontStyleIndex !in FontConverter.fontStyles.indices) fontStyleIndex = 0
-        var activeStyle = FontConverter.fontStyles[fontStyleIndex]
-        // If the current style isn't in the current category (e.g. user just
-        // tapped a new category and we haven't snapped yet), default to the
-        // category's first entry.
+        val currentCat = cats[fontCatIndex]
+        // If the active style isn't in the active category (e.g. category
+        // just changed), snap to that category's first font.
+        val activeStyle = FontConverter.fontStyles[fontStyleIndex]
         if (activeStyle !in currentCat.styles) {
             fontStyleIndex = FontConverter.fontStyles.indexOf(currentCat.styles.first())
-            activeStyle = FontConverter.fontStyles[fontStyleIndex]
         }
-        val style = activeStyle
+        fontStyleButtons.clear()
 
-        // 1) Category scroll bar (클래식 / 모던 / 굵게 / …).
-        val catScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
-        val catRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for ((idx, cat) in cats.withIndex()) {
-            val isSelected = idx == fontCatIndex
-            val btn = TextView(this).apply {
-                text = cat.name
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                setTextColor(if (isSelected) Color.WHITE else DARK_TEXT)
-                background = roundedBg(
-                    if (isSelected) PINK else Color.WHITE,
-                    dp(14).toFloat(),
-                    if (isSelected) PINK else BORDER
-                )
-                setPadding(dp(12), dp(6), dp(12), dp(6))
-                setOnClickListener {
-                    fontCatIndex = idx
-                    val tappedCat = cats[idx]
-                    val keepStyle = FontConverter.fontStyles[fontStyleIndex] in tappedCat.styles
-                    if (!keepStyle) {
-                        fontStyleIndex = FontConverter.fontStyles.indexOf(tappedCat.styles.first())
+        // 1a) Optional category row — only renders when `isCategoryExpanded`
+        //     is true. Tapping a category swaps the font row underneath and
+        //     auto-collapses the category row (sets `isCategoryExpanded =
+        //     false` before the rebuild) so the user lands back on the
+        //     single-row picker.
+        if (isCategoryExpanded) {
+            val catScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+            val catRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for ((idx, cat) in cats.withIndex()) {
+                val isSelected = idx == fontCatIndex
+                val btn = TextView(this).apply {
+                    text = cat.name
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                    setTextColor(if (isSelected) Color.WHITE else DARK_TEXT)
+                    background = roundedBg(
+                        if (isSelected) PINK else Color.WHITE,
+                        dp(14).toFloat(),
+                        if (isSelected) PINK else BORDER
+                    )
+                    setPadding(dp(12), dp(6), dp(12), dp(6))
+                    setOnClickListener {
+                        fontCatIndex = idx
+                        val tappedCat = cats[idx]
+                        val selectedStyle = FontConverter.fontStyles[fontStyleIndex]
+                        if (selectedStyle !in tappedCat.styles) {
+                            fontStyleIndex = FontConverter.fontStyles.indexOf(tappedCat.styles.first())
+                        }
+                        // Auto-collapse so the user returns to the compact
+                        // single-row picker after picking a category.
+                        isCategoryExpanded = false
+                        showMode(Mode.FONTS)
                     }
-                    showMode(Mode.FONTS)
                 }
+                catRow.addView(btn, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { setMargins(dp(4), 0, dp(4), 0) })
             }
-            catRow.addView(btn, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(dp(4), 0, dp(4), 0) })
+            catScroll.addView(catRow)
+            root.addView(catScroll, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(34)
+            ).apply { setMargins(dp(4), dp(4), dp(4), dp(2)) })
         }
-        catScroll.addView(catRow)
-        root.addView(catScroll, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(34)
-        ).apply { setMargins(dp(4), dp(4), dp(4), dp(2)) })
 
-        // 2) Style scroll bar — only the styles in the active category.
-        //    Each pill renders its own name *through* its converter so the user
-        //    sees a live preview (e.g. Bold's button literally shows "𝐁𝐨𝐥𝐝").
+        // 1b) Single-row font picker (active category's styles + ▼/▲ toggle).
+        //     Each pill renders its own name through its own converter
+        //     ("Bold" → "𝐁𝐨𝐥𝐝") for a live preview. The toggle on the right
+        //     flips `isCategoryExpanded` and rebuilds — when expanded the
+        //     category row above appears, when collapsed only this row shows.
+        val pickerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
         val styleScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
         val styleRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for (st in currentCat.styles) {
-            val isSelected = st == activeStyle
-            val styledLabel = FontConverter.convert(st.name, st)
+        for (style in currentCat.styles) {
+            val styleGlobalIdx = FontConverter.fontStyles.indexOf(style)
+            val isSelected = styleGlobalIdx == fontStyleIndex
+            val styledLabel = FontConverter.convert(style.name, style)
             val btn = TextView(this).apply {
                 text = styledLabel
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
@@ -268,86 +293,191 @@ class FonkiiKeyboardService : InputMethodService() {
                     if (isSelected) PINK else BORDER
                 )
                 setPadding(dp(12), dp(6), dp(12), dp(6))
-                setOnClickListener {
-                    fontStyleIndex = FontConverter.fontStyles.indexOf(st)
-                    showMode(Mode.FONTS)
-                }
+                setOnClickListener { selectFontStyle(styleGlobalIdx) }
             }
+            fontStyleButtons[styleGlobalIdx] = btn
             styleRow.addView(btn, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { setMargins(dp(4), 0, dp(4), 0) })
         }
         styleScroll.addView(styleRow)
-        root.addView(styleScroll, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(36)
-        ).apply { setMargins(dp(4), dp(2), dp(4), dp(4)) })
-
-        // QWERTY keypad. Each non-modifier tap immediately converts the single
-        // tapped letter through the active style and commits to the host —
-        // no preview, no buffer, no "insert" button.
-        val rows = listOf(
-            "qwertyuiop".toCharArray().map { it.toString() },
-            "asdfghjkl".toCharArray().map { it.toString() },
-            listOf("⇧") + "zxcvbnm".toCharArray().map { it.toString() } + listOf("⌫")
-        )
-        for (row in rows) {
-            val rowLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
+        // Scroll fills the row, ▼/▲ button is fixed-width on the right.
+        pickerRow.addView(styleScroll, LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.MATCH_PARENT, 1f
+        ))
+        val catToggle = TextView(this).apply {
+            text = if (isCategoryExpanded) "▲" else "▼"
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            gravity = Gravity.CENTER
+            setTextColor(DARK_TEXT)
+            background = roundedBg(Color.WHITE, dp(14).toFloat(), BORDER)
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            setOnClickListener {
+                isCategoryExpanded = !isCategoryExpanded
+                showMode(Mode.FONTS)
             }
-            for (label in row) {
-                val isShift = label == "⇧"
-                val isBackspace = label == "⌫"
-                val displayLabel = when {
-                    isShift -> "⇧"
-                    isBackspace -> "⌫"
-                    isShifted -> label.uppercase()
-                    else -> label
+        }
+        pickerRow.addView(catToggle, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { setMargins(dp(4), 0, dp(8), 0) })
+        root.addView(pickerRow, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(40)
+        ).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) })
+
+        // 3) Keypad. Two layouts share this slot:
+        //    * `isNumberMode == false` → QWERTY (letters streamed through the
+        //      active font style).
+        //    * `isNumberMode == true`  → number/symbol pad. Page 1 (`123`)
+        //      shows digits + common punctuation; page 2 (`#+=`) shows
+        //      brackets + symbols. Toggle button on row 3 swaps pages.
+        //    Letter taps re-read `fontStyleIndex` *at click time* via
+        //    `currentFontStyle()` so `selectFontStyle` can update the active
+        //    style without rebuilding the keypad.
+        if (!isNumberMode) {
+            val rows = listOf(
+                "qwertyuiop".toCharArray().map { it.toString() },
+                "asdfghjkl".toCharArray().map { it.toString() },
+                listOf("⇧") + "zxcvbnm".toCharArray().map { it.toString() } + listOf("⌫")
+            )
+            for (row in rows) {
+                val rowLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
                 }
-                val btn = makeKey(displayLabel, isWide = isShift || isBackspace) {
-                    when {
-                        isShift -> { isShifted = !isShifted; showMode(Mode.FONTS) }
-                        isBackspace -> { /* handled by bindDeleteButton below */ }
-                        else -> {
-                            val ch = if (isShifted) label.uppercase() else label
-                            commit(FontConverter.convert(ch, style))
-                            if (isShifted) {
-                                isShifted = false
-                                showMode(Mode.FONTS)
+                for (label in row) {
+                    val isShift = label == "⇧"
+                    val isBackspace = label == "⌫"
+                    val displayLabel = when {
+                        isShift -> "⇧"
+                        isBackspace -> "⌫"
+                        isShifted -> label.uppercase()
+                        else -> label
+                    }
+                    val btn = makeKey(displayLabel, isWide = isShift || isBackspace) {
+                        when {
+                            isShift -> { isShifted = !isShifted; showMode(Mode.FONTS) }
+                            isBackspace -> { /* handled by bindDeleteButton below */ }
+                            else -> {
+                                val ch = if (isShifted) label.uppercase() else label
+                                commit(FontConverter.convert(ch, currentFontStyle()))
+                                if (isShifted) {
+                                    isShifted = false
+                                    showMode(Mode.FONTS)
+                                }
                             }
                         }
                     }
+                    if (isBackspace) bindDeleteButton(btn)
+                    val lp = LinearLayout.LayoutParams(
+                        0, dp(36), if (isShift || isBackspace) 1.5f else 1f
+                    ).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) }
+                    rowLayout.addView(btn, lp)
                 }
-                if (isBackspace) bindDeleteButton(btn)
-                val lp = LinearLayout.LayoutParams(
-                    0, dp(38), if (isShift || isBackspace) 1.5f else 1f
-                ).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) }
-                rowLayout.addView(btn, lp)
+                root.addView(rowLayout, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
             }
-            root.addView(rowLayout, LinearLayout.LayoutParams(
+        } else {
+            // Number/symbol pad. Top two rows are the page payload (10 keys
+            // each); row 3 is `pageToggle (1.5f)` + 5 common punct + ⌫ (1.5f),
+            // matching iOS proportions (so the punct cells render slightly
+            // wider than the 10-col rows above — that's by design).
+            val (top1, top2) = if (!isSymbolPage2) {
+                listOf("1","2","3","4","5","6","7","8","9","0") to
+                listOf("-","/",":",";","(",")","€","&","@","\"")
+            } else {
+                listOf("[","]","{","}","#","%","^","*","+","=") to
+                listOf("_","\\","|","~","<",">","$","£","¥","•")
+            }
+            val pageToggleLabel = if (isSymbolPage2) "123" else "#+="
+            val punct = listOf(".", ",", "?", "!", "'")
+
+            fun symbolRow(keys: List<String>) {
+                val rowLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                }
+                for (label in keys) {
+                    val btn = makeKey(label, isWide = false) {
+                        // Stream symbols through the active font style too,
+                        // so digits restyle (Bold "1" etc.) and punctuation
+                        // passes through unchanged.
+                        commit(FontConverter.convert(label, currentFontStyle()))
+                    }
+                    rowLayout.addView(btn, LinearLayout.LayoutParams(0, dp(36), 1f).apply {
+                        setMargins(dp(2), dp(2), dp(2), dp(2))
+                    })
+                }
+                root.addView(rowLayout, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
+            }
+            symbolRow(top1)
+            symbolRow(top2)
+
+            // Row 3: page toggle + 5 punct + ⌫.
+            val row3 = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            val toggleBtn = makeKey(pageToggleLabel, isWide = true) {
+                isSymbolPage2 = !isSymbolPage2
+                showMode(Mode.FONTS)
+            }
+            row3.addView(toggleBtn, LinearLayout.LayoutParams(0, dp(36), 1.5f).apply {
+                setMargins(dp(2), dp(2), dp(2), dp(2))
+            })
+            for (p in punct) {
+                val btn = makeKey(p, isWide = false) {
+                    commit(FontConverter.convert(p, currentFontStyle()))
+                }
+                row3.addView(btn, LinearLayout.LayoutParams(0, dp(36), 1f).apply {
+                    setMargins(dp(2), dp(2), dp(2), dp(2))
+                })
+            }
+            val backBtn = makeKey("⌫", isWide = true) { /* bindDeleteButton */ }
+            bindDeleteButton(backBtn)
+            row3.addView(backBtn, LinearLayout.LayoutParams(0, dp(36), 1.5f).apply {
+                setMargins(dp(2), dp(2), dp(2), dp(2))
+            })
+            root.addView(row3, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ))
         }
 
-        // Bottom bar: 🌐 / space / ⏎ (no "삽입" — keys commit immediately).
+        // 4) Bottom bar. Toggle label flips between `?123` and `ABC` so the
+        //    same row enters and exits number mode (mirrors iOS). `space`
+        //    also styles its glyph so monospaced styles keep their spacing
+        //    flavor.
         val bottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
-        val globe = makeKey("🌐", isWide = false) { switchToNextInputMethod() }
-        bottom.addView(globe, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+        val toggleLabel = if (isNumberMode) "ABC" else "?123"
+        val toggle = makeKey(toggleLabel, isWide = true) {
+            isNumberMode = !isNumberMode
+            // Always re-enter on page 1 so a second `?123` tap doesn't land
+            // the user on `#+=` from a stale state.
+            isSymbolPage2 = false
+            showMode(Mode.FONTS)
+        }
+        bottom.addView(toggle, LinearLayout.LayoutParams(0, dp(38), 1.5f).apply {
             setMargins(dp(2), dp(4), dp(2), dp(2))
         })
         val space = makeKey("space", isWide = false) {
-            commit(FontConverter.convert(" ", style))
+            commit(FontConverter.convert(" ", currentFontStyle()))
         }
-        bottom.addView(space, LinearLayout.LayoutParams(0, dp(40), 5f).apply {
+        bottom.addView(space, LinearLayout.LayoutParams(0, dp(38), 5f).apply {
             setMargins(dp(2), dp(4), dp(2), dp(2))
         })
-        val enter = makeKey("⏎", isWide = false) { commit("\n") }
-        bottom.addView(enter, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+        val enterLabel = if (isNumberMode) "완료" else "⏎"
+        val enter = makeKey(enterLabel, isWide = isNumberMode) { commit("\n") }
+        bottom.addView(enter, LinearLayout.LayoutParams(0, dp(38), 1.5f).apply {
             setMargins(dp(2), dp(4), dp(2), dp(2))
         })
         root.addView(bottom, LinearLayout.LayoutParams(
@@ -359,6 +489,126 @@ class FonkiiKeyboardService : InputMethodService() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
+    }
+
+    /// Currently-selected font style — read on every keypress so a
+    /// `selectFontStyle` change is honored without rebuilding the QWERTY
+    /// keypad (which would lose the picker's scroll position).
+    private fun currentFontStyle(): FontConverter.UnicodeStyle {
+        return FontConverter.fontStyles.getOrNull(fontStyleIndex)
+            ?: FontConverter.fontStyles[0]
+    }
+
+    /// Apply a new font style: track which category it belongs to, retro-
+    /// convert text in front of the cursor (or the current selection) so
+    /// previously typed text restyles in place, and repaint just the font
+    /// pills' selection state. No `showMode` rebuild — preserves the
+    /// picker's scroll offset and avoids the "first-pill snap" jolt.
+    private fun selectFontStyle(globalIdx: Int) {
+        val newStyle = FontConverter.fontStyles.getOrNull(globalIdx) ?: return
+        fontStyleIndex = globalIdx
+        // Track which category owns this style for downstream lookups.
+        val catIdx = FontConverter.fontCategories.indexOfFirst { newStyle in it.styles }
+        if (catIdx >= 0) fontCatIndex = catIdx
+
+        // Retro-convert existing text. iOS picks selectedText first and
+        // falls back to the last 100 chars before the cursor; we follow
+        // that contract here.
+        convertExistingText(newStyle)
+
+        // Repaint pills — only the buttons currently in `fontStyleButtons`
+        // (i.e. the expanded category) are reachable; that's expected.
+        fontStyleButtons.forEach { (idx, btn) ->
+            val isSel = idx == globalIdx
+            btn.setTextColor(if (isSel) Color.WHITE else DARK_TEXT)
+            btn.background = roundedBg(
+                if (isSel) PINK else Color.WHITE,
+                dp(14).toFloat(),
+                if (isSel) PINK else BORDER
+            )
+        }
+    }
+
+    /// Retro-convert host-side text to the new style. Selected text wins
+    /// (matches iOS `styleTapped` selectedText branch); otherwise we read
+    /// the last 100 chars before the cursor and replace them.
+    ///
+    /// Pipeline: existing styled glyphs → `normalizeToASCII` strips them
+    /// back to plain ASCII → `FontConverter.convert` re-applies the chosen
+    /// style. Lets users restyle text mid-sentence (e.g. switch from Bold
+    /// to Italic and have the previous Bold turn Italic, not stay Bold).
+    private fun convertExistingText(style: FontConverter.UnicodeStyle) {
+        val ic = currentInputConnection ?: return
+        val selected = ic.getSelectedText(0)
+        if (!selected.isNullOrEmpty()) {
+            val normalized = normalizeToASCII(selected.toString())
+            val converted = FontConverter.convert(normalized, style)
+            ic.commitText(converted, 1)  // active selection → replaced in place
+            return
+        }
+        val before = ic.getTextBeforeCursor(100, 0) ?: return
+        if (before.isEmpty()) return
+        val normalized = normalizeToASCII(before.toString())
+        val converted = FontConverter.convert(normalized, style)
+        if (converted == before.toString()) return  // no-op (Normal style etc.)
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(before.length, 0)
+        ic.commitText(converted, 1)
+        ic.endBatchEdit()
+    }
+
+    /// Strip every offset-based math/decorative codepoint back to its plain
+    /// ASCII counterpart so a fresh `FontConverter.convert` can re-style it.
+    /// iterates by Unicode codepoint (handles supplementary surrogate pairs
+    /// correctly — math alphanumerics are all in U+1D400+).
+    ///
+    /// Coverage: any style backed by `upper`/`lower`/`digit` offsets +
+    /// the `exceptions` BMP-fallback table (Italic h, Script B/E/F/…,
+    /// Fraktur C/H/I/…, Double-struck C/H/N/…). Charmap-based styles
+    /// (Comic, Cursive, Small Caps, Super, Sub) and decorators (Cloudy,
+    /// Candy, Box, Sad, Happy, Flip, …) pass through unchanged — porting
+    /// iOS's `_cmReverseMap` / `_udReverseMap` and the combining-mark
+    /// stripper would be a follow-up.
+    private fun normalizeToASCII(text: String): String {
+        val sb = StringBuilder()
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            i += Character.charCount(cp)
+            val ascii = findASCIIForCodePoint(cp)
+            if (ascii >= 0) sb.appendCodePoint(ascii) else sb.appendCodePoint(cp)
+        }
+        return sb.toString()
+    }
+
+    private fun findASCIIForCodePoint(cp: Int): Int {
+        // Already plain ASCII? Pass through (shortcut + skips Normal style's
+        // identity offsets which would otherwise match every ASCII char).
+        if (cp in 0x41..0x5A || cp in 0x61..0x7A || cp in 0x30..0x39) return cp
+        for (style in FontConverter.fontStyles) {
+            // Skip Normal — its 0x41/0x61/0x30 ranges would always match.
+            if (style.upper == 0x0041 && style.lower == 0x0061 &&
+                (style.digit == null || style.digit == 0x0030)
+            ) continue
+            // Uppercase block (26 letters).
+            if (cp >= style.upper && cp < style.upper + 26) {
+                return 0x41 + (cp - style.upper)
+            }
+            // Lowercase block.
+            if (cp >= style.lower && cp < style.lower + 26) {
+                return 0x61 + (cp - style.lower)
+            }
+            // Digit block (10 digits) when defined.
+            val d = style.digit
+            if (d != null && cp >= d && cp < d + 10) {
+                return 0x30 + (cp - d)
+            }
+            // Reserved BMP fallback exceptions (e.g. Italic h → ℎ U+210E).
+            for ((ascii, styled) in style.exceptions) {
+                if (cp == styled) return ascii
+            }
+        }
+        return -1
     }
 
     // ── Grid (emoticon + special) ────────────────────────────────────────
@@ -478,26 +728,77 @@ class FonkiiKeyboardService : InputMethodService() {
     // ── GIF (search + categories scaffold) ───────────────────────────────
     private fun buildGifView(area: FrameLayout) {
         val root = vlinear()
+
+        // 1) Search row — submit on keyboard "search" action or 🔍 button.
+        val searchRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val search = EditText(this).apply {
             hint = "GIF 검색"
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setPadding(dp(12), dp(6), dp(12), dp(6))
             background = roundedBg(LIGHT_GRAY, dp(18).toFloat())
             inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            // Restore last-searched text so swapping tabs doesn't blank the box.
+            gifQuery?.takeIf { it.isNotBlank() }?.let { setText(it) }
+            setOnEditorActionListener { v, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                    val q = v.text.toString().trim()
+                    gifQuery = q.ifEmpty { null }
+                    fetchGifs(gifQuery)
+                    true
+                } else false
+            }
         }
-        root.addView(search, LinearLayout.LayoutParams(
+        val searchBtn = TextView(this).apply {
+            text = "🔍"
+            gravity = Gravity.CENTER
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            background = roundedBg(Color.WHITE, dp(18).toFloat(), BORDER)
+            setOnClickListener {
+                val q = search.text.toString().trim()
+                gifQuery = q.ifEmpty { null }
+                fetchGifs(gifQuery)
+            }
+        }
+        searchRow.addView(search, LinearLayout.LayoutParams(0, dp(36), 1f).apply {
+            setMargins(dp(8), dp(0), dp(4), dp(0))
+        })
+        searchRow.addView(searchBtn, LinearLayout.LayoutParams(dp(44), dp(36)).apply {
+            setMargins(dp(0), dp(0), dp(8), dp(0))
+        })
+        root.addView(searchRow, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp(40)
-        ).apply { setMargins(dp(8), dp(6), dp(8), dp(6)) })
+        ).apply { setMargins(0, dp(4), 0, dp(2)) })
 
+        // 2) Category bar — Korean labels mapped to English GIPHY queries
+        //    (null → trending feed).
+        val categories = listOf<Pair<String, String?>>(
+            "인기" to null,
+            "재미있는" to "funny",
+            "사랑" to "love",
+            "슬픔" to "sad",
+            "반응" to "reaction",
+            "화남" to "angry",
+        )
         val catScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
         val catRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("인기", "재미있는", "사랑", "슬픔", "반응", "화남").forEach { name ->
+        for ((label, query) in categories) {
+            val isSelected = (query == null && gifQuery == null) ||
+                (query != null && gifQuery == query)
             val btn = TextView(this).apply {
-                text = name
+                text = label
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-                setTextColor(DARK_TEXT)
-                background = roundedBg(Color.WHITE, dp(14).toFloat(), BORDER)
+                setTextColor(if (isSelected) Color.WHITE else DARK_TEXT)
+                background = roundedBg(
+                    if (isSelected) PINK else Color.WHITE,
+                    dp(14).toFloat(),
+                    if (isSelected) PINK else BORDER
+                )
                 setPadding(dp(12), dp(6), dp(12), dp(6))
-                setOnClickListener { showToast("GIF 검색은 준비 중이에요 ($name)") }
+                setOnClickListener {
+                    gifQuery = query
+                    search.setText(query ?: "")
+                    fetchGifs(query)
+                }
             }
             catRow.addView(btn, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -506,24 +807,169 @@ class FonkiiKeyboardService : InputMethodService() {
         }
         catScroll.addView(catRow)
         root.addView(catScroll, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(36)
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(34)
         ))
 
-        val msg = TextView(this).apply {
-            text = "GIF 검색 결과가 여기에 표시돼요\n(GIPHY API 키 연동 필요)"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setTextColor(Color.GRAY)
-            gravity = Gravity.CENTER
+        // 3) Body — empty/loading/error/grid by state.
+        val bodyContainer = FrameLayout(this)
+        when {
+            BuildConfig.GIPHY_API_KEY.isEmpty() -> {
+                bodyContainer.addView(centeredMsg("GIPHY API 키가 설정되지 않았습니다"))
+            }
+            gifLoading -> {
+                bodyContainer.addView(centeredMsg("로딩 중…"))
+            }
+            gifResults.isEmpty() -> {
+                bodyContainer.addView(centeredMsg(
+                    if (gifInitialFetchTriggered) "결과가 없어요" else "로딩 중…"
+                ))
+                if (!gifInitialFetchTriggered) {
+                    gifInitialFetchTriggered = true
+                    fetchGifs(gifQuery)
+                }
+            }
+            else -> {
+                val scroll = ScrollView(this)
+                val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                val cols = 3
+                gifResults.chunked(cols).forEach { chunk ->
+                    val rowL = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                    for (item in chunk) {
+                        val iv = ImageView(this).apply {
+                            scaleType = ImageView.ScaleType.CENTER_CROP
+                            background = roundedBg(LIGHT_GRAY, dp(8).toFloat(), BORDER)
+                            // GIPHY URLs already include ?cid= etc.; copy the
+                            // original GIF link so the host app can display
+                            // the animated asset (e.g. KakaoTalk paste).
+                            setOnClickListener {
+                                copyToClipboard(item.originalUrl, "GIF가 복사되었습니다")
+                            }
+                        }
+                        loadGifThumb(item.thumbUrl, iv)
+                        rowL.addView(iv, LinearLayout.LayoutParams(0, dp(72), 1f).apply {
+                            setMargins(dp(3), dp(3), dp(3), dp(3))
+                        })
+                    }
+                    for (pad in chunk.size until cols) {
+                        rowL.addView(View(this), LinearLayout.LayoutParams(0, dp(72), 1f).apply {
+                            setMargins(dp(3), dp(3), dp(3), dp(3))
+                        })
+                    }
+                    grid.addView(rowL, LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    ))
+                }
+                scroll.addView(grid, ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
+                bodyContainer.addView(scroll, FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                ))
+            }
         }
-        root.addView(msg, LinearLayout.LayoutParams(
+        root.addView(bodyContainer, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
-        ).apply { setMargins(dp(8), dp(20), dp(8), dp(20)) })
+        ).apply { setMargins(dp(4), dp(2), dp(4), dp(2)) })
 
         root.addView(buildBottomBar())
         area.addView(root, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
+    }
+
+    private fun centeredMsg(text: String): TextView = TextView(this).apply {
+        this.text = text
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        setTextColor(Color.GRAY)
+        gravity = Gravity.CENTER
+        layoutParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+    }
+
+    /// Fire a Trending or Search request to GIPHY and re-render the GIF tab
+    /// when the response lands. Stale fetches (token mismatch) are silently
+    /// dropped so a quick category retap doesn't get scrambled by an older
+    /// reply finishing later.
+    private fun fetchGifs(query: String?) {
+        val key = BuildConfig.GIPHY_API_KEY
+        if (key.isEmpty()) {
+            showToast("GIPHY API 키가 설정되지 않았습니다")
+            return
+        }
+        gifLoading = true
+        val token = ++gifFetchToken
+        if (currentMode == Mode.GIF) showMode(Mode.GIF)
+        Thread {
+            val main = Handler(Looper.getMainLooper())
+            try {
+                val urlStr = if (query.isNullOrBlank()) {
+                    "https://api.giphy.com/v1/gifs/trending?api_key=$key&limit=50&rating=pg"
+                } else {
+                    val encoded = java.net.URLEncoder.encode(query, "UTF-8")
+                    "https://api.giphy.com/v1/gifs/search?api_key=$key&q=$encoded&limit=50&rating=pg"
+                }
+                val conn = java.net.URL(urlStr).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 15000
+                conn.readTimeout = 30000
+                val response = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                val data = org.json.JSONObject(response).getJSONArray("data")
+                val parsed = mutableListOf<GifItem>()
+                for (i in 0 until data.length()) {
+                    val obj = data.getJSONObject(i)
+                    val id = obj.optString("id", "")
+                    val images = obj.optJSONObject("images") ?: continue
+                    val original = images.optJSONObject("original")?.optString("url", "")
+                        ?: images.optJSONObject("downsized")?.optString("url", "")
+                    val thumb = images.optJSONObject("fixed_height_small")?.optString("url", "")
+                        ?: images.optJSONObject("preview_gif")?.optString("url", "")
+                        ?: original
+                    if (id.isNotEmpty() && !original.isNullOrEmpty() && !thumb.isNullOrEmpty()) {
+                        parsed.add(GifItem(id, original, thumb))
+                    }
+                }
+                main.post {
+                    if (token != gifFetchToken) return@post  // stale
+                    gifResults = parsed
+                    gifLoading = false
+                    if (currentMode == Mode.GIF) showMode(Mode.GIF)
+                }
+            } catch (e: Exception) {
+                main.post {
+                    if (token != gifFetchToken) return@post
+                    gifLoading = false
+                    if (currentMode == Mode.GIF) showMode(Mode.GIF)
+                    showToast("GIF 로드 실패: ${e.message ?: "unknown"}")
+                }
+            }
+        }.start()
+    }
+
+    /// Per-thumbnail image fetch. BitmapFactory decodes the first frame of a
+    /// GIF (no animation) — fine for a grid; the original URL is copied to
+    /// the clipboard so the receiving app can animate it.
+    private fun loadGifThumb(url: String, target: ImageView) {
+        Thread {
+            try {
+                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 10000
+                conn.readTimeout = 20000
+                val bytes = conn.inputStream.use { it.readBytes() }
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                if (bitmap != null) {
+                    Handler(Looper.getMainLooper()).post {
+                        target.setImageBitmap(bitmap)
+                    }
+                }
+            } catch (_: Exception) {
+                // Silent — the placeholder background remains.
+            }
+        }.start()
     }
 
     // ── Favorites ────────────────────────────────────────────────────────
@@ -585,58 +1031,74 @@ class FonkiiKeyboardService : InputMethodService() {
 
     // ── Calculator ───────────────────────────────────────────────────────
     private fun buildCalculatorView(area: FrameLayout) {
+        // Budget for the 260dp `keypad_area`:
+        //   expression 14 + display 44 + display margin 2 +
+        //   5 rows × 38 (row 190) + 5 × row vertical margin 2 (10) = 260dp.
+        // No shared bottom bar — calc has its own ⌫ on row 1 so the
+        // 🌐/space/⌫ row would be redundant and would push the keypad
+        // past 260dp (the layout we ship in `keyboard_view.xml`).
         val root = vlinear()
         val expr = TextView(this).apply {
             text = calcExpression
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setTextColor(Color.GRAY)
             gravity = Gravity.END
-            setPadding(dp(12), dp(2), dp(12), dp(0))
+            setPadding(dp(12), 0, dp(12), 0)
         }
         root.addView(expr, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(20)
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(14)
         ))
         val display = TextView(this).apply {
             text = calcDisplay
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
             setTextColor(DARK_TEXT)
-            gravity = Gravity.END
-            setPadding(dp(12), dp(0), dp(12), dp(6))
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            setPadding(dp(12), 0, dp(12), 0)
             background = roundedBg(LIGHT_GRAY, dp(8).toFloat())
         }
         root.addView(display, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(50)
-        ).apply { setMargins(dp(8), dp(2), dp(8), dp(6)) })
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(44)
+        ).apply { setMargins(dp(8), 0, dp(8), dp(2)) })
 
+        // iOS calculator layout. `=` now commits the result to the host
+        // (replaces the old 삽입 row). ⌫ on row 1 deletes the trailing digit
+        // of the current display. AC/%/+/-/⌫ are the muted-gray "function"
+        // bucket; ÷×−+= are the orange "operator" bucket; digits + `.` are
+        // the dark "number" bucket — matches iOS Calculator.app palette.
+        val OP_ORANGE = Color.parseColor("#FF9500")
+        val FN_GRAY = Color.parseColor("#A5A5A5")
+        val NUM_DARK = Color.parseColor("#333333")
         val rows = listOf(
-            listOf("AC", "+/-", "%", "÷"),
+            listOf("⌫", "AC", "%", "÷"),
             listOf("7", "8", "9", "×"),
             listOf("4", "5", "6", "−"),
             listOf("1", "2", "3", "+"),
-            listOf("0", ".", "삽입", "="),
+            listOf("+/-", "0", ".", "="),
         )
+        val opKeys = setOf("÷", "×", "−", "+", "=")
+        val fnKeys = setOf("AC", "%", "+/-", "⌫")
         for (row in rows) {
             val rl = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             for (key in row) {
-                val isOp = key in listOf("÷", "×", "−", "+", "=")
-                val isFn = key in listOf("AC", "+/-", "%", "삽입")
+                val bg = when (key) {
+                    in opKeys -> OP_ORANGE
+                    in fnKeys -> FN_GRAY
+                    else -> NUM_DARK
+                }
                 val btn = TextView(this).apply {
                     text = key
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
                     gravity = Gravity.CENTER
                     setTextColor(Color.WHITE)
-                    background = roundedBg(
-                        when {
-                            isOp -> PINK
-                            isFn -> Color.parseColor("#A5A5A5")
-                            else -> Color.parseColor("#333333")
-                        },
-                        dp(20).toFloat()
-                    )
+                    // Half-height radius = capsule pill, matches iOS shape.
+                    background = roundedBg(bg, dp(19).toFloat())
                     setOnClickListener { onCalcKey(key) }
                 }
-                rl.addView(btn, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
-                    setMargins(dp(3), dp(3), dp(3), dp(3))
+                // NB: ⌫ here drops a digit from `calcDisplay` (handled in
+                // `onCalcKey`), *not* a char from the host editor — so we
+                // keep the ordinary tap handler and skip `bindDeleteButton`.
+                rl.addView(btn, LinearLayout.LayoutParams(0, dp(38), 1f).apply {
+                    setMargins(dp(3), dp(2), dp(3), 0)
                 })
             }
             root.addView(rl, LinearLayout.LayoutParams(
@@ -644,7 +1106,6 @@ class FonkiiKeyboardService : InputMethodService() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ))
         }
-        root.addView(buildBottomBar())
         area.addView(root, FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
@@ -666,6 +1127,20 @@ class FonkiiKeyboardService : InputMethodService() {
                 calcDisplay = "0"; calcExpression = ""
                 calcPrev = null; calcOp = null; calcJustEvaluated = false
             }
+            "⌫" -> {
+                // Drop the trailing character of the current display. After a
+                // result lands (`calcJustEvaluated`) ⌫ behaves like AC for
+                // the display only — chaining a delete onto a fresh result
+                // doesn't make sense.
+                if (calcJustEvaluated) {
+                    calcDisplay = "0"
+                    calcJustEvaluated = false
+                } else {
+                    calcDisplay = if (calcDisplay.length <= 1 ||
+                        (calcDisplay.length == 2 && calcDisplay.startsWith("-"))
+                    ) "0" else calcDisplay.dropLast(1)
+                }
+            }
             "+/-" -> calcDisplay.toDoubleOrNull()?.let { calcDisplay = formatCalc(-it) }
             "%" -> calcDisplay.toDoubleOrNull()?.let { calcDisplay = formatCalc(it / 100.0) }
             "+", "−", "×", "÷" -> {
@@ -685,6 +1160,11 @@ class FonkiiKeyboardService : InputMethodService() {
                 }
             }
             "=" -> {
+                // = both finalizes the math and commits the result to the
+                // host editor (replaces the old 삽입 button). When `=` lands
+                // on a chain that already has prev/op queued, evaluate first
+                // and commit the result; when there's nothing to evaluate,
+                // commit the current display verbatim.
                 val d = calcDisplay.toDoubleOrNull()
                 val prev = calcPrev
                 val op = calcOp
@@ -694,8 +1174,8 @@ class FonkiiKeyboardService : InputMethodService() {
                     calcDisplay = formatCalc(r)
                     calcPrev = null; calcOp = null; calcJustEvaluated = true
                 }
+                commit(calcDisplay)
             }
-            "삽입" -> commit(calcDisplay)
         }
         showMode(Mode.CALCULATOR)
     }
@@ -712,61 +1192,125 @@ class FonkiiKeyboardService : InputMethodService() {
         if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
 
     // ── Palette ──────────────────────────────────────────────────────────
+    /// Palette tab — port of iOS `showPalettePicker`. 6 preset colors as
+    /// circular buttons (3×2) with a check mark on the active one, plus RGB
+    /// sliders + live preview + 적용 button. Tapping a preset commits
+    /// immediately; sliders only mutate `staged` until 적용 dismisses the
+    /// staged color into the saved accentColor (matches iOS's tap-to-commit
+    /// model — single accent write per session, single showMode rebuild).
     private fun buildPaletteView(area: FrameLayout) {
         val root = vlinear()
-        val title = TextView(this).apply {
-            text = "팔레트 — 탭하면 hex 코드가 입력돼요"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            setTextColor(Color.GRAY)
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-        }
-        root.addView(title, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ))
-        val palette = listOf(
-            "#FF6BA0" to "Pink",
-            "#1A1A1A" to "Black",
-            "#FF2E2E" to "Red",
-            "#0099FF" to "Blue",
-            "#34C759" to "Green",
-            "#AF52DE" to "Purple",
+        val current = PINK
+
+        // 1) Preset color grid (3 columns × 2 rows).
+        val presets = listOf(
+            Color.parseColor("#FF6BA0"), // 핑크 (기본)
+            Color.parseColor("#1A1A1A"), // 블랙
+            Color.parseColor("#FF2E2E"), // 레드
+            Color.parseColor("#0099FF"), // 블루
+            Color.parseColor("#34C759"), // 그린
+            Color.parseColor("#AF52DE"), // 퍼플
         )
-        for (row in palette.chunked(3)) {
-            val rl = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for ((hex, name) in row) {
-                val cell = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.CENTER
-                    setPadding(dp(8), dp(8), dp(8), dp(8))
-                    background = roundedBg(Color.WHITE, dp(12).toFloat(), BORDER)
-                    setOnClickListener { commit(hex) }
+        for (rowColors in presets.chunked(3)) {
+            val rl = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            for (color in rowColors) {
+                val isSelected = colorsClose(color, current)
+                val swatch = TextView(this).apply {
+                    if (isSelected) {
+                        text = "✓"
+                        setTextColor(Color.WHITE)
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                        gravity = Gravity.CENTER
+                    }
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(color)
+                    }
+                    setOnClickListener { setAccentColor(color) }
                 }
-                val swatch = View(this).apply {
-                    background = roundedBg(Color.parseColor(hex), dp(28).toFloat())
-                }
-                cell.addView(swatch, LinearLayout.LayoutParams(dp(48), dp(48)))
-                val label = TextView(this).apply {
-                    text = "$name\n$hex"
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                    gravity = Gravity.CENTER
-                    setTextColor(DARK_TEXT)
-                }
-                cell.addView(label, LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ))
-                rl.addView(cell, LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    setMargins(dp(6), dp(6), dp(6), dp(6))
+                rl.addView(swatch, LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                    setMargins(dp(8), dp(4), dp(8), dp(4))
                 })
             }
             root.addView(rl, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44)
             ))
         }
+
+        // 2) RGB sliders + live-updating preview circle.
+        //    `staged` holds the slider-driven value until 적용 commits it.
+        val staged = intArrayOf(Color.red(current), Color.green(current), Color.blue(current))
+        val previewCircle = View(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(current)
+            }
+        }
+        fun refreshPreview() {
+            (previewCircle.background as? GradientDrawable)
+                ?.setColor(Color.rgb(staged[0], staged[1], staged[2]))
+        }
+
+        listOf("R" to 0, "G" to 1, "B" to 2).forEach { (label, idx) ->
+            val sliderRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            val labelView = TextView(this).apply {
+                text = label
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTextColor(DARK_TEXT)
+                gravity = Gravity.CENTER
+            }
+            val seekBar = android.widget.SeekBar(this).apply {
+                max = 255
+                progress = staged[idx]
+                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                        sb: android.widget.SeekBar?, progress: Int, fromUser: Boolean
+                    ) {
+                        if (fromUser) {
+                            staged[idx] = progress
+                            refreshPreview()
+                        }
+                    }
+                    override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                    override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {}
+                })
+            }
+            sliderRow.addView(labelView, LinearLayout.LayoutParams(dp(20), dp(28)).apply {
+                setMargins(dp(8), 0, dp(4), 0)
+            })
+            sliderRow.addView(seekBar, LinearLayout.LayoutParams(0, dp(28), 1f).apply {
+                setMargins(dp(4), 0, dp(8), 0)
+            })
+            root.addView(sliderRow, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(28)
+            ))
+        }
+
+        // 3) Preview + 적용 row.
+        val applyRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        applyRow.addView(previewCircle, LinearLayout.LayoutParams(dp(32), dp(32)).apply {
+            setMargins(dp(12), dp(4), dp(8), dp(4))
+        })
+        val applyBtn = makeKey("적용", isWide = false, accent = true) {
+            setAccentColor(Color.rgb(staged[0], staged[1], staged[2]))
+        }
+        applyRow.addView(applyBtn, LinearLayout.LayoutParams(0, dp(32), 1f).apply {
+            setMargins(dp(8), dp(4), dp(12), dp(4))
+        })
+        root.addView(applyRow, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(40)
+        ))
+
+        // Spacer so the bottom bar pins to the bottom even when content fits.
         root.addView(View(this), LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
         ))
@@ -777,358 +1321,27 @@ class FonkiiKeyboardService : InputMethodService() {
         ))
     }
 
-    // ── Translate ────────────────────────────────────────────────────────
-    private fun buildTranslateView(area: FrameLayout) {
-        val root = vlinear()
-
-        // 1) Language picker bar — tap label to cycle through `translateLanguages`,
-        //    swap arrow flips from ↔ to, 🗑 clears both panes.
-        val langBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val fromBtn = makeLangButton(translateLanguages[fromLangIndex].first) {
-            fromLangIndex = (fromLangIndex + 1) % translateLanguages.size
-            showMode(Mode.TRANSLATE)
-        }
-        val arrow = TextView(this).apply {
-            text = "→"
-            gravity = Gravity.CENTER
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-            setTextColor(DARK_TEXT)
-        }
-        val toBtn = makeLangButton(translateLanguages[toLangIndex].first) {
-            toLangIndex = (toLangIndex + 1) % translateLanguages.size
-            showMode(Mode.TRANSLATE)
-        }
-        val swapBtn = makeKey("↔", isWide = false) {
-            val tmp = fromLangIndex; fromLangIndex = toLangIndex; toLangIndex = tmp
-            showMode(Mode.TRANSLATE)
-        }
-        val clearBtn = makeKey("🗑", isWide = false) {
-            translateInputBuf.clear()
-            translateResultStr = ""
-            showMode(Mode.TRANSLATE)
-        }
-        langBar.addView(fromBtn, LinearLayout.LayoutParams(0, dp(28), 3f).apply {
-            setMargins(dp(4), dp(2), dp(2), dp(2))
-        })
-        langBar.addView(arrow, LinearLayout.LayoutParams(dp(20), dp(28)))
-        langBar.addView(toBtn, LinearLayout.LayoutParams(0, dp(28), 3f).apply {
-            setMargins(dp(2), dp(2), dp(4), dp(2))
-        })
-        langBar.addView(swapBtn, LinearLayout.LayoutParams(dp(36), dp(28)).apply {
-            setMargins(dp(2), dp(2), dp(2), dp(2))
-        })
-        langBar.addView(clearBtn, LinearLayout.LayoutParams(dp(36), dp(28)).apply {
-            setMargins(dp(2), dp(2), dp(4), dp(2))
-        })
-        root.addView(langBar, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(32)
-        ))
-
-        // 2) Side-by-side input / result panes. Inputs come from the in-IME
-        //    keypad (commit-to-host is intentionally skipped) — `commit` only
-        //    fires when the user taps "삽입" with a non-empty result.
-        val ioRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-        }
-        val inputView = TextView(this).apply {
-            text = if (translateInputBuf.isEmpty()) "텍스트를 입력하세요" else translateInputBuf.toString()
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setTextColor(if (translateInputBuf.isEmpty()) Color.GRAY else DARK_TEXT)
-            setPadding(dp(8), dp(6), dp(8), dp(6))
-            background = roundedBg(LIGHT_GRAY, dp(8).toFloat(), BORDER)
-            gravity = Gravity.TOP or Gravity.START
-        }
-        val resultView = TextView(this).apply {
-            text = if (translateResultStr.isEmpty()) "번역 결과가 여기에 표시돼요" else translateResultStr
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setTextColor(if (translateResultStr.isEmpty()) Color.GRAY else DARK_TEXT)
-            setPadding(dp(8), dp(6), dp(8), dp(6))
-            background = roundedBg(LIGHT_GRAY, dp(8).toFloat(), BORDER)
-            gravity = Gravity.TOP or Gravity.START
-        }
-        translateInputView = inputView
-        translateResultView = resultView
-        ioRow.addView(inputView, LinearLayout.LayoutParams(0, dp(56), 1f).apply {
-            setMargins(dp(4), dp(2), dp(2), dp(2))
-        })
-        ioRow.addView(resultView, LinearLayout.LayoutParams(0, dp(56), 1f).apply {
-            setMargins(dp(2), dp(2), dp(4), dp(2))
-        })
-        root.addView(ioRow, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(60)
-        ))
-
-        // 3) Keypad rows — Korean jamo or English QWERTY based on
-        //    `isTranslateKoreanMode`. Note: jamo are appended raw (no Hangul
-        //    syllable composition); gpt-4o-mini handles either form well
-        //    enough for short translation prompts.
-        val koreanRows = listOf(
-            listOf("ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅅ", "ㅛ", "ㅕ", "ㅑ", "ㅐ", "ㅔ"),
-            listOf("ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅎ", "ㅗ", "ㅓ", "ㅏ", "ㅣ"),
-            listOf("ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅠ", "ㅜ", "ㅡ"),
-        )
-        val englishRows = listOf(
-            "qwertyuiop".toCharArray().map { it.toString() },
-            "asdfghjkl".toCharArray().map { it.toString() },
-            "zxcvbnm".toCharArray().map { it.toString() },
-        )
-        val rows = if (isTranslateKoreanMode) koreanRows else englishRows
-        for (row in rows) {
-            val rowL = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-            for (key in row) {
-                val display = if (!isTranslateKoreanMode && isTranslateShifted) key.uppercase() else key
-                val btn = makeKey(display, isWide = false) {
-                    appendTranslateInput(display)
-                    if (isTranslateShifted && !isTranslateKoreanMode) {
-                        isTranslateShifted = false
-                        showMode(Mode.TRANSLATE)
-                    }
-                }
-                rowL.addView(btn, LinearLayout.LayoutParams(0, dp(36), 1f).apply {
-                    setMargins(dp(2), dp(2), dp(2), dp(2))
-                })
-            }
-            root.addView(rowL, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ))
-        }
-
-        // 4) Bottom bar — 한/영, 번역, space, 삽입, ⌫.
-        val bottom = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        val langSwitch = makeKey("한/영", isWide = false) {
-            isTranslateKoreanMode = !isTranslateKoreanMode
-            showMode(Mode.TRANSLATE)
-        }
-        val translateBtn = makeKey("번역", isWide = false, accent = true) { performTranslate() }
-        val space = makeKey("space", isWide = false) { appendTranslateInput(" ") }
-        val insertBtn = makeKey("삽입", isWide = false, accent = true) {
-            if (translateResultStr.isEmpty()) {
-                showToast("먼저 번역해주세요")
-            } else {
-                commit(translateResultStr)
-            }
-        }
-        val backBtn = makeKey("⌫", isWide = false) { /* bindTranslateBackspace */ }
-        bindTranslateBackspace(backBtn)
-
-        bottom.addView(langSwitch, LinearLayout.LayoutParams(0, dp(36), 1.4f).apply {
-            setMargins(dp(2), dp(2), dp(2), dp(2))
-        })
-        bottom.addView(translateBtn, LinearLayout.LayoutParams(0, dp(36), 1.4f).apply {
-            setMargins(dp(2), dp(2), dp(2), dp(2))
-        })
-        bottom.addView(space, LinearLayout.LayoutParams(0, dp(36), 3f).apply {
-            setMargins(dp(2), dp(2), dp(2), dp(2))
-        })
-        bottom.addView(insertBtn, LinearLayout.LayoutParams(0, dp(36), 1.4f).apply {
-            setMargins(dp(2), dp(2), dp(2), dp(2))
-        })
-        bottom.addView(backBtn, LinearLayout.LayoutParams(0, dp(36), 1f).apply {
-            setMargins(dp(2), dp(2), dp(2), dp(2))
-        })
-        root.addView(bottom, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ))
-
-        area.addView(root, FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ))
-    }
-
-    private fun makeLangButton(label: String, onTap: () -> Unit): TextView {
-        return TextView(this).apply {
-            text = "$label  ▼"
-            gravity = Gravity.CENTER
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            setTextColor(DARK_TEXT)
-            background = roundedBg(Color.WHITE, dp(14).toFloat(), BORDER)
-            setOnClickListener { onTap() }
-        }
-    }
-
-    private fun appendTranslateInput(text: String) {
-        // Hard cap at 200 chars (matches iOS translate input limit).
-        if (translateInputBuf.length >= 200) return
-        translateInputBuf.append(text)
-        translateInputView?.text = translateInputBuf.toString()
-        translateInputView?.setTextColor(DARK_TEXT)
-    }
-
-    private fun translateBackspaceOnce() {
-        if (translateInputBuf.isNotEmpty()) {
-            translateInputBuf.deleteCharAt(translateInputBuf.length - 1)
-            if (translateInputBuf.isEmpty()) {
-                translateInputView?.text = "텍스트를 입력하세요"
-                translateInputView?.setTextColor(Color.GRAY)
-            } else {
-                translateInputView?.text = translateInputBuf.toString()
-            }
-        }
-    }
-
-    /// Tap = single delete, hold = repeat at 50ms cadence (mirrors the
-    /// global `bindDeleteButton` but routes to the in-IME translate buffer
-    /// rather than the host text field).
-    @SuppressLint("ClickableViewAccessibility")
-    private fun bindTranslateBackspace(btn: View) {
-        val handler = deleteHandler
-        val repeater = object : Runnable {
-            override fun run() {
-                translateBackspaceOnce()
-                handler.postDelayed(this, 50L)
-            }
-        }
-        btn.setOnClickListener { translateBackspaceOnce() }
-        btn.setOnLongClickListener {
-            handler.removeCallbacks(repeater)
-            handler.post(repeater)
-            true
-        }
-        btn.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
-                handler.removeCallbacks(repeater)
-            }
-            false
-        }
-    }
-
-    private fun performTranslate() {
-        val text = translateInputBuf.toString().trim()
-        if (text.isEmpty()) {
-            showToast("번역할 텍스트를 입력하세요")
-            return
-        }
-        if (!canTranslate()) {
-            showToast("오늘 무료 번역 횟수(10회)를 모두 사용했어요\n구독하면 무제한으로 사용할 수 있어요")
-            return
-        }
-        val key = getOpenAIKey()
-        if (key.isEmpty()) {
-            showToast("OpenAI API 키가 설정되지 않았습니다")
-            return
-        }
-        if (isTranslateLoading) return
-        isTranslateLoading = true
-        translateResultView?.text = "번역 중…"
-        translateResultView?.setTextColor(Color.GRAY)
-
-        callOpenAI(
-            text,
-            translateLanguages[fromLangIndex].second,
-            translateLanguages[toLangIndex].second,
-        ) { result, success ->
-            isTranslateLoading = false
-            translateResultStr = if (success) result else ""
-            translateResultView?.text = result
-            translateResultView?.setTextColor(if (success) DARK_TEXT else Color.RED)
-            if (success) incrementTranslateCount()
-        }
-    }
-
-    private fun callOpenAI(
-        text: String,
-        fromLang: String,
-        toLang: String,
-        onResult: (String, Boolean) -> Unit,
-    ) {
-        Thread {
-            val main = Handler(Looper.getMainLooper())
-            try {
-                val url = java.net.URL("https://api.openai.com/v1/chat/completions")
-                val conn = url.openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 15000
-                conn.readTimeout = 30000
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.setRequestProperty("Authorization", "Bearer ${getOpenAIKey()}")
-                conn.doOutput = true
-
-                val systemMsg = "Translate the following text from $fromLang to $toLang. " +
-                        "Preserve emoji and emoticons. Output only the translated text — no explanations."
-                val body = org.json.JSONObject().apply {
-                    put("model", "gpt-4o-mini")
-                    put("messages", org.json.JSONArray().apply {
-                        put(org.json.JSONObject().apply {
-                            put("role", "system"); put("content", systemMsg)
-                        })
-                        put(org.json.JSONObject().apply {
-                            put("role", "user"); put("content", text)
-                        })
-                    })
-                    put("max_tokens", 500)
-                    put("temperature", 0.1)
-                }
-                conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-
-                val code = conn.responseCode
-                val response = if (code in 200..299) {
-                    conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-                } else {
-                    conn.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-                }
-
-                if (code in 200..299) {
-                    val translated = try {
-                        org.json.JSONObject(response)
-                            .getJSONArray("choices")
-                            .getJSONObject(0)
-                            .getJSONObject("message")
-                            .getString("content")
-                            .trim()
-                    } catch (_: Exception) {
-                        null
-                    }
-                    main.post {
-                        if (translated != null) onResult(translated, true)
-                        else onResult("응답 파싱 실패", false)
-                    }
-                } else {
-                    main.post { onResult("HTTP $code", false) }
-                }
-            } catch (e: Exception) {
-                main.post { onResult("번역 실패: ${e.message ?: "unknown"}", false) }
-            }
-        }.start()
-    }
-
-    private fun getOpenAIKey(): String {
-        return getSharedPreferences("fonkii_prefs", Context.MODE_PRIVATE)
-            .getString("openai_key", "") ?: ""
-    }
-
-    private fun canTranslate(): Boolean {
-        val prefs = getSharedPreferences("fonkii_prefs", Context.MODE_PRIVATE)
-        if (prefs.getBoolean("is_premium", false)) return true
-        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-            .format(java.util.Date())
-        val savedDate = prefs.getString("translate_date", "")
-        val count = if (savedDate == today) prefs.getInt("translate_count", 0) else 0
-        return count < 10
-    }
-
-    private fun incrementTranslateCount() {
-        val prefs = getSharedPreferences("fonkii_prefs", Context.MODE_PRIVATE)
-        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-            .format(java.util.Date())
-        val savedDate = prefs.getString("translate_date", "")
-        val count = if (savedDate == today) prefs.getInt("translate_count", 0) else 0
-        prefs.edit()
-            .putString("translate_date", today)
-            .putInt("translate_count", count + 1)
+    /// Persist the new accent color and force a full UI rebuild so every
+    /// `PINK`-using surface (tabs, font alongs, calculator op buttons,
+    /// accent-styled key borders, …) picks up the change immediately.
+    /// Mirrors iOS `accentColor` setter → `applyAccentColor()` →
+    /// `showMode(currentMode)`.
+    private fun setAccentColor(color: Int) {
+        getSharedPreferences("fonkii_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putInt("fonkii_accent_color", color)
             .apply()
+        showMode(currentMode)
     }
+
+    /// Tolerance-based equality check for the preset-color check mark.
+    /// iOS uses ±0.015 (≈ ±4/255); we match that with an integer rounding.
+    private fun colorsClose(a: Int, b: Int): Boolean {
+        return Math.abs(Color.red(a) - Color.red(b)) <= 4 &&
+            Math.abs(Color.green(a) - Color.green(b)) <= 4 &&
+            Math.abs(Color.blue(a) - Color.blue(b)) <= 4
+    }
+
 
     // ── Common bottom bar (🌐 + ⌫) ───────────────────────────────────────
     private fun buildBottomBar(): LinearLayout {
@@ -1210,8 +1423,22 @@ class FonkiiKeyboardService : InputMethodService() {
         currentInputConnection?.commitText(text, 1)
     }
 
+    /// Surrogate-pair-aware backspace. `deleteSurroundingText(1, 0)` removes
+    /// a single UTF-16 code unit, which splits the supplementary-plane glyphs
+    /// the Aa tab produces (Bold/Italic/Script/… in U+1D400–U+1D7FF are all
+    /// surrogate pairs). The orphaned high surrogate then renders as `?`.
+    /// We peek at the last two code units, decide whether the trailing char
+    /// is the low surrogate of a pair, and delete 1 or 2 units accordingly.
     private fun backspace() {
-        currentInputConnection?.deleteSurroundingText(1, 0)
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(2, 0) ?: return
+        if (before.isEmpty()) return
+        val lastChar = before[before.length - 1]
+        val deleteCount = if (before.length >= 2 &&
+            Character.isLowSurrogate(lastChar) &&
+            Character.isHighSurrogate(before[before.length - 2])
+        ) 2 else 1
+        ic.deleteSurroundingText(deleteCount, 0)
     }
 
     private fun switchToNextInputMethod() {
