@@ -623,6 +623,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var lastFontShiftTime: Date?
     private var isNumberMode = false
     private var isSymbolPage2 = false
+    /// Aa-tab keypad language: false = QWERTY, true = 한글 두벌식.
+    /// Number mode (`isNumberMode`) takes precedence over this — when both
+    /// would be true the number/symbol pad renders. The 한/영 button on the
+    /// bottom bar flips this; switching also forces `isNumberMode = false`
+    /// so a tap doesn't land on a stale digit/symbol page.
+    private var isFontsKorean = false
     private var savedFontScrollOffset: CGPoint = .zero
     private weak var fontStyleScrollView: UIScrollView?
     private var savedEmoticonCatOffset: CGPoint = .zero
@@ -1324,6 +1330,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Mode Switching
 
     private func showMode(_ mode: Mode) {
+        // Leaving the Aa tab while the Korean composer has buffered jamos
+        // would strand that state — the next time the user comes back, the
+        // first tap would unexpectedly extend the old syllable. Flush at the
+        // tab boundary; intra-fonts rebuilds (style tap, shift tap, lang
+        // toggle) hit `mode == .fonts` and skip this.
+        if currentMode == .fonts && mode != .fonts && isFontsKorean {
+            hgFlush()
+        }
         currentMode = mode
         updateModeBar()
         clearContent()
@@ -1873,7 +1887,78 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
                 if ri == 2 {
                     let del = makeSpecialKey("⌫")
-                    del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
+                    del.addTarget(self, action: #selector(backspaceTapped), for: .touchDown)
+                    attachBackspaceLongPress(to: del)
+                    rowStack.addArrangedSubview(del)
+                }
+
+                stack.addArrangedSubview(rowStack)
+            }
+        } else if isFontsKorean {
+            // 한글 두벌식 layout — same row structure as QWERTY (3 rows, ⇧/⌫
+            // on row 3) so SHIFT and BACKSPACE behavior carries over for free.
+            // Jamo taps route through `letterTapped`, which on this branch
+            // diverts into the same Hangul composition engine the translate
+            // tab uses (`handleHangulInput`/`handleHangulDelete`/`hgFlush`)
+            // so taps build syllables (ㅇ + ㅏ + ㄴ → 안). The composer
+            // appends/replaces directly via `textDocumentProxy`; font
+            // conversion isn't applied to composed syllables (Hangul is
+            // outside the math alphanumeric blocks most styles target, so
+            // the visible result matches what the old per-jamo path produced
+            // — minus the no-composition defect).
+            let korN: [[String]] = [
+                ["ㅂ","ㅈ","ㄷ","ㄱ","ㅅ","ㅛ","ㅕ","ㅑ","ㅐ","ㅔ"],
+                ["ㅁ","ㄴ","ㅇ","ㄹ","ㅎ","ㅗ","ㅓ","ㅏ","ㅣ"],
+                ["ㅋ","ㅌ","ㅊ","ㅍ","ㅠ","ㅜ","ㅡ"]
+            ]
+            // Shift swaps the basic consonants for their tense counterparts
+            // and ㅐ/ㅔ for ㅒ/ㅖ — bottom row stays the same (no shifted
+            // form for those jamos in 두벌식).
+            let korS: [[String]] = [
+                ["ㅃ","ㅉ","ㄸ","ㄲ","ㅆ","ㅛ","ㅕ","ㅑ","ㅒ","ㅖ"],
+                ["ㅁ","ㄴ","ㅇ","ㄹ","ㅎ","ㅗ","ㅓ","ㅏ","ㅣ"],
+                ["ㅋ","ㅌ","ㅊ","ㅍ","ㅠ","ㅜ","ㅡ"]
+            ]
+            let shifted = isShifted || isCapsLock
+            let rows = shifted ? korS : korN
+            for (ri, row) in rows.enumerated() {
+                let rowStack = UIStackView()
+                rowStack.axis = .horizontal
+                rowStack.distribution = .fillEqually
+                rowStack.spacing = 4
+                rowStack.heightAnchor.constraint(equalToConstant: 52).isActive = true
+
+                if ri == 2 {
+                    let shift = makeSpecialKey("⇧")
+                    shift.addTarget(self, action: #selector(shiftTapped), for: .touchDown)
+                    if isCapsLock {
+                        shift.backgroundColor = accentColor
+                        shift.setTitle("", for: .normal)
+                        let capsConfig = UIImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+                        shift.setImage(UIImage(systemName: "capslock.fill", withConfiguration: capsConfig), for: .normal)
+                        shift.tintColor = .white
+                    } else if isShifted {
+                        shift.backgroundColor = accentColor
+                        shift.setTitleColor(.white, for: .normal)
+                    }
+                    rowStack.addArrangedSubview(shift)
+                }
+
+                for key in row {
+                    // Hangul jamos pass through `letterTapped`'s `.uppercased()`
+                    // path harmlessly — uppercasing a non-cased Unicode scalar
+                    // is a no-op, so the original "ㅂ"/"ㅃ" reaches the font
+                    // converter as-is.
+                    let btn = makeLetterKey(key)
+                    btn.titleLabel?.font = .systemFont(ofSize: 22)
+                    btn.addTarget(self, action: #selector(letterTapped(_:)), for: .touchDown)
+                    rowStack.addArrangedSubview(btn)
+                    letterKeys.append(btn)
+                }
+
+                if ri == 2 {
+                    let del = makeSpecialKey("⌫")
+                    del.addTarget(self, action: #selector(backspaceTapped), for: .touchDown)
                     attachBackspaceLongPress(to: del)
                     rowStack.addArrangedSubview(del)
                 }
@@ -1891,7 +1976,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
                 if ri == 2 {
                     let shift = makeSpecialKey("⇧")
-                    shift.addTarget(self, action: #selector(shiftTapped), for: .touchUpInside)
+                    shift.addTarget(self, action: #selector(shiftTapped), for: .touchDown)
                     if isCapsLock {
                         shift.backgroundColor = accentColor
                         shift.setTitle("", for: .normal)
@@ -1915,7 +2000,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
                 if ri == 2 {
                     let del = makeSpecialKey("⌫")
-                    del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
+                    del.addTarget(self, action: #selector(backspaceTapped), for: .touchDown)
                     attachBackspaceLongPress(to: del)
                     rowStack.addArrangedSubview(del)
                 }
@@ -1923,11 +2008,23 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             }
         }
 
-        // Bottom row: 123/ABC + space + 완료
+        // Bottom row: 한/영 + 123/ABC + space + 완료
         let bottom = UIStackView()
         bottom.axis = .horizontal
         bottom.spacing = 4
         bottom.heightAnchor.constraint(equalToConstant: 52).isActive = true
+
+        let langToggle = makeSpecialKey("한/영")
+        langToggle.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
+        langToggle.addTarget(self, action: #selector(fontLangToggleTapped), for: .touchUpInside)
+        langToggle.setWidth(50)
+        // Mark the active language with the accent fill so the user can tell
+        // at a glance which layout the keypad above is rendering.
+        if isFontsKorean {
+            langToggle.backgroundColor = accentColor
+            langToggle.setTitleColor(.white, for: .normal)
+        }
+        bottom.addArrangedSubview(langToggle)
 
         let toggleKey = makeSpecialKey(isNumberMode ? "ABC" : "123")
         toggleKey.addTarget(self, action: #selector(toggleNumberMode), for: .touchUpInside)
@@ -1936,17 +2033,36 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         let space = makeLetterKey("space")
         space.titleLabel?.font = .systemFont(ofSize: 14)
-        space.addTarget(self, action: #selector(spaceTapped), for: .touchUpInside)
+        space.addTarget(self, action: #selector(spaceTapped), for: .touchDown)
         bottom.addArrangedSubview(space)
 
-        let done = makeSpecialKey("완료")
+        let done = makeSpecialKey("")
+        done.setTitle("", for: .normal)
+        let returnImage = UIImage(systemName: "return", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .medium))
+        done.setImage(returnImage, for: .normal)
+        done.tintColor = .black
         done.backgroundColor = accentColor
         done.setTitleColor(.white, for: .normal)
-        done.addTarget(self, action: #selector(returnTapped), for: .touchUpInside)
+        done.addTarget(self, action: #selector(returnTapped), for: .touchDown)
         done.setWidth(50)
         bottom.addArrangedSubview(done)
 
         stack.addArrangedSubview(bottom)
+    }
+
+    /// Aa-tab 한/영 toggle. Forces `isNumberMode = false` so the user lands
+    /// on the new layout's letter rows instead of a stale digit page.
+    /// `isShifted`/`isCapsLock` carry over so an active SHIFT keeps modifying
+    /// the new layout (Korean ⇧ shows tense consonants instead of caps).
+    @objc private func fontLangToggleTapped() {
+        // Commit any in-flight Hangul syllable before swapping layouts —
+        // otherwise the buffered cho/jung would silently combine with the
+        // next non-Korean tap (or get bulldozed by an English keystroke).
+        hgFlush()
+        isFontsKorean.toggle()
+        isNumberMode = false
+        isSymbolPage2 = false
+        showMode(.fonts)
     }
 
     // MARK: - Grid Mode (Emoticon / Special)
@@ -4061,37 +4177,44 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return
         }
 
-        // Free tier: 10 translations/day, resetting at local midnight. Premium
-        // users (`canTranslateUnlimited == true`) skip this entirely. Counter
-        // lives in App Group UserDefaults so it survives extension lifecycle
-        // and is shared with the host app.
-        if !canTranslateUnlimited {
-            let appGroupID = "group.com.yunajung.fonki"
-            let defaults = UserDefaults(suiteName: appGroupID)
+        // Daily translation limit. Both tiers are now capped:
+        //   • free                    → 10/day
+        //   • premium (weekly/yearly) → 500/day
+        // (Lifetime is blocked outright above; trial users land on the
+        // free quota since `canTranslateUnlimited == false` for them.)
+        // `canTranslateUnlimited` is the premium-tier gate flag — kept
+        // under its old name to avoid touching its other call sites; it
+        // now selects which quota to apply, not "unlimited vs limited".
+        // Counter resets at local midnight and is keyed by
+        // `translateDailyDate` in App Group UserDefaults so it survives
+        // extension lifecycle + syncs with the host app.
+        let appGroupID = "group.com.yunajung.fonki"
+        let defaults = UserDefaults(suiteName: appGroupID)
 
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd"
-            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-            dateFormatter.timeZone = TimeZone.current
-            let today = dateFormatter.string(from: Date())
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone.current
+        let today = dateFormatter.string(from: Date())
 
-            let storedDate = defaults?.string(forKey: "translateDailyDate")
-            var count = (storedDate == today)
-                ? (defaults?.integer(forKey: "translateDailyCount") ?? 0)
-                : 0
+        let storedDate = defaults?.string(forKey: "translateDailyDate")
+        var count = (storedDate == today)
+            ? (defaults?.integer(forKey: "translateDailyCount") ?? 0)
+            : 0
 
-            if count >= 10 {
-                translateResultLabel?.text =
-                    "오늘 무료 번역 횟수(10회)를 모두 사용했어요.\n구독하면 무제한으로 사용할 수 있어요."
-                translateResultLabel?.textColor = .systemOrange
-                translateResultLabel?.numberOfLines = 0
-                return
-            }
-
-            count += 1
-            defaults?.set(count, forKey: "translateDailyCount")
-            defaults?.set(today, forKey: "translateDailyDate")
+        let maxCount = canTranslateUnlimited ? 300 : 20
+        if count >= maxCount {
+            translateResultLabel?.text = canTranslateUnlimited
+                ? "오늘 번역 한도를 모두 사용했어요.\n내일 다시 이용해주세요."
+                : "오늘 무료 번역 횟수를 모두 사용했어요.\n구독하면 더 많이 이용할 수 있어요."
+            translateResultLabel?.textColor = .systemOrange
+            translateResultLabel?.numberOfLines = 0
+            return
         }
+
+        count += 1
+        defaults?.set(count, forKey: "translateDailyCount")
+        defaults?.set(today, forKey: "translateDailyDate")
         #endif
 
         // Premium (weekly/yearly) — unlimited translation
@@ -4472,6 +4595,33 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func letterTapped(_ s: UIButton) {
         guard var ch = s.title(for: .normal) else { return }
+        // Korean keypad on the Aa tab: divert raw jamos into the same Hangul
+        // composition engine the translate tab uses, so taps build syllables
+        // (ㅇ + ㅏ + ㄴ → 안) instead of dropping standalone jamos. The engine
+        // routes its inserts/replaces through `translateTargetAppend`, which
+        // falls back to `textDocumentProxy` when no `translateInputField` is
+        // first responder — that's always the case in fonts mode, so output
+        // lands in the host app correctly.
+        //
+        // NB: font conversion (`style.convert`) is not applied to composed
+        // syllables; Hangul codepoints aren't in the math alphanumeric blocks
+        // that most styles target, so the user-visible result is the same as
+        // streaming jamos through `style.convert` would have been — minus the
+        // jamo-vs-syllable defect we're fixing here.
+        if isFontsKorean && !isNumberMode {
+            handleHangulInput(ch)
+            DispatchQueue.global(qos: .userInteractive).async {
+                AudioServicesPlaySystemSound(1104)
+            }
+            tapFeedback(s)
+            if isShifted && !isCapsLock {
+                isShifted = false
+                DispatchQueue.main.async { [weak self] in
+                    self?.showMode(.fonts)
+                }
+            }
+            return
+        }
         if isShifted { ch = ch.uppercased() }
         let cats = visibleFontCategories()
         let safeCat = min(fontCatIndex, max(cats.count - 1, 0))
@@ -4494,6 +4644,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func spaceTapped() {
+        // Korean fonts mode: finalize any in-flight syllable before the space
+        // commits. Without this, the engine's buffered cho/jung would be
+        // appended *after* the space on the next jamo tap, scrambling order.
+        if isFontsKorean { hgFlush() }
         textDocumentProxy.insertText(" ")
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
@@ -4501,7 +4655,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func backspaceTapped() {
-        textDocumentProxy.deleteBackward()
+        // In Korean fonts mode, route through the composer's delete so a
+        // jong/jung is peeled off the active syllable instead of nuking the
+        // whole composed character (e.g. 안 → 아, 아 → ㅇ, ㅇ → empty).
+        // `handleHangulDelete` falls back to `translateTargetRemoveLast` →
+        // `textDocumentProxy.deleteBackward()` when nothing is buffered.
+        if isFontsKorean && !isNumberMode {
+            handleHangulDelete()
+        } else {
+            textDocumentProxy.deleteBackward()
+        }
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
@@ -4512,6 +4675,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var deleteTimer: Timer?
     private var deleteTickCount = 0
     private var deleteTranslateMode = false
+    /// Snapshot at long-press `.began` — true when the press started on the
+    /// Aa-tab Korean keypad. Keeps every repeat tick routing through the
+    /// Hangul composer (peeling jong/jung/cho before hitting the host editor)
+    /// instead of the first tick going through the composer and the rest
+    /// silently switching to a raw `deleteBackward`.
+    private var deleteFontsKoreanMode = false
 
     /// Attach long-press to a delete button so holding triggers repeat delete.
     /// `translateMode = true` uses translate-specific backspace (hangul + translationInput).
@@ -4531,6 +4700,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         case .began:
             deleteTickCount = 0
             deleteTranslateMode = (currentMode == .translate)
+            deleteFontsKoreanMode =
+                (currentMode == .fonts && isFontsKorean && !isNumberMode)
             performBackspaceForCurrentMode()
             if textDocumentProxy.hasText || !translationInput.isEmpty {
                 DispatchQueue.global(qos: .userInteractive).async {
@@ -4584,6 +4755,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private func performBackspaceForCurrentMode() {
         if deleteTranslateMode {
             performTranslateDelete()
+        } else if deleteFontsKoreanMode {
+            handleHangulDelete()
         } else {
             textDocumentProxy.deleteBackward()
         }
@@ -4608,6 +4781,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func returnTapped() {
+        // Korean fonts mode: same rationale as `spaceTapped` — finalize the
+        // in-flight syllable so the newline lands after a fully-composed
+        // character.
+        if isFontsKorean { hgFlush() }
         textDocumentProxy.insertText("\n")
     }
 
@@ -4880,6 +5057,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func toggleNumberMode() {
+        // Leaving a Korean letter row for the digit page (or coming back from
+        // it): commit the active syllable so the buffer doesn't stick stale
+        // jamo state across the layout switch.
+        if isFontsKorean { hgFlush() }
         isNumberMode.toggle()
         if !isNumberMode { isSymbolPage2 = false }
         showMode(.fonts)
@@ -5273,6 +5454,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // switch, so a fresh palette pick reaches new keys automatically.
         btn.layer.borderColor = accentColor.withAlphaComponent(0.5).cgColor
         btn.adjustsImageWhenHighlighted = false
+        btn.showsTouchWhenHighlighted = false
         return btn
     }
 
@@ -5286,6 +5468,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         btn.layer.borderWidth = 1.0
         btn.layer.borderColor = accentColor.withAlphaComponent(0.5).cgColor
         btn.adjustsImageWhenHighlighted = false
+        btn.showsTouchWhenHighlighted = false
         return btn
     }
 

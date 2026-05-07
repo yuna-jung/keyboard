@@ -1,12 +1,18 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/subscription_service.dart';
 import 'guide_screen.dart';
+import 'paywall_screen.dart';
 import 'settings_screen.dart';
 
 const _pink = Color(0xFF5BC8F5);
 
-/// HomeScreen: AppBar (logo + settings) + tabbed body (Chat / Guide) + bottom
-/// navigation bar.
+/// HomeScreen: AppBar (logo + settings) + tabbed body (Chat / Guide /
+/// optionally Subscription) + bottom navigation bar. Subscription is
+/// iOS-only — Android skips the tab and all paywall/Adapty plumbing so
+/// the Flutter side stays inert on that platform.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -17,11 +23,122 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
+  /// iOS-only platform gate. Cached at construction so every build / handler
+  /// reuses the same answer. On Android this is `false`, which trims the
+  /// subscription tab, the paywall deep-link handler, and the Adapty tier
+  /// listener entirely.
+  static final bool _isIOS = Platform.isIOS;
+
+  /// Same channel name as `_ChatTabState._appGroupChannel`. Dart-side handlers
+  /// are global per channel name, so we hook listening here (HomeScreen owns
+  /// the navigator context needed to push the paywall). iOS-only.
+  static const _appGroupChannel = MethodChannel('com.yunajung.fonki/appgroup');
+
+  /// Guard against the paywall being pushed twice. Two events can race here:
+  /// the warm-start `openPaywall` invokeMethod and the cold-start
+  /// `consumePendingPaywall` drain (AppDelegate fires both for safety on a
+  /// single deep-link). The flag flips on entry and resets when the bottom
+  /// sheet closes.
+  bool _paywallShowing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_isIOS) return;
+    SubscriptionService.instance.tierListenable.addListener(_onTier);
+    // Live `openPaywall` events from native `fonkii://paywall` deep links.
+    _appGroupChannel.setMethodCallHandler(_handleNativeCall);
+    // Cold-start drain — if AppDelegate received the URL before this handler
+    // was wired up, the pending flag is still set on the native side.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _drainPendingPaywall();
+    });
+  }
+
+  @override
+  void dispose() {
+    if (_isIOS) {
+      SubscriptionService.instance.tierListenable.removeListener(_onTier);
+      _appGroupChannel.setMethodCallHandler(null);
+    }
+    super.dispose();
+  }
+
+  void _onTier() {
+    if (mounted) setState(() {});
+  }
+
+  Future<dynamic> _handleNativeCall(MethodCall call) async {
+    if (call.method == 'openPaywall') {
+      _showPaywall();
+    }
+    return null;
+  }
+
+  Future<void> _drainPendingPaywall() async {
+    try {
+      final pending =
+          await _appGroupChannel.invokeMethod<bool>('consumePendingPaywall');
+      if (pending == true) _showPaywall();
+    } catch (_) {
+      // Native handler not registered yet on first launch — ignore; live
+      // `openPaywall` events still flow through `setMethodCallHandler`.
+    }
+  }
+
+  void _showPaywall() {
+    if (!_isIOS || !mounted) return;
+    if (_paywallShowing) return;
+    _paywallShowing = true;
+    // Defer to the next frame so `context` is mounted under the Navigator.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        _paywallShowing = false;
+        return;
+      }
+      try {
+        await PaywallScreen.show(context);
+      } finally {
+        if (mounted) _paywallShowing = false;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final logoAsset =
         isDark ? 'assets/images/logo_white.png' : 'assets/images/logo_black.png';
+
+    // Tab list. The 구독 tab item is added to `navItems` on iOS but NOT
+    // backed by a screen here — its tap handler (below) opens the Adapty
+    // paywall as a modal and returns without flipping `_selectedIndex`,
+    // so dismissing the paywall lands the user back on whatever tab they
+    // were on before. Keeping `IndexedStack` length at 2 also prevents
+    // any accidental index-out-of-range if `_selectedIndex` ever drifted
+    // to 2 (it can't, by construction).
+    final screens = <Widget>[
+      const _ChatTab(),
+      const GuideScreen(),
+    ];
+    final navItems = <BottomNavigationBarItem>[
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.chat_bubble_outline),
+        activeIcon: Icon(Icons.chat_bubble),
+        label: '체험하기',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.help_outline),
+        activeIcon: Icon(Icons.help),
+        label: '가이드',
+      ),
+      if (_isIOS)
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.workspace_premium_outlined),
+          activeIcon: Icon(Icons.workspace_premium),
+          label: '구독',
+        ),
+    ];
 
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
@@ -44,31 +161,28 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: const [
-          _ChatTab(),
-          GuideScreen(),
-        ],
+        children: screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (i) => setState(() => _selectedIndex = i),
+        onTap: (i) {
+          // iOS 구독 tab (index 2): show the Adapty paywall as a modal and
+          // return WITHOUT touching `_selectedIndex`. Dismissing the paywall
+          // (StoreKit cancel, X button, swipe down) leaves the user on
+          // whatever tab they were on before tapping 구독 — there is no
+          // SubscriptionScreen behind it to fall through to.
+          if (_isIOS && i == 2) {
+            PaywallScreen.show(context);
+            return;
+          }
+          setState(() => _selectedIndex = i);
+        },
         backgroundColor: isDark ? Colors.black : Colors.white,
         selectedItemColor: _pink,
         unselectedItemColor: isDark ? Colors.white38 : Colors.grey,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            activeIcon: Icon(Icons.chat_bubble),
-            label: '체험하기',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.help_outline),
-            activeIcon: Icon(Icons.help),
-            label: '가이드',
-          ),
-        ],
+        items: navItems,
       ),
     );
   }
@@ -103,12 +217,42 @@ class _ChatTabState extends State<_ChatTab> {
     _ChatMessage(text: '진짜? 어떻게 생겼어? 보여줘!', fromMe: false),
   ];
 
+  /// Mirrors `_HomeScreenState._isIOS` — Android skips the CTA wiring
+  /// entirely (no listener, no button render, no paywall import use).
+  static final bool _isIOS = Platform.isIOS;
+
+  @override
+  void initState() {
+    super.initState();
+    // iOS-only: live-update the CTA visibility when Adapty's tier flips
+    // (purchase, restore, refund). On Android the listener is never wired.
+    if (_isIOS) {
+      SubscriptionService.instance.tierListenable.addListener(_onTier);
+    }
+  }
+
   @override
   void dispose() {
+    if (_isIOS) {
+      SubscriptionService.instance.tierListenable.removeListener(_onTier);
+    }
     _input.dispose();
     _scroll.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  void _onTier() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _openPaywall() async {
+    await PaywallScreen.show(context);
+    // `tierListenable` will already fire on a successful purchase, but
+    // call setState here too so the CTA disappears immediately on dismiss
+    // even if the tier didn't change (covers the cancel-but-already-premium
+    // edge case where the listener wouldn't be re-triggered).
+    if (mounted) setState(() {});
   }
 
   void _send() {
@@ -195,6 +339,13 @@ class _ChatTabState extends State<_ChatTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgChat = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF5F5F5);
 
+    // Show CTA only on iOS *and* only while the user is non-premium.
+    // Reading from `SubscriptionService` is cheap (it just returns a cached
+    // tier); the `tierListenable` we registered in initState forces a
+    // setState whenever Adapty's tier changes so this re-evaluates live.
+    final showPremiumCta =
+        _isIOS && !SubscriptionService.instance.isPremiumNow;
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       behavior: HitTestBehavior.opaque,
@@ -202,48 +353,108 @@ class _ChatTabState extends State<_ChatTab> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Container(
-            decoration: BoxDecoration(
-              color: bgChat,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Fonkii 키보드 체험하기',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? Colors.white60
-                            : Colors.grey.shade600,
+          child: Column(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: bgChat,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Fonkii 키보드 체험하기',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? Colors.white60
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
                       ),
+                      Expanded(
+                        child: ListView.builder(
+                          controller: _scroll,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          itemCount: _messages.length,
+                          itemBuilder: (_, i) => _ChatBubble(
+                              message: _messages[i], isDark: isDark),
+                        ),
+                      ),
+                      _ChatInput(
+                        controller: _input,
+                        focusNode: _focus,
+                        onSend: _send,
+                        onPaste: _pasteFromClipboard,
+                        isDark: isDark,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (showPremiumCta) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: _openPaywall,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _pink,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      '✨ 프리미엄 시작하기',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 4),
-                    itemCount: _messages.length,
-                    itemBuilder: (_, i) =>
-                        _ChatBubble(message: _messages[i], isDark: isDark),
+              ] else if (_isIOS) ...[
+                // Premium-active state on iOS: disabled grey button as the
+                // current-status indicator. Same height/radius/typography as
+                // the CTA above so the chat layout doesn't reflow when tier
+                // flips. Android skips this branch (`_isIOS` false) and
+                // renders nothing — no subscription concept on that side.
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: null,
+                    style: ElevatedButton.styleFrom(
+                      disabledBackgroundColor: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                      disabledForegroundColor: isDark
+                          ? Colors.white60
+                          : Colors.grey.shade600,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      '✓ 프리미엄 이용 중',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
-                _ChatInput(
-                  controller: _input,
-                  focusNode: _focus,
-                  onSend: _send,
-                  onPaste: _pasteFromClipboard,
-                  isDark: isDark,
-                ),
               ],
-            ),
+            ],
           ),
         ),
       ),

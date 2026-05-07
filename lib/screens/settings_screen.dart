@@ -77,12 +77,6 @@ class SettingsScreen extends StatelessWidget {
             isDark: isDark,
             onTap: () => _open('mailto:contact.rowan.00@gmail.com'),
           ),
-          _SettingTile(
-            icon: Icons.help_outline,
-            label: '지원 센터',
-            isDark: isDark,
-            onTap: () => _open('mailto:contact.rowan.00@gmail.com'),
-          ),
           _SectionHeader(title: '법적 고지', isDark: isDark),
           _SettingTile(
             icon: Icons.description_outlined,

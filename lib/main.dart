@@ -1,10 +1,18 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/home_screen.dart';
+import 'services/subscription_service.dart';
 
 const _pink = Color(0xFF5BC8F5);
 
-void main() {
+/// Adapty SDK key — iOS-only. Android intentionally skips Adapty.activate(),
+/// so the SDK stays dormant on that platform; the subscription tab and
+/// paywall plumbing are also gated to iOS in `home_screen.dart`.
+const _adaptyPublicKey = 'public_live_3DOX3Si9.vj8Cmt2zJnmbSqUZYtfk';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -12,6 +20,9 @@ void main() {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+  if (Platform.isIOS && _adaptyPublicKey != 'YOUR_ADAPTY_PUBLIC_KEY') {
+    await SubscriptionService.instance.initialize(_adaptyPublicKey);
+  }
   runApp(const FontKeyboardApp());
 }
 
