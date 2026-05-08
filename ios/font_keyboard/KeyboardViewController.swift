@@ -1248,10 +1248,23 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private let J2C: [Int: Int] = [
         1:0, 2:1, 4:2, 7:3, 8:5, 16:6, 17:7, 19:9, 20:10, 21:11, 22:12, 23:14, 24:15, 25:16, 26:17, 27:18
     ]
-    // compound jongsung → (remaining jong, new chosung index)
+    // compound jongsung → (remaining jong, new chosung index).
+    //
+    // Each entry maps the compound jongsung's JONG-table index to the result
+    // of splitting it on a following vowel: the first element stays behind
+    // as a simple jongsung, the second element becomes the new syllable's
+    // chosung. Example: ㄾ (jong 13 = ㄹ+ㅌ) splits to ㄹ jong (8) + ㅌ cho
+    // (16), so 됱 + ㅔ → 될 + 테.
+    //
+    // Off-by-one bug fix: previously `13:(8,15)` and `14:(8,16)` mapped to
+    // ㅋ (15) and ㅌ (16) on the cho side — one position low because the
+    // CHO list has ㅃ (index 8) interrupting the consonant order. That made
+    // ㄾ split to ㄹ+ㅋ (so 됱+ㅔ rendered as 될케 instead of 될테), and
+    // ㄿ split to ㄹ+ㅌ instead of ㄹ+ㅍ. Now they point to the correct cho
+    // indices: ㅌ (16) and ㅍ (17).
     private let JSP: [Int: (Int, Int)] = [
         3:(1,9), 5:(4,12), 6:(4,18),
-        9:(8,0), 10:(8,6), 11:(8,7), 12:(8,9), 13:(8,15), 14:(8,16), 15:(8,18),
+        9:(8,0), 10:(8,6), 11:(8,7), 12:(8,9), 13:(8,16), 14:(8,17), 15:(8,18),
         18:(17,9),
     ]
 
