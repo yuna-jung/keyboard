@@ -581,6 +581,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var fontPickerExpanded = false
     private weak var fontCategoryRowView: UIView?
     private weak var fontToggleButton: UIButton?
+    /// Fonts-tab bottom bar height — held strongly so `fontPickerToggleTapped`
+    /// can resize it on picker expand/collapse. Reset to nil at the start of
+    /// every `buildFontsMode` and re-set when the bottom bar is actually
+    /// added (cheonjiin-without-number returns early and leaves it nil).
+    private var fontsBottomBarHeightConstraint: NSLayoutConstraint?
 
     // MARK: - Favorite fonts
 
@@ -1204,6 +1209,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     ]
     private weak var translateKeyboardContainer: UIStackView?
     private weak var translateNumToggleButton: UIButton?
+    /// Bottom bar (한/영 / !?123 / space / 번역 / 삽입) tracked separately
+    /// because it lives as a sibling of `translateKeyboardContainer` inside
+    /// the outer translate `stack`, NOT inside `kbArea`. Without this ref,
+    /// `rebuildTranslateKeys` (which only tears down kbArea) leaves a
+    /// stale bottom bar behind on layout switches — visible as a doubled
+    /// row of 한/영/번역/삽입 buttons stacked under the cheonjiin row 4.
+    /// On rebuild we drop the old bar via this ref and re-add only when
+    /// the new layout calls for it.
+    private weak var translateBottomBar: UIStackView?
     private weak var translateInputField: UITextView?
     private weak var translatePlaceholderLabel: UILabel?
     private weak var translateCloseButton: UIButton?
@@ -1278,6 +1292,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// if it's the same button as before.
     private var cjjTimer: Timer?
     private let CJJ_TIMEOUT: TimeInterval = 0.7
+    /// Position within the `.,?!` punctuation cycle (0=`.`, 1=`,`, 2=`?`,
+    /// 3=`!`). Active only when `cjjLastGroup == "PUNCT"`; each consecutive
+    /// tap on the punct key within `CJJ_TIMEOUT` advances the cycle and
+    /// replaces the previously-emitted character via `deleteBackward` +
+    /// `insertText`. Reset to 0 by `cjjReset()`.
+    private var cjjPunctIdx: Int = 0
 
     /// Consonant cycle table — each multi-jamo button cycles through these
     /// in order on consecutive taps. Lengths vary (2 or 3) — `% .count`
@@ -1293,21 +1313,56 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     ]
 
     /// Vowel chain → 두벌식 jamo. Lookup key is the concatenated tap
-    /// sequence of ㅣ/·/ㅡ. Compound jungs (ㅘ/ㅝ/ㅢ) are intentionally
-    /// omitted — they require multi-step state across consonant boundaries
-    /// that the simple cycle engine doesn't model. Users get the 11 most
-    /// common jungs which covers the vast majority of typing.
+    /// sequence of ㅣ/·/ㅡ.
+    ///
+    /// Single-tap basics (ㅣ/ㅡ alone) + 4 directional pairs (ㅏㅓㅗㅜ) +
+    /// their yod variants (ㅑㅕㅛㅠ) + the four "stage-2" iotization
+    /// compounds (ㅐ/ㅔ/ㅒ/ㅖ).
+    ///
+    /// The stage-2 entries were added to fix "· + ㅣ + ㅣ ≠ ㅔ" — the
+    /// 두벌식 `CJ` compound-jung table (used downstream by
+    /// `handleHangulInput`) only knows about ㅗ/ㅜ/ㅡ family compounds
+    /// (ㅘ/ㅝ/ㅚ/ㅟ/ㅢ etc.); ㅓ+ㅣ=ㅔ and ㅏ+ㅣ=ㅐ aren't there because
+    /// 두벌식 has ㅔ/ㅐ as direct keys. We have to recognize the longer
+    /// 천지인 chains here so the engine can emit them via a single
+    /// `handleHangulInput` call.
+    ///
+    /// Other 두벌식 compounds (ㅢ/ㅚ/ㅟ etc.) still work via the cycle
+    /// engine's "chain doesn't extend → commit + start fresh with this
+    /// tap" branch, because `handleHangulInput` runs the `CJ` table on
+    /// each successive jamo emission. Compound jungs that need state
+    /// across BOTH a consonant boundary AND multiple vowel taps (ㅘ/ㅝ)
+    /// remain unsupported — they would require a richer state machine.
     private let CJJ_VOWELS: [String: String] = [
-        "ㅣ":   "ㅣ",
-        "ㅣ·":  "ㅏ",
-        "ㅣ··": "ㅑ",
-        "·ㅣ":  "ㅓ",
-        "··ㅣ": "ㅕ",
-        "ㅡ":   "ㅡ",
-        "·ㅡ":  "ㅗ",
-        "··ㅡ": "ㅛ",
-        "ㅡ·":  "ㅜ",
-        "ㅡ··": "ㅠ",
+        "ㅣ":     "ㅣ",
+        "ㅣ·":    "ㅏ",
+        "ㅣ··":   "ㅑ",
+        "·ㅣ":    "ㅓ",
+        "··ㅣ":   "ㅕ",
+        "ㅡ":     "ㅡ",
+        "·ㅡ":    "ㅗ",
+        "··ㅡ":   "ㅛ",
+        "ㅡ·":    "ㅜ",
+        "ㅡ··":   "ㅠ",
+        // Stage-2 (ㅏ/ㅓ/ㅑ/ㅕ + ㅣ → ㅐ/ㅔ/ㅒ/ㅖ).
+        "ㅣ·ㅣ":  "ㅐ",
+        "·ㅣㅣ":  "ㅔ",
+        "ㅣ··ㅣ": "ㅒ",
+        "··ㅣㅣ": "ㅖ",
+        // Stage-3 compound jungs (ㅗ/ㅜ + secondary vowel). Longer chains
+        // are listed before their shorter counterparts for readability
+        // only — dictionary lookup is hash-based and order-insensitive,
+        // but the chain extender's prefix check (`hasPrefix(extended)`)
+        // sees every key regardless of position, so adding these here is
+        // sufficient to make the intermediate `"ㅡ··ㅣ"` / `"ㅣ·ㅡ"` /
+        // `"ㅣ·ㅡ·"` states valid buffer points instead of resetting the
+        // chain. Bug fixed: typing ㅡ··ㅣㅣ used to land at "유ㅣㅣ"
+        // because `"ㅡ··ㅣ"` matched neither exact nor (pre-fix-add)
+        // prefix → chain reset, emitting standalone ㅣ.
+        "ㅡ··ㅣㅣ":   "ㅞ",   // ㅜ + ㅔ
+        "ㅡ··ㅣ":     "ㅝ",   // ㅜ + ㅓ
+        "ㅣ·ㅡ·ㅣㅣ": "ㅙ",   // ㅗ + ㅐ
+        "ㅣ·ㅡ·ㅣ":   "ㅘ",   // ㅗ + ㅏ
     ]
 
     // ── Hangul Composition Engine ──────────────────────────────────────
@@ -1930,10 +1985,20 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private func buildFontsMode() {
         contentView.subviews.forEach { $0.removeFromSuperview() }
         contentView.heightAnchor.constraint(equalToConstant: tabContainerHeight).isActive = true
+        // Drop the previous build's bottom-bar HC ref so a stale (dead-view)
+        // constraint doesn't get re-used in the next picker-toggle resize.
+        fontsBottomBarHeightConstraint = nil
 
         let stack = UIStackView()
         stack.axis = .vertical
-        stack.spacing = 4
+        // spacing 4→3: absorbs the +4pt net growth from the row-height
+        // redistribution below (letter rows 52→56, bottom bar 52→44 → +12-8
+        // = +4pt). The 4 visible inter-row gaps × 1pt = -4pt brings the
+        // total back to the original kbHeight budget. Number-mode and
+        // cheonjiin paths share this stack, so they lose ~4pt / 1pt of gap
+        // respectively — visually negligible and well within the
+        // 999-priority view height envelope.
+        stack.spacing = 3
         stack.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(stack)
         pinToEdges(stack, in: contentView)
@@ -2118,12 +2183,25 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             ]
             let shifted = isShifted || isCapsLock
             let rows = shifted ? korS : korN
+            // Wrap rows 1-3 in a `.fillEqually` vertical stack — guarantees
+            // uniform row heights regardless of any slack/overflow at the
+            // outer stack level (a previous build relied on per-row
+            // heightAnchors which UIKit would arbitrarily break under
+            // budget pressure, producing the "only row 3 grew" symptom).
+            let lettersWrapper = UIStackView()
+            lettersWrapper.axis = .vertical
+            lettersWrapper.distribution = .fillEqually
+            lettersWrapper.spacing = 3
+            let lettersWrapperH = lettersWrapper.heightAnchor.constraint(equalToConstant: 3 * 56 + 2 * 3)
+            lettersWrapperH.priority = UILayoutPriority(999)
+            lettersWrapperH.isActive = true
             for (ri, row) in rows.enumerated() {
                 let rowStack = UIStackView()
                 rowStack.axis = .horizontal
                 rowStack.distribution = .fillEqually
                 rowStack.spacing = 4
-                rowStack.heightAnchor.constraint(equalToConstant: 52).isActive = true
+                // No per-row heightAnchor — lettersWrapper's .fillEqually
+                // divides its height across the 3 rows evenly.
 
                 if ri == 2 {
                     let shift = makeSpecialKey("⇧")
@@ -2160,16 +2238,27 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     rowStack.addArrangedSubview(del)
                 }
 
-                stack.addArrangedSubview(rowStack)
+                lettersWrapper.addArrangedSubview(rowStack)
             }
+            stack.addArrangedSubview(lettersWrapper)
         } else {
-            // QWERTY rows — flexible height.
+            // QWERTY rows — wrapped in `.fillEqually` vertical lettersWrapper
+            // for guaranteed-uniform row heights (same fix as the 두벌식
+            // branch above).
+            let lettersWrapper = UIStackView()
+            lettersWrapper.axis = .vertical
+            lettersWrapper.distribution = .fillEqually
+            lettersWrapper.spacing = 3
+            let lettersWrapperH = lettersWrapper.heightAnchor.constraint(equalToConstant: 3 * 56 + 2 * 3)
+            lettersWrapperH.priority = UILayoutPriority(999)
+            lettersWrapperH.isActive = true
             for (ri, row) in qwertyRows.enumerated() {
                 let rowStack = UIStackView()
                 rowStack.axis = .horizontal
                 rowStack.distribution = .fillEqually
                 rowStack.spacing = 4
-                rowStack.heightAnchor.constraint(equalToConstant: 52).isActive = true
+                // No per-row heightAnchor — lettersWrapper.fillEqually
+                // divides the wrapper height evenly across rows.
 
                 if ri == 2 {
                     let shift = makeSpecialKey("⇧")
@@ -2201,8 +2290,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     attachBackspaceLongPress(to: del)
                     rowStack.addArrangedSubview(del)
                 }
-                stack.addArrangedSubview(rowStack)
+                lettersWrapper.addArrangedSubview(rowStack)
             }
+            stack.addArrangedSubview(lettersWrapper)
         }
 
         // Bottom row: 한/영 + 123/ABC + space + 완료.
@@ -2217,7 +2307,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let bottom = UIStackView()
         bottom.axis = .horizontal
         bottom.spacing = 4
-        bottom.heightAnchor.constraint(equalToConstant: 52).isActive = true
+        // Dynamic height — shrinks when the font category bar is expanded
+        // so the picker's catScroll (+36pt) can fit without overflowing the
+        // kbHeight budget. Priority 750 (< required 1000) lets UIKit further
+        // compress this bar under tight conditions before reaching for the
+        // letter rows above (which are wrapped in `.fillEqually` and stay
+        // uniform). The constraint is stashed in `fontsBottomBarHeightConstraint`
+        // so `fontPickerToggleTapped` can update its constant in-place.
+        let bottomHC = bottom.heightAnchor.constraint(equalToConstant: computedFontsBottomBarHeight())
+        bottomHC.priority = UILayoutPriority(750)
+        bottomHC.isActive = true
+        fontsBottomBarHeightConstraint = bottomHC
 
         let langToggle = makeSpecialKey("한/영")
         langToggle.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
@@ -2814,7 +2914,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         row5.axis = .horizontal
         row5.spacing = 4
         row5.distribution = .fillEqually
-        row5.addArrangedSubview(makeCalcButton(title: "+/-", kind: .function))
+        row5.addArrangedSubview(makeCalcButton(title: "000", kind: .function))
         row5.addArrangedSubview(makeCalcButton(title: "0", kind: .digit))
         row5.addArrangedSubview(makeCalcButton(title: ".", kind: .digit))
         row5.addArrangedSubview(makeCalcButton(title: "=", kind: .op))
@@ -2907,8 +3007,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             } else {
                 calcDisplay = "0"
             }
-        case "+/-":
-            if let d = Double(calcDisplay) { calcDisplay = formatCalcValue(-d) }
+        case "000":
+            // Mirror the digit-key path: clear-on-eval, then append. Special-
+            // case the "0" display so tapping 000 on a fresh display doesn't
+            // produce "0000" — stays as "0" like real-world calculators.
+            if calcJustEvaluated {
+                calcDisplay = "0"
+                calcJustEvaluated = false
+                if calcPrevValue == nil { calcExpression = "" }
+            }
+            if calcDisplay != "0" { calcDisplay += "000" }
         case "%":
             if let d = Double(calcDisplay) { calcDisplay = formatCalcValue(d / 100) }
         case "+","−","×","÷":
@@ -3473,19 +3581,24 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             resultLabel.bottomAnchor.constraint(equalTo: resultBox.bottomAnchor, constant: -4),
         ])
 
-        // Text areas row — compact fixed height (keypad 우선)
+        // Text areas row — compact fixed height (keypad 우선).
+        // Trimmed 110→105 (and outer fieldView 140→135) to reclaim 5pt
+        // for the cheonjiin keypad — that fix-sized layout (220pt
+        // container) was overflowing translate-mode's chrome by 5pt on
+        // the smaller-device keyboard height. Fonts tab is unaffected
+        // because it doesn't use `fieldView`.
         let textRow = UIStackView()
         textRow.axis = .horizontal; textRow.spacing = 3; textRow.distribution = .fillEqually
         textRow.addArrangedSubview(inputBox)
         textRow.addArrangedSubview(resultBox)
         textRow.translatesAutoresizingMaskIntoConstraints = false
-        textRow.heightAnchor.constraint(equalToConstant: 110).isActive = true
+        textRow.heightAnchor.constraint(equalToConstant: 105).isActive = true
         fieldView.addArrangedSubview(textRow)
 
         // Insert fieldView above modeBar in mainStack (translation tab only)
         mainStack.insertArrangedSubview(fieldView, at: 0)
         translationFieldView = fieldView
-        fieldView.heightAnchor.constraint(equalToConstant: 140).isActive = true
+        fieldView.heightAnchor.constraint(equalToConstant: 135).isActive = true
 
         // ── Keyboard area (inside contentView) ──
         let stack = UIStackView()
@@ -3503,15 +3616,24 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         translateKeyboardContainer = kbArea
         buildTranslateKeyboardRows(into: kbArea)
 
-        // 천지인 + 한글 모드는 자체 row 4 (ㅇㅁ / space / 번역 / 삽입)를
-        // 키패드 안에 이미 그렸으므로 표준 bottom bar를 추가하지 않음 —
-        // 그대로 그리면 번역/삽입 버튼이 두 줄로 중복되어 보임.
+        // 표준 bottom bar 조건부 추가. 천지인 Korean 모드는 row 4
+        // 자체에 한/영/ㅇㅁ/번역/삽입이 있어 bottom bar 중복 회피.
+        addTranslateBottomBarIfNeeded(to: stack)
+        updateTranslateInputDisplay()
+    }
+
+    /// Build the translate-mode bottom bar (한/영 / !?123 / space / 번역 /
+    /// 삽입) and append it to `container`. Skipped when the current state
+    /// is cheonjiin Korean (the cheonjiin keypad has its own row-4 with
+    /// equivalent controls — adding this bar would double the 한/영 /
+    /// 번역 / 삽입 buttons). Stashes the new bar in `translateBottomBar`
+    /// so `rebuildTranslateKeys` can find and tear it down on layout
+    /// switches.
+    private func addTranslateBottomBarIfNeeded(to container: UIStackView) {
         if isKoreanMode && koreanInputMode == "cheonjiin" && !isTranslateNumberMode {
-            updateTranslateInputDisplay()
             return
         }
 
-        // ── Bottom bar ── (크게: 52pt)
         let bottom = UIStackView()
         bottom.axis = .horizontal; bottom.spacing = 4
         bottom.translatesAutoresizingMaskIntoConstraints = false
@@ -3550,8 +3672,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         insBtn.addTarget(self, action: #selector(translateInsertTapped), for: .touchUpInside)
         bottom.addArrangedSubview(insBtn)
 
-        stack.addArrangedSubview(bottom)
-        updateTranslateInputDisplay()
+        container.addArrangedSubview(bottom)
+        translateBottomBar = bottom
     }
 
     private func buildTranslateKeyboardRows(into stack: UIStackView) {
@@ -3729,7 +3851,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         directBtn.setTitle("✏️ 직접입력", for: .normal)
         directBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
         directBtn.setTitleColor(.systemBlue, for: .normal)
-        directBtn.addTarget(self, action: #selector(translateToggleDirectInput), for: .touchUpInside)
+        // NB: target binding intentionally not added — `translateToggleDirectInput`
+        // is legacy and could cause spurious `showMode(.translate)` rebuilds if
+        // it ever fires. This whole block sits inside the orphaned
+        // `_DELETED_buildTranslatePasteMode` function so the button is never
+        // actually rendered, but the binding is removed defensively in case
+        // someone resurrects this function later.
         actionRow.addArrangedSubview(directBtn)
 
         let clearBtn = UIButton(type: .system)
@@ -4114,22 +4241,66 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         hgFlush()
     }
 
-    /// Rebuild only the keyboard rows (fast path).
+    /// Rebuild the keyboard rows AND the bottom bar.
     /// Falls back to a full `showMode` if the container is gone.
+    ///
+    /// The bottom bar lives as a sibling of `kbArea` inside the outer
+    /// translate `stack`, so we must tear it down explicitly here —
+    /// otherwise the layout swap (e.g. QWERTY → cheonjiin via 한/영
+    /// toggle) leaves the stale bar visible alongside the cheonjiin
+    /// row 4, producing a doubled-controls row.
     private func rebuildTranslateKeys() {
-        guard let container = translateKeyboardContainer else {
+        guard let container = translateKeyboardContainer,
+              let outerStack = container.superview as? UIStackView else {
             showMode(.translate)
             return
         }
 
         UIView.performWithoutAnimation {
+            // Tear down + rebuild kbArea contents (rowStacks or cheonjiin
+            // container). fieldView is in mainStack and is NOT touched here.
             container.arrangedSubviews.forEach { $0.removeFromSuperview() }
             buildTranslateKeyboardRows(into: container)
+            // Bottom bar lives as a sibling of kbArea inside outerStack —
+            // drop and re-add it via the same helper buildTranslateMode uses,
+            // so cheonjiin mode (which skips the bar) and the other modes
+            // (QWERTY / dubeolsik / number) stay symmetric.
+            translateBottomBar?.removeFromSuperview()
+            translateBottomBar = nil
+            addTranslateBottomBarIfNeeded(to: outerStack)
+
+            // fieldView guard — if anything has knocked it out of mainStack
+            // index 0 (e.g. an implicit layout pass during the cheonjiin
+            // container's `heightAnchor` activation pushed it through a
+            // reparenting cycle in iOS's stackview internals), put it back.
+            // The visible symptom of this drift was fieldView floating up
+            // past modeBar's top edge and the host app's Paste affordance
+            // bleeding through the gap.
+            if let fv = translationFieldView,
+               fv.superview === mainStack,
+               mainStack.arrangedSubviews.firstIndex(of: fv) != 0 {
+                mainStack.removeArrangedSubview(fv)
+                mainStack.insertArrangedSubview(fv, at: 0)
+            }
+
+            // Force layout to settle inside this no-animation transaction so
+            // the user doesn't see a transitional frame where kbArea and the
+            // bottom bar are mid-resize. Without this, UIKit defers layout
+            // until the next runloop tick and the intermediate state is
+            // visible as a flash / jump.
+            outerStack.layoutIfNeeded()
+            mainStack.layoutIfNeeded()
         }
     }
 
     @objc private func translateToggleKorEng() {
+        // Flush BOTH composers — without `cjjReset()` the cheonjiin
+        // cycle state (cjjLastGroup / cjjVowelChain / cjjPunctIdx) could
+        // survive across a 한/영 toggle and merge into the next session,
+        // causing the layout to appear to flicker between cheonjiin /
+        // QWERTY on subsequent taps.
         hgFlush()
+        cjjReset()
         isKoreanMode.toggle()
         isTranslateNumberMode = false
         isTranslateShifted = false
@@ -4176,12 +4347,19 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
         if isKoreanMode && !isTranslateNumberMode {
             handleHangulInput(key)
-            // Auto-release one-shot shift → defer rebuild to next runloop for smoother typing
+            // Auto-release one-shot shift. SYNC rebuild (no
+            // `DispatchQueue.main.async`) — the async dispatch was the
+            // root cause of "키 누를 때마다 키패드가 전환됨" symptom:
+            // it deferred `rebuildTranslateKeys` to the next runloop tick,
+            // so subsequent rapid taps landed on the OLD button refs
+            // about to be torn down, producing visible flicker. The
+            // identical fix was applied to fonts-tab `letterTapped`
+            // earlier; this brings translate-tab `translateKeyTapped` in
+            // line. Sync rebuild completes inside the current event tick
+            // so the next touch hits freshly-built buttons cleanly.
             if isTranslateShifted && !isTranslateCapsLock {
                 isTranslateShifted = false
-                DispatchQueue.main.async { [weak self] in
-                    self?.rebuildTranslateKeys()
-                }
+                rebuildTranslateKeys()
             }
         } else {
             hgFlush()
@@ -4193,11 +4371,34 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
+        // Cheonjiin "smart space" — mirrors fonts-tab `spaceTapped`'s
+        // jongsung-commit behavior but gated on translate-tab state
+        // (`isKoreanMode` instead of `isFontsKorean`). When a syllable
+        // with a 받침 is currently being composed in 천지인 mode, space
+        // commits the syllable boundary WITHOUT inserting a literal space
+        // — fixes "안 + ㄴ → 알 cycling" by letting users tap space to
+        // start a new syllable cleanly. A literal space is still possible
+        // by tapping space again after the smart-commit (buffer empty,
+        // falls through to the normal branch).
+        if isKoreanMode && koreanInputMode == "cheonjiin" && hgJong > 0 {
+            hgFlush()
+            cjjReset()
+            return
+        }
         hgFlush()
         translateTargetAppend(" ")
     }
 
     @objc private func translateDeleteTapped() {
+        // Empty-target guard — suppress click sound on no-op delete.
+        // Translate tab can target either the host app or the in-keyboard
+        // translateInputField; check whichever is the current target.
+        if translateTargetsHostApp {
+            let before = textDocumentProxy.documentContextBeforeInput ?? ""
+            guard !before.isEmpty else { return }
+        } else {
+            guard !(translateInputField?.text?.isEmpty ?? true) else { return }
+        }
         performTranslateDelete()
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
@@ -4261,6 +4462,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         cjjConsonantIdx = 0
         cjjVowelChain = ""
         cjjLastEmitted = ""
+        cjjPunctIdx = 0
         cjjTimer?.invalidate()
         cjjTimer = nil
     }
@@ -4306,11 +4508,21 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             // start a new chain with this tap.
             let extended = cjjVowelChain + label
             if let jamo = CJJ_VOWELS[extended] {
+                // Exact match — extend chain and emit the mapped jamo.
                 cjjVowelChain = extended
                 cjjEmit(jamo)
+            } else if CJJ_VOWELS.keys.contains(where: { $0.hasPrefix(extended) }) {
+                // Valid prefix of some longer key (e.g. `·` is a prefix of
+                // `·ㅡ`/`·ㅣ`; `··` is a prefix of `··ㅣ`/`··ㅡ`). Extend the
+                // chain WITHOUT emit — wait for the next tap to complete a
+                // table entry. This is what makes ㅛ via `·· + ㅡ` and ㅕ via
+                // `·· + ㅣ` reachable; without it, the second `·` would reset
+                // chain to `"·"` and the following ㅡ/ㅣ would emit ㅗ/ㅓ.
+                cjjVowelChain = extended
             } else if extended.count >= 2 {
-                // Chain doesn't extend — commit current, start anew with the
-                // single new tap. The committed jamo stays in the editor.
+                // Chain doesn't extend and isn't a valid prefix — commit
+                // current, start anew with this single new tap. The committed
+                // jamo stays in the editor.
                 cjjLastEmitted = ""
                 cjjVowelChain = label
                 if let jamo = CJJ_VOWELS[label] {
@@ -4413,8 +4625,18 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return btn
         }
 
-        let rowHeight: CGFloat = 52
-        let rowSpacing: CGFloat = 4
+        // Row metrics — kept tight to absorb the translate-tab chrome
+        // (fieldView 135pt + modeBar 36pt + stack spacings) that pushes
+        // the keypad bottom against the kbHeight ceiling on small
+        // devices. Two-stage tuning: previously 52/4 (=220pt) → 51/3
+        // (=213pt) → now 51/1 (=207pt). Shaves another 6pt off the
+        // container which addresses the recurring 5pt overflow report
+        // even on devices where the prior 213pt still bottomed-out.
+        // Applies to both fonts and translate cheonjiin (the container
+        // is shared), keeping the two tabs visually identical per the
+        // user's height-parity spec.
+        let rowHeight: CGFloat = 51
+        let rowSpacing: CGFloat = 1
 
         // All 4 rows live inside a single `cheonjiinContainer` vertical
         // stack with `distribution = .fillEqually`. That guarantees the
@@ -4464,28 +4686,20 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         row2.addArrangedSubview(makeJamoKey("ㄱㅋ", digit: "4"))
         row2.addArrangedSubview(makeJamoKey("ㄴㄹ", digit: "5"))
         row2.addArrangedSubview(makeJamoKey("ㄷㅌ", digit: "6"))
-        switch host {
-        case .fontsTab:
-            let search = makeFnKey(title: "")
-            let searchImg = UIImage(systemName: "magnifyingglass",
-                                    withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular))
-            search.setImage(searchImg, for: .normal)
-            search.tintColor = .systemBlue
-            // Decorative — no host action wired yet.
-            row2.addArrangedSubview(search)
-        case .translateTab:
-            // White-background space key with the `⎵` glyph (U+23B5, widely
-            // supported; avoids the SF Symbol `space` iOS 15+ dependency).
-            // Routes through `translateSpaceTapped` so the space lands in
-            // the translate input field when it's focused, or in the host
-            // app otherwise — same routing as the translate-tab QWERTY
-            // space button.
-            let row2Space = makeLetterKey("⎵")
-            row2Space.titleLabel?.font = .systemFont(ofSize: 22)
-            row2Space.backgroundColor = .white
-            row2Space.addTarget(self, action: #selector(translateSpaceTapped), for: .touchUpInside)
-            row2.addArrangedSubview(row2Space)
-        }
+        // Row 2 col 4 — ← cursor-left for BOTH hosts. Originally fonts
+        // had ← (caret nudge) and translate had ⎵ space; now translate
+        // mirrors fonts so rows 1-3 are identical across both tab
+        // contexts. The shared `cheonjiinCursorLeftTapped` handler
+        // flushes Hangul / cheonjiin engine state before moving the
+        // cursor, so the next jamo tap doesn't merge into the syllable
+        // the cursor just departed.
+        let arrowLeft = makeFnKey(title: "")
+        let leftImg = UIImage(systemName: "chevron.left",
+                              withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium))
+        arrowLeft.setImage(leftImg, for: .normal)
+        arrowLeft.tintColor = .darkText
+        arrowLeft.addTarget(self, action: #selector(cheonjiinCursorLeftTapped), for: .touchDown)
+        row2.addArrangedSubview(arrowLeft)
         cheonjiinContainer.addArrangedSubview(row2)
 
         // ── Row 3: ㅂㅍ⁷ ㅅㅎ⁸ ㅈㅊ⁹ .,?! ─────────────────────────
@@ -4574,33 +4788,68 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             row4.addArrangedSubview(returnBtn)
 
         case .translateTab:
-            // 번역 탭 전용 row 4: 한/영 / ㅇㅁ⁰ / 번역 / 삽입 — 4개 균등.
-            // `space`는 row 2의 ⎵ 키로 옮겨졌고 표준 translate bottom bar는
-            // `buildTranslateMode`에서 스킵되므로 이 row가 액션의 유일한
-            // 진입점. (row4.distribution은 이미 outer에서 .fillEqually.)
+            // 번역 탭 row 4: [한/영 | 123]  ㅇㅁ⁰  ⎵  [번역 | 삽입].
+            // 4-slot grid where slot 1 and slot 4 each hold two nested
+            // keys (.fillEqually) — col-1 width is split between 한/영
+            // and 123, col-4 width is split between 번역 and 삽입. The
+            // standard translate bottom bar is skipped by `buildTranslate
+            // Mode` in cheonjiin Korean, so this row is the only entry
+            // point for those actions.
+
+            // Slot 1: [한/영 | 123] nested HStack
+            let slot1 = UIStackView()
+            slot1.axis = .horizontal
+            slot1.distribution = .fillEqually
+            slot1.spacing = 4
+
+            // 한/영 — accent highlight (always Korean mode in translate cheonjiin)
             let langToggle = makeFnKey(title: "한/영")
-            // 번역 탭의 한/영은 항상 한글 모드(`isKoreanMode == true`)에서만
-            // 보이므로 accent highlight를 켜서 현재 상태를 명시.
             langToggle.backgroundColor = accentColor
             langToggle.setTitleColor(.white, for: .normal)
             langToggle.addTarget(self, action: #selector(translateToggleKorEng), for: .touchUpInside)
-            row4.addArrangedSubview(langToggle)
+            slot1.addArrangedSubview(langToggle)
 
+            let numToggle = makeFnKey(title: "123")
+            numToggle.addTarget(self, action: #selector(translateToggleNumberMode), for: .touchUpInside)
+            slot1.addArrangedSubview(numToggle)
+
+            row4.addArrangedSubview(slot1)
+
+            // Slot 2: ㅇㅁ⁰ jamo (column 2 — below ㄴㄹ/ㅅㅎ).
             let omKey = makeJamoKey("ㅇㅁ", digit: "0")
             row4.addArrangedSubview(omKey)
+
+            // Slot 3: ⎵ space (column 3 — below ㄷㅌ/ㅈㅊ). Routes through
+            // `translateSpaceTapped` which (a) writes to translateInput
+            // Field when focused / host app otherwise, and (b) honors the
+            // cheonjiin jongsung smart-commit (받침 후 space → 음절 확정).
+            let space = makeLetterKey("⎵")
+            space.titleLabel?.font = .systemFont(ofSize: 22)
+            space.backgroundColor = .white
+            space.addTarget(self, action: #selector(translateSpaceTapped), for: .touchUpInside)
+            row4.addArrangedSubview(space)
+
+            // Slot 4: [번역 | 삽입] nested HStack (column 4 — below ←/.,?!).
+            // Same nested 2-split pattern as slot 1 for visual symmetry.
+            let slot4 = UIStackView()
+            slot4.axis = .horizontal
+            slot4.distribution = .fillEqually
+            slot4.spacing = 4
 
             let trBtn = makeFnKey(title: "번역")
             trBtn.backgroundColor = UIColor(white: 0.88, alpha: 1)
             trBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
             trBtn.addTarget(self, action: #selector(translateTriggered), for: .touchUpInside)
-            row4.addArrangedSubview(trBtn)
+            slot4.addArrangedSubview(trBtn)
 
             let insBtn = makeFnKey(title: "삽입")
             insBtn.backgroundColor = accentColor
             insBtn.setTitleColor(.white, for: .normal)
             insBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
             insBtn.addTarget(self, action: #selector(translateInsertTapped), for: .touchUpInside)
-            row4.addArrangedSubview(insBtn)
+            slot4.addArrangedSubview(insBtn)
+
+            row4.addArrangedSubview(slot4)
         }
 
         cheonjiinContainer.addArrangedSubview(row4)
@@ -4612,10 +4861,27 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
+        // Visual tap feedback (92% shrink + accent tint pulse) — without
+        // this, isolated `·` taps look completely dead because `·` alone
+        // doesn't emit a jamo (it's buffered until the next vowel pairs
+        // with it). Matching `letterTapped`'s tapFeedback call so every
+        // 천지인 key gives the same visual confirmation as 두벌식 keys.
+        tapFeedback(s)
         handleCheonjiinTap(label)
     }
 
     @objc private func cheonjiinBackspaceTapped() {
+        // Empty-target guard — suppress click sound on no-op delete. The
+        // cheonjiin keypad is shared between fonts and translate tabs, so
+        // pick the right target via `translateTargetsHostApp` (true when no
+        // in-keyboard field is focused, i.e. fonts tab or translate-host
+        // mode).
+        if translateTargetsHostApp {
+            let before = textDocumentProxy.documentContextBeforeInput ?? ""
+            guard !before.isEmpty else { return }
+        } else {
+            guard !(translateInputField?.text?.isEmpty ?? true) else { return }
+        }
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
@@ -4630,12 +4896,27 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
-        // `.,?!` cycle button — for the MVP it just commits a period and
-        // flushes any in-flight Hangul / cycle state. A future enhancement
-        // could cycle through ".", ",", "?", "!" on consecutive taps.
-        hgFlush()
-        cjjReset()
-        textDocumentProxy.insertText(".")
+        // `.,?!` cycle button — consecutive taps within `CJJ_TIMEOUT`
+        // advance through the four-glyph cycle, with each step replacing
+        // the previously-emitted glyph (`deleteBackward` + `insertText`).
+        // A different-group tap, a timer expiry, or an explicit boundary
+        // (space/return/etc.) resets the cycle and the next punct tap
+        // starts fresh from `.`.
+        let cycle = [".", ",", "?", "!"]
+        if cjjLastGroup == "PUNCT" {
+            cjjPunctIdx = (cjjPunctIdx + 1) % cycle.count
+            textDocumentProxy.deleteBackward()
+            textDocumentProxy.insertText(cycle[cjjPunctIdx])
+        } else {
+            // Fresh start — commit any in-flight Hangul / cheonjiin state
+            // so the punctuation lands cleanly after the current syllable.
+            hgFlush()
+            cjjReset()
+            cjjLastGroup = "PUNCT"
+            cjjPunctIdx = 0
+            textDocumentProxy.insertText(cycle[0])
+        }
+        cjjArmTimer()
     }
 
     @objc private func cheonjiinCommaTapped() {
@@ -4645,6 +4926,19 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         hgFlush()
         cjjReset()
         textDocumentProxy.insertText(",")
+    }
+
+    /// Move the host's caret one character to the left. Flushes the Hangul
+    /// / cheonjiin engine state first — leaving in-flight cho/jung/jong
+    /// state attached to a syllable the cursor has just moved away from
+    /// would cause the next jamo tap to merge into the WRONG syllable.
+    @objc private func cheonjiinCursorLeftTapped() {
+        DispatchQueue.global(qos: .userInteractive).async {
+            AudioServicesPlaySystemSound(1104)
+        }
+        hgFlush()
+        cjjReset()
+        textDocumentProxy.adjustTextPosition(byCharacterOffset: -1)
     }
 
     /// Exit the number/symbol page back to the previous letter layout
@@ -4695,6 +4989,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     private func handleHangulInput(_ key: String) {
+        // `·` is a cheonjiin chain marker, never a Hangul jamo. Guard at the
+        // engine boundary so any accidental feed (future code path, mistaken
+        // CJJ_VOWELS entry) can't leak `·` into the editor via the State-0
+        // `translateTargetAppend(key)` else-if branch below.
+        if key == "·" { return }
         let ci = CHO.firstIndex(of: key)   // chosung index or nil
         let ji = JUNG.firstIndex(of: key)  // jungsung index or nil
         let isCon = ci != nil
@@ -4831,6 +5130,26 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
+
+        // ── DB 1차 조회 ─────────────────────────────────────────────────
+        // Check the local TranslationDB (200×9 phrase pairs, exact match)
+        // BEFORE running any of the API-side gates. A hit returns instantly,
+        // costs nothing from the daily quota, and works even when Full Access
+        // is off / the user is on the lifetime tier / the daily cap is
+        // exhausted — because none of those constraints apply to a purely
+        // local table lookup. On miss we fall through to the existing API
+        // path unchanged.
+        if let cached = TranslationDB.lookup(
+            text: translationInput,
+            from: translateLangs[sourceLangIndex].1,
+            to: translateLangs[targetLangIndex].1
+        ) {
+            lastTranslation = sanitizeTranslationOutput(cached)
+            translateResultLabel?.text = lastTranslation
+            translateResultLabel?.textColor = .darkText
+            return
+        }
+
         // Full Access check — keyboard extensions cannot make network
         // requests without Full Access in Settings.
         if !hasFullAccess {
@@ -4904,19 +5223,33 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             "model": "gpt-4o-mini",
             "messages": [
                 ["role": "system", "content":
-                    "You are a chat translation assistant.\n" +
-                    "Translate naturally for real conversations.\n" +
+                    "You are a natural chat translation assistant.\n" +
+                    "Your goal is to produce translations that sound natural in real conversations between native speakers.\n" +
+                    "\n" +
                     "Rules:\n" +
-                    "- Prefer literal translation by default.\n" +
-                    "- Keep short everyday phrases simple and direct.\n" +
-                    "- If a literal translation sounds awkward, misleading, rude, or unnatural to native speakers, rewrite it naturally while preserving the original intent.\n" +
-                    "- If the meaning is ambiguous, keep it literal.\n" +
-                    "- Do not over-explain or embellish.\n" +
-                    "- Always give exactly one translation. Output only the translated text.\n" +
+                    "- Preserve the original meaning and tone.\n" +
+                    "- Prefer natural conversational expressions over overly literal translation.\n" +
+                    "- Keep short casual messages concise and native-like.\n" +
+                    "- If a literal translation sounds awkward, unnatural, rude, or misleading, rewrite it naturally.\n" +
+                    "- For slang, idioms, memes, or culturally specific expressions, translate the intended meaning rather than the literal words.\n" +
+                    "- Do not over-translate or add information.\n" +
+                    "- Keep emotional intensity similar to the original.\n" +
+                    "- Output exactly one translation only.\n" +
+                    "- No explanations, no quotation marks, no labels, no language prefixes.\n" +
+                    "\n" +
                     "Examples:\n" +
-                    "Korean: 안녕 → English: Hi.\n" +
-                    "Korean: 너 귀엽다 → English: You're cute.\n" +
-                    "Korean: 낯빛이 어둡다 → English: You don't look well.\n" +
+                    "어이없어 → I can't believe this.\n" +
+                    "기가 막히네 → That's insane.\n" +
+                    "개웃겨 → That's hilarious.\n" +
+                    "귀가 얇다 → You're easily influenced.\n" +
+                    "낯빛이 안 좋아 → You don't look well.\n" +
+                    "나 지금 가는 중 → I'm on my way.\n" +
+                    "대충 살자 → Let's not stress too much.\n" +
+                    "귀가 얇다 → You're easily influenced.\n" +
+                    "가슴이 넓다 → You're broad-minded.\n" +
+                    "코가 높다 → You have high standards.\n" +
+                    "입이 가볍다 → You can't keep a secret.\n" +
+                    "\n" +
                     "Translate from \(srcLang) to \(tgtLang):"
                 ],
                 ["role": "user", "content": translationInput],
@@ -4995,7 +5328,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     self.showTranslateError("응답 파싱 실패\n\(bodyText.prefix(300))")
                     return
                 }
-                self.lastTranslation = translated.trimmingCharacters(in: .whitespacesAndNewlines)
+                self.lastTranslation = self.sanitizeTranslationOutput(translated)
                 self.translateResultLabel?.text = self.lastTranslation
                 self.translateResultLabel?.textColor = .darkText
             }
@@ -5007,6 +5340,37 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         translateResultLabel?.text = message
         translateResultLabel?.textColor = .systemRed
         translateResultLabel?.numberOfLines = 0
+    }
+
+    /// Strip a leading language-label prefix the model sometimes prepends
+    /// despite the "output only the translated text" rule (e.g.
+    /// "English: You have a big head."). We cover the 10 supported target
+    /// languages in both their English names and common Korean labels. The
+    /// match is anchored at start-of-string and case-insensitive, with
+    /// optional whitespace after the colon. Only one pass is needed since
+    /// the model never doubles the prefix.
+    private func sanitizeTranslationOutput(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefixes = [
+            // English names of the 10 languages in `translateLangs`
+            "English:", "Korean:", "Japanese:", "Chinese:",
+            "Spanish:", "French:", "German:",
+            "Vietnamese:", "Thai:", "Indonesian:",
+            // Korean labels that occasionally appear
+            "영어:", "한국어:", "일본어:", "중국어:",
+            "스페인어:", "프랑스어:", "독일어:",
+            "베트남어:", "태국어:", "인니어:", "인도네시아어:",
+            // Generic fallbacks
+            "Translation:", "번역:",
+        ]
+        for p in prefixes {
+            if s.lowercased().hasPrefix(p.lowercased()) {
+                s = String(s.dropFirst(p.count))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                break
+            }
+        }
+        return s
     }
 
     @objc private func translateInsertTapped() {
@@ -5301,14 +5665,24 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 AudioServicesPlaySystemSound(1104)
             }
             tapFeedback(s)
-            // No one-shot-shift auto-release / `showMode(.fonts)` rebuild here.
-            // The async rebuild was the root cause of "모음 연타 시 유실" —
-            // when shift was active the next runloop tick tore down the keypad
-            // mid-typing, so a quick second tap landed on a button that was
-            // already being released. Korean shift now behaves like Caps Lock:
-            // sticky until the user explicitly taps ⇧ again (which DOES rebuild
-            // via `shiftTapped`). Category / style picker taps also rebuild, so
-            // those paths are unaffected.
+            // One-shot shift auto-release for Korean dubeolsik. Any letter
+            // input (ㅃㅉㄸㄲㅆ tense consonants, ㅒ/ㅖ shifted vowels, OR
+            // plain non-shifted jamos when `isShifted` happens to still be
+            // on) releases shift and rebuilds the keypad into the unshifted
+            // layout. Caps lock (`isCapsLock`) is honored — it stays sticky.
+            //
+            // SYNC rebuild (no `DispatchQueue.main.async`): the previous
+            // async dispatch was the root cause of "모음 연타 시 유실" —
+            // it deferred `showMode` to the next runloop iteration, so
+            // rapid follow-up taps landed on the OLD buttons that were
+            // about to be torn down. Calling `showMode(.fonts)` directly
+            // completes the rebuild inside the current event-handling tick,
+            // so the next `touchesBegan` hits the freshly-built unshifted
+            // buttons cleanly.
+            if isShifted && !isCapsLock {
+                isShifted = false
+                showMode(.fonts)
+            }
             return
         }
         if isShifted { ch = ch.uppercased() }
@@ -5333,13 +5707,33 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func spaceTapped() {
-        // Unconditionally finalize the Hangul / cheonjiin buffers before
-        // inserting the space. Previously this was gated on `isFontsKorean`,
-        // which missed two real-world cases: (a) Korean typing in the
+        // Cheonjiin "smart space" — when a syllable with a jongsung
+        // (받침) is currently being composed in 천지인 mode, space acts
+        // as a syllable boundary commit rather than a literal space:
+        // it flushes the engine state and returns without inserting " ".
+        // Without this, the user's only way to start a new syllable
+        // after a 받침-ending one was to type a space (which left an
+        // unwanted gap), because the next consonant tap would otherwise
+        // cycle the existing 받침 (e.g. 안 + ㄴ → 알). Now "안" + space
+        // + "ㄴㅕㅇ" → "안녕" (no gap). A literal space can still be
+        // inserted by tapping space again after the smart-commit (the
+        // buffer is empty by then, so the fallback branch below fires).
+        if isFontsKorean && koreanInputMode == "cheonjiin" && hgJong > 0 {
+            hgFlush()
+            cjjReset()
+            DispatchQueue.global(qos: .userInteractive).async {
+                AudioServicesPlaySystemSound(1104)
+            }
+            return
+        }
+
+        // Default: unconditionally finalize the Hangul / cheonjiin
+        // buffers and insert a space. Previously the flush was gated on
+        // `isFontsKorean`, which missed (a) Korean typing in the
         // translate tab (`isFontsKorean` is an Aa-tab-only flag) and
         // (b) state set in one tab persisting after a host-app external
-        // clear (e.g. Flutter chat's send button). Calling hgFlush() with
-        // an already-empty buffer is a no-op, so this is safe.
+        // clear (e.g. Flutter chat's send button). Calling hgFlush()
+        // with an already-empty buffer is a no-op.
         hgFlush()
         cjjReset()
         textDocumentProxy.insertText(" ")
@@ -5349,6 +5743,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func backspaceTapped() {
+        // No text before cursor → bail early so the click sound doesn't fire
+        // on a no-op delete. In Korean fonts mode the composing syllable is
+        // already inserted into the host editor (handleHangulInput writes via
+        // translateTargetAppend), so its presence shows up in
+        // `documentContextBeforeInput` and we still proceed correctly.
+        let before = textDocumentProxy.documentContextBeforeInput ?? ""
+        guard !before.isEmpty else { return }
         // In Korean fonts mode, route through the composer's delete so a
         // jong/jung is peeled off the active syllable instead of nuking the
         // whole composed character (e.g. 안 → 아, 아 → ㅇ, ㅇ → empty).
@@ -5749,11 +6150,42 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         fontPickerExpanded.toggle()
         let expanded = fontPickerExpanded
         fontToggleButton?.setTitle(expanded ? "▲" : "▼", for: .normal)
+        // Resize the bottom bar synchronously (no animation per spec) so the
+        // catScroll (+36pt) can fit without overflowing kbHeight. catRow
+        // visibility stays animated for the same easing the user already had.
+        fontsBottomBarHeightConstraint?.constant = computedFontsBottomBarHeight()
         UIView.animate(withDuration: 0.2) {
             catRow.isHidden = !expanded
             catRow.alpha = expanded ? 1 : 0
             self.view.layoutIfNeeded()
         }
+    }
+
+    /// Compute the ideal bottom-bar height for the current fonts-tab state:
+    /// budget − picker − letter wrapper − (catScroll if expanded) − inter-
+    /// item gaps. Mode-aware because number-mode keeps individual 52pt rows
+    /// directly in `stack` while QWERTY/dubeolsik use a single 174pt
+    /// `lettersWrapper`. Cheonjiin-without-number returns early before the
+    /// bottom bar is built so this is only reached for the bar-bearing
+    /// layouts. Clamps to 24pt minimum so the touch target stays usable
+    /// even when budget is exhausted (small devices, picker expanded).
+    private func computedFontsBottomBarHeight() -> CGFloat {
+        let budget = tabContainerHeight
+        let pickerH: CGFloat = 36
+        let catH: CGFloat = fontPickerExpanded ? 36 : 0
+        let lettersH: CGFloat
+        let visibleGapCount: CGFloat
+        if isNumberMode {
+            // [pickerRow, row1, row2, row3, bottom] direct in `stack`
+            lettersH = 3 * 52
+            visibleGapCount = fontPickerExpanded ? 5 : 4
+        } else {
+            // [pickerRow, lettersWrapper(174), bottom]
+            lettersH = 3 * 56 + 2 * 3
+            visibleGapCount = fontPickerExpanded ? 3 : 2
+        }
+        let gaps = visibleGapCount * 3  // stack.spacing = 3
+        return max(24, budget - pickerH - lettersH - catH - gaps)
     }
 
     @objc private func toggleNumberMode() {
