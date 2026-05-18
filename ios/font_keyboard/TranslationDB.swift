@@ -36,6 +36,26 @@ struct TranslationDB {
         normalized = normalized.replacingOccurrences(of: "ㅠㅠㅠ", with: "ㅠㅠ")
         normalized = normalized.replacingOccurrences(of: "ㅜㅜㅜ", with: "ㅜㅜ")
 
+        // 이모지 제거. `> 0x238C` 가드로 ?/!/~/한글 자모 같은 저영역
+        // 스칼라(일부가 isEmoji=true 로 보고됨)는 보존하고, 실제 그림
+        // 이모지(😂🌈❤️ 등 고영역)만 걸러낸다.
+        normalized = normalized.unicodeScalars
+            .filter { !($0.properties.isEmoji && $0.value > 0x238C) }
+            .map { String($0) }
+            .joined()
+
+        // 반복 구두점 축소.
+        normalized = normalized.replacingOccurrences(of: "...", with: ".")
+        normalized = normalized.replacingOccurrences(of: "???", with: "?")
+        normalized = normalized.replacingOccurrences(of: "!!!", with: "!")
+        normalized = normalized.replacingOccurrences(of: "~~", with: "~")
+
+        // 공백 정규화: 여러 칸 → 단일 칸 + 앞뒤 trim. 이모지 제거 과정에서
+        // 새로 생긴 이중 공백도 여기서 함께 정리된다.
+        normalized = normalized
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .joined(separator: " ")
+
         // 정방향: 한국어 → 타언어.
         if src.contains("한국어") || src.contains("Korean") {
             switch true {
@@ -83,11 +103,27 @@ struct TranslationDB {
     /// 재조회. 정/역방향 양쪽에서 공통으로 사용. 키 자체에 마침표가
     /// 포함된 일/중 표현("信じられない。", "你好吗？" 등)은 1차에서
     /// hit 되므로 잘못 깎아내는 일은 없다.
+    ///
+    /// 마지막으로, 끝에 붙은 초성 줄임말 run (ㅋㅋ/ㅎㅎ/ㅠㅠ/ㅜㅜ)을
+    /// 통째로 떼어내고 한 번 더 조회한다 — "오늘 뭐해ㅋㅋ" → "오늘 뭐해".
     private static func stepLookup(_ key: String, in map: [String: String]) -> String? {
         if let result = map[key] { return result }
         var stripped = key
         while let last = stripped.last, "?!~。？！".contains(last) {
             stripped.removeLast()
+            if let result = map[stripped] { return result }
+        }
+        // 끝에 붙은 ㅋ/ㅎ/ㅠ/ㅜ run 제거 후 재조회. run 을 떼면 그 앞에
+        // 남아있던 공백/구두점도 다시 정리한 뒤 마지막으로 한 번 조회한다.
+        let fillerChars: Set<Character> = ["ㅋ", "ㅎ", "ㅠ", "ㅜ"]
+        if let last = stripped.last, fillerChars.contains(last) {
+            while let last = stripped.last, fillerChars.contains(last) {
+                stripped.removeLast()
+            }
+            while let last = stripped.last,
+                  last == " " || "?!~。？！".contains(last) {
+                stripped.removeLast()
+            }
             if let result = map[stripped] { return result }
         }
         return nil
@@ -103,7 +139,7 @@ struct TranslationDB {
         "대박이다": "That's amazing!",
         "대박": "That's crazy!",
         "미쳤다": "That's crazy.",
-        "미쳤어": "Are you crazy?",
+        "미쳤어": "That's insane.",
         "진짜 대박이다": "That's insane!",
         "말도 안 돼": "No way.",
         "말도 안돼": "No way.",
@@ -115,13 +151,6 @@ struct TranslationDB {
         "레전드": "Legendary.",
         "실화냐": "Is this for real?",
         "진짜로": "For real.",
-        "ㄹㅇ": "For real.",
-        "ㅋㅋㅋ": "Lol",
-        "ㅋㅋ": "Haha",
-        "ㅎㅎ": "Heh",
-        "ㅠㅠ": "T_T",
-        "ㅜㅜ": "T_T",
-        "ㄷㄷ": "Scary...",
         "오마이갓": "Oh my god.",
         "세상에": "Oh my goodness.",
         "어머": "Oh my.",
@@ -135,7 +164,7 @@ struct TranslationDB {
         "낯빛이 어둡다": "You don't look well.",
         "코가 높다": "You're stuck-up.",
         "가슴이 넓다": "You're open-minded.",
-        "머리가 크다": "You're so full of yourself.",
+        "머리가 크다": "You have a big head.",
         "발이 묶였다": "I'm stuck here.",
         "손발이 맞다": "We work well together.",
         "눈이 맞다": "They fell for each other.",
@@ -183,9 +212,6 @@ struct TranslationDB {
         "문자 했어?": "Did you text me?",
         "확인했어?": "Did you check?",
         "알겠어": "Got it.",
-        "ㅇㅋ": "Ok",
-        "ㄱㄴ": "No thanks.",
-        "ㄱㅇ": "Got it.",
         "잠수 탔어?": "Have you been MIA?",
         "칼퇴했어?": "Did you leave work on time?",
         "야근해?": "Are you working overtime?",
@@ -206,9 +232,9 @@ struct TranslationDB {
         "열심히 해봐": "Do your best.",
         "잘 될 거야": "It'll work out.",
         "걱정 마": "Don't worry.",
-        "현타 온다": "Reality is hitting me hard.",
+        "현타 온다": "I'm having a reality check.",
         "선 넘네": "That's crossing the line.",
-        "기분 나빠": "I feel bad.",
+        "기분 나빠": "I'm upset.",
         "너무 좋아": "I love it.",
         "설레": "I'm excited.",
         "떨려": "I'm nervous.",
@@ -220,14 +246,14 @@ struct TranslationDB {
         "행복해": "I'm happy.",
         "슬퍼": "I'm sad.",
         "속상해": "I'm upset.",
-        "억울해": "It's unfair.",
+        "억울해": "I feel so wronged.",
         "창피해": "I'm embarrassed.",
         "부끄러워": "I'm shy.",
         "무서워": "I'm scared.",
         "기대돼": "I'm looking forward to it.",
         "설렌다": "I'm excited.",
         "뿌듯해": "I'm proud.",
-        "후회돼": "I regret it.",
+        "후회돼": "I regret doing that.",
         "화나": "I'm angry.",
         "열받아": "I'm really upset.",
         "답답해": "I'm frustrated.",
@@ -241,10 +267,9 @@ struct TranslationDB {
 
         // 밈 / 슬랭 (30개)
         "대충 살자": "Let's not stress too much.",
-        "어쩔티비": "Whatever.",
         "개소리": "That makes no sense.",
         "노잼": "Not funny.",
-        "꿀잼": "So fun.",
+        "꿀잼": "This is so fun.",
         "핵노잼": "Really boring.",
         "존잼": "So much fun.",
         "갑분싸": "Awkward silence out of nowhere.",
@@ -262,12 +287,10 @@ struct TranslationDB {
         "굿모닝": "Good morning.",
         "기상": "Rise and shine.",
         "개이득": "What a deal.",
-        "존버": "Keep going.",
         "킹받네": "That's really frustrating.",
         "혜자스럽다": "Such good value.",
         "가성비 좋다": "Great value for money.",
         "띵작": "Masterpiece.",
-        "갬성": "Vibes.",
 
         // ── 추가 100개 (koEn_additional2.swift 병합) ─
         "잠 못 잤어": "I couldn't sleep.",
@@ -571,7 +594,6 @@ struct TranslationDB {
         "레전드": "伝説。",
         "실화냐": "本当に？",
         "진짜로": "本当に。",
-        "ㄹㅇ": "マジで。",
         "세상에": "まあ。",
 
         // 관용어
@@ -583,7 +605,7 @@ struct TranslationDB {
         "낯빛이 어둡다": "顔色が悪い。",
         "코가 높다": "鼻が高い。",
         "가슴이 넓다": "懐が深い。",
-        "머리가 크다": "自分が偉いと思い込んでいる。",
+        "머리가 크다": "頭が大きいね。",
 
         // 카톡 / 일상
         "밥 먹었어?": "ご飯食べた？",
@@ -964,7 +986,7 @@ struct TranslationDB {
     static let enKo: [String: String] = [
         // 한→영 DB 역전 (주요 표현)
         "i can't believe this.": "어이없어.",
-        "that's insane.": "기가 막히네.",
+        "that's insane.": "미쳤다.",
         "that's amazing!": "대박이다!",
         "that's crazy!": "대박이다!",
         "that's crazy.": "미쳤다.",
@@ -988,7 +1010,6 @@ struct TranslationDB {
         "you don't look well.": "낯빛이 어둡다.",
         "you're stuck-up.": "코가 높다.",
         "you're open-minded.": "가슴이 넓다.",
-        "you're so full of yourself.": "머리가 크다.",
         "i'm stuck here.": "발이 묶였다.",
         "we work well together.": "손발이 맞다.",
         "in the blink of an eye.": "눈 깜짝할 사이.",
@@ -1078,10 +1099,9 @@ struct TranslationDB {
         "what the heck.": "뭐야 이게.",
         "that's wild.": "미쳤다.",
         "mind blown.": "소름.",
-        "facts.": "ㄹㅇ.",
         "period.": "그게 맞지.",
         "same.": "공감.",
-        "mood.": "공감.",
+        "mood.": "내 말이.",
         "big mood.": "완전 공감.",
         "slay.": "잘한다.",
         "iconic.": "레전드.",
@@ -1122,7 +1142,6 @@ struct TranslationDB {
         "you okay?": "괜찮아?",
         "you good?": "괜찮아?",
         "i'm dead.": "너무 웃겨.",
-        "i'm crying.": "ㅠㅠ",
         "not gonna lie.": "솔직히",
         "to be honest.": "솔직히",
         "tbh": "솔직히",
@@ -1378,7 +1397,6 @@ struct TranslationDB {
         "伝説。": "레전드.",
         "本当に？": "진짜?",
         "本当に。": "진짜로.",
-        "マジで。": "ㄹㅇ.",
         "まあ。": "세상에.",
         "人の言葉に流されやすい。": "귀가 얇다.",
         "目が高い。": "눈이 높다.",

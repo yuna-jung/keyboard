@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+// widgets.dart additionally provides WidgetsBinding / WidgetsBindingObserver /
+// AppLifecycleState needed for the resume-time refresh below.
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:adapty_flutter/adapty_flutter.dart';
 
@@ -15,7 +18,7 @@ const _paywallPlacementId = 'fonkii_premium';
 
 enum SubscriptionTier { free, premium, lifetime }
 
-class SubscriptionService {
+class SubscriptionService with WidgetsBindingObserver {
   SubscriptionService._();
   static final instance = SubscriptionService._();
 
@@ -56,6 +59,11 @@ class SubscriptionService {
 
   // ── 초기화 ─────────────────────────────────────────────────────────────
   Future<void> initialize(String apiKey) async {
+    // Observe app lifecycle so a subscription that lapsed while the app was
+    // backgrounded gets re-fetched the moment the user returns — without
+    // this, the App Group (and therefore the keyboard extension) could keep
+    // serving a stale `is_premium=true` until the next cold launch.
+    WidgetsBinding.instance.addObserver(this);
     try {
       await Adapty().activate(
         configuration: AdaptyConfiguration(apiKey: apiKey),
@@ -66,6 +74,15 @@ class SubscriptionService {
       });
     } catch (e) {
       debugPrint('Adapty init error: $e');
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Fire-and-forget: pulls the latest Adapty profile and pushes the
+      // result to the App Group via _applyProfile → _syncTierToAppGroup.
+      refreshStatus();
     }
   }
 

@@ -821,7 +821,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         ("응~👌🏻 어쩔티비~ 📺💁🏻‍♂️ 저쩔티비~📺", "응~👌🏻 어쩔티비~ 📺💁🏻‍♂️ 저쩔티비~📺 💁🏻‍♀️ 안물티비~안궁티비~뇌절티비~우짤래미~ 저짤래미~ 쿠쿠루삥뽕🕺🏻 지금 화났죠?🔥😛 개킹받죠? 죽이고 싶죠? 🤗어차피 내가 사는곳 모르죠? 응~못 죽이죠?👊🏻🤟🏻 어~또 빡치죠? 😌아무것도 모르죠? 아무것도 못하죠?😉 그냥 화났죠? 냬~알걨섑니댸👏🏻🙃🙃 아무도 안물 안궁~🤣 물어본 사람?🙋🏻‍♀️ 궁금한 사람?🙋🏻‍♂️ 응 근데 어쩔티비죠? 약올리죠? 응~ 어쩔 저쩔 안물 안궁😚✌🏻"),
         ("뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓", "뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓ 뭐해욤❓"),
         ("우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮", "우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍...🤢 구웨에에엑🤮 우읍.."),
-        ("🌈💕🌟아니 뭔 개소리냐고💕❤️", "🌈💕🌟아니 뭔 개소리냐고💕❤️🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕🌟아니 뭔 개소리냐고💕❤️ 🌈💕"),
         ("수류탄이다!!! ( ˙ ∇˙)づ ⌒ (툭) 펑҉!҉", "수류탄이다!!! ( ˙ ∇˙)づ ⌒ (툭) 펑҉!҉ 펑҉퍼҉엉҉퍼҉어҉어҉퍼҉҉퍼҉엉҉퍼҉엉҉!҉!҉펑펑"),
         ("༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!!", "༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!!,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!!,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!!,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!! ,༼;´༎ຶ۝༎ຶ༽우워어어어어엌!!!!!!!"),
         ("어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ", "어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ 어엥? ఠࡇఠ"),
@@ -1415,6 +1414,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var isPremiumUser = false
     private var userTier = "free" // "free" | "premium" | "lifetime"
     private var canTranslateUnlimited = false
+    /// Throttle gate for the `textDidChange` subscription re-check. `viewWillAppear`
+    /// can be skipped when iOS caches/reuses this VC across text fields, but
+    /// `textDidChange` always fires on (re)connection — so we re-verify there
+    /// too, at most once per 30s to avoid a per-keystroke UserDefaults read.
+    private var lastPremiumCheck = Date.distantPast
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -1443,6 +1447,25 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         heightConstraint.isActive = true
     }
 
+    /// `viewDidLoad` runs only once per VC instance, but iOS keeps the
+    /// keyboard-extension process (and this VC) alive across show/hide
+    /// cycles. Without re-checking here, a subscription that expired while
+    /// the process stayed warm would never be picked up — the keyboard
+    /// would stay unlocked on its stale cached `isPremiumUser`. Re-reading
+    /// the App Group on every appearance closes that gap.
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        checkPremiumStatus()
+    }
+
+    /// Persist the translate-tab state (langs / input / result) so closing
+    /// and reopening the keyboard — or the extension process being recycled —
+    /// doesn't lose the user's in-progress translation.
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        saveTranslateState()
+    }
+
     /// Host-app text changes — including external clears we didn't cause.
     /// When the document drops to empty (e.g. Flutter chat's send button
     /// fires `_input.clear()` after a tap), reset both Hangul and cheonjiin
@@ -1455,6 +1478,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         if current.isEmpty {
             hgFlush()
             cjjReset()
+        }
+        // Throttled subscription re-check — covers the case where iOS reused
+        // this cached VC for a new text field and skipped `viewWillAppear`.
+        // 30s gate keeps this off the per-keystroke hot path.
+        if Date().timeIntervalSince(lastPremiumCheck) > 30 {
+            lastPremiumCheck = Date()
+            checkPremiumStatus()
         }
     }
 
@@ -1511,13 +1541,34 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // also writes to hgCho/hgJung/hgJong via the same engine). In-tab
         // rebuilds — style pill tap, shift tap, language toggle — all call
         // `showMode(currentMode)` so `currentMode != mode` skips them.
+        // Genuine entry INTO the translate tab from another tab (or fresh
+        // keyboard open). Captured before `currentMode` is overwritten below.
+        // Restore must be gated on this — running it on every
+        // `buildTranslateMode` (including intra-tab rebuilds triggered by the
+        // language dropdown / swap / direct-input toggle) would clobber the
+        // user's just-made selection with the stale App Group snapshot.
+        let enteringTranslate = (currentMode != mode && mode == .translate)
+
         if currentMode != mode {
             hgFlush()
             cjjReset()
+            // Leaving the translate tab — persist its state now so a later
+            // return (this session or next keyboard open) restores the most
+            // recent input/result, not a stale snapshot.
+            if currentMode == .translate {
+                saveTranslateState()
+            }
         }
         currentMode = mode
         updateModeBar()
         clearContent()
+
+        // Restore persisted translate state ONLY on a genuine tab entry, and
+        // before `buildTranslateMode` builds the language buttons (which read
+        // `sourceLangIndex`/`targetLangIndex`).
+        if enteringTranslate {
+            restoreTranslateState()
+        }
 
         // Subscriber gate: any non-translate tab renders the in-keyboard lock
         // view for free-tier users. Translate has its own toast at modeTapped
@@ -1677,6 +1728,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func modeTapped(_ s: UIButton) {
         let mode = Mode(rawValue: s.tag) ?? .fonts
+
+        // Refresh subscription state on every tab switch — not just the
+        // translate/palette taps below. Previously fonts/emoticon/special/
+        // gif/favorites/etc. relied purely on the cached `isPremiumUser`
+        // from viewDidLoad, so an expired subscription wouldn't re-lock
+        // those tabs until the process was killed. The translate/palette
+        // branches keep their own `checkPremiumStatus()` calls (harmless
+        // redundancy — already-fresh values).
+        checkPremiumStatus()
 
         // Translate keeps its own messaging (distinguishes lifetime from free).
         // Trial users have isPremiumUser=true but canTranslateUnlimited=false
@@ -2119,13 +2179,29 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         if isNumberMode {
             // Number/symbol rows — row 3 has [page toggle] + [5 char keys] + [⌫]
             // mirroring the iOS native symbols keyboard layout.
+            //
+            // Rows live in a `numberWrapper` structurally identical to the
+            // QWERTY/dubeolsik `lettersWrapper`: `.fillEqually`, 174pt tall,
+            // so the 3 rows evenly split to 56pt each and completely fill the
+            // wrapper — no leftover gap above the bottom bar. The shared
+            // bottom bar below stays the SAME height across all fonts-tab
+            // modes because every wrapper is 174pt.
+            let numberWrapper = UIStackView()
+            numberWrapper.axis = .vertical
+            numberWrapper.distribution = .fillEqually
+            numberWrapper.spacing = 3
+            let numberWrapperH = numberWrapper.heightAnchor.constraint(equalToConstant: 3 * 56 + 2 * 3)
+            numberWrapperH.priority = UILayoutPriority(999)
+            numberWrapperH.isActive = true
+
             let pageRows = isSymbolPage2 ? numberRowsPage2 : numberRowsPage1
             for (ri, row) in pageRows.enumerated() {
                 let rowStack = UIStackView()
                 rowStack.axis = .horizontal
                 rowStack.distribution = .fillEqually
                 rowStack.spacing = 4
-                rowStack.heightAnchor.constraint(equalToConstant: 52).isActive = true
+                // No per-row heightAnchor — numberWrapper's .fillEqually
+                // divides its 174pt height evenly across the 3 rows.
 
                 if ri == 2 {
                     let pageToggle = makeSpecialKey(isSymbolPage2 ? "123" : "#+=")
@@ -2148,8 +2224,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     rowStack.addArrangedSubview(del)
                 }
 
-                stack.addArrangedSubview(rowStack)
+                numberWrapper.addArrangedSubview(rowStack)
             }
+            stack.addArrangedSubview(numberWrapper)
         } else if isFontsKorean && koreanInputMode == "cheonjiin" {
             // 천지인 12-key layout — see `buildCheonjiinKeypadRows` /
             // `handleCheonjiinTap`. Each tap synthesizes a 두벌식 jamo and
@@ -2358,8 +2435,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         done.setTitle("", for: .normal)
         let returnImage = UIImage(systemName: "return", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .medium))
         done.setImage(returnImage, for: .normal)
-        done.tintColor = .black
+        // Accent (user point color) fill with a white return arrow + title.
         done.backgroundColor = accentColor
+        done.tintColor = .white
         done.setTitleColor(.white, for: .normal)
         done.addTarget(self, action: #selector(returnTapped), for: .touchDown)
         done.setWidth(50)
@@ -2450,52 +2528,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             }
         }
 
-        // Bottom bar — emoticon tab gets the full [ABC][space][⌫] bar (52pt);
-        // other grids (special chars) keep the compact backspace-only bar (36pt).
-        let bottomBar = UIStackView()
-        bottomBar.axis = .horizontal
-        bottomBar.spacing = 4
-        bottomBar.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(bottomBar)
+        // Bottom delete bar removed per spec — emoticon/kaomoji/special tabs
+        // no longer carry a ⌫ bar. The grid scroll view extends straight to
+        // the container bottom.
 
-        let bottomBarHeight: CGFloat
-        if fullBottomBar {
-            bottomBarHeight = 52
-
-            let abcBtn = makeSpecialKey("ABC")
-            abcBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
-            abcBtn.setWidth(48)
-            abcBtn.addAction(UIAction { [weak self] _ in
-                DispatchQueue.global(qos: .userInteractive).async {
-                    AudioServicesPlaySystemSound(1104)
-                }
-                self?.advanceToNextInputMode()
-            }, for: .touchUpInside)
-            bottomBar.addArrangedSubview(abcBtn)
-
-            let spaceBtn = makeLetterKey("space")
-            spaceBtn.titleLabel?.font = .systemFont(ofSize: 14)
-            spaceBtn.addTarget(self, action: #selector(spaceTapped), for: .touchUpInside)
-            bottomBar.addArrangedSubview(spaceBtn)
-
-            let del = makeSpecialKey("⌫")
-            del.setWidth(48)
-            del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
-            attachBackspaceLongPress(to: del)
-            bottomBar.addArrangedSubview(del)
-        } else {
-            bottomBarHeight = 36
-
-            let del = makeSpecialKey("⌫")
-            del.setWidth(44)
-            del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
-            attachBackspaceLongPress(to: del)
-
-            bottomBar.addArrangedSubview(UIView()) // spacer
-            bottomBar.addArrangedSubview(del)
-        }
-
-        // Grid scroll view — pinned between catScroll and bottomBar
+        // Grid scroll view — pinned between catScroll and the container bottom
         let scrollView = UIScrollView()
         scrollView.alwaysBounceVertical = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -2510,12 +2547,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             scrollView.topAnchor.constraint(equalTo: catScroll.bottomAnchor, constant: 4),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -4),
-
-            bottomBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            bottomBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            bottomBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: bottomBarHeight),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
 
         let gridStack = UIStackView()
@@ -2602,36 +2634,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         contentView.addSubview(container)
         pinToEdges(container, in: contentView)
 
-        // Bottom bar: ABC / space / ⌫ — matches emoticon tab pattern.
-        let bottomBar = UIStackView()
-        bottomBar.axis = .horizontal
-        bottomBar.spacing = 4
-        bottomBar.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(bottomBar)
+        // Bottom delete bar removed per spec — the scroll view extends
+        // straight to the container bottom.
 
-        let abcBtn = makeSpecialKey("ABC")
-        abcBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
-        abcBtn.setWidth(48)
-        abcBtn.addAction(UIAction { [weak self] _ in
-            DispatchQueue.global(qos: .userInteractive).async {
-                AudioServicesPlaySystemSound(1104)
-            }
-            self?.advanceToNextInputMode()
-        }, for: .touchUpInside)
-        bottomBar.addArrangedSubview(abcBtn)
-
-        let spaceBtn = makeLetterKey("space")
-        spaceBtn.titleLabel?.font = .systemFont(ofSize: 14)
-        spaceBtn.addTarget(self, action: #selector(spaceTapped), for: .touchUpInside)
-        bottomBar.addArrangedSubview(spaceBtn)
-
-        let del = makeSpecialKey("⌫")
-        del.setWidth(48)
-        del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
-        attachBackspaceLongPress(to: del)
-        bottomBar.addArrangedSubview(del)
-
-        // Vertical scroll view above bottom bar.
+        // Vertical scroll view filling the whole tab.
         let scrollView = UIScrollView()
         scrollView.alwaysBounceVertical = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -2641,12 +2647,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             scrollView.topAnchor.constraint(equalTo: container.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -4),
-
-            bottomBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            bottomBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            bottomBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: 52),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
 
         // 3-column grid inside scroll view — square cards via 1:1 aspect ratio.
@@ -2730,26 +2731,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         contentView.addSubview(container)
         pinToEdges(container, in: contentView)
 
-        // Bottom bar: 🌐 / spacer / ⌫
-        let bottomBar = UIStackView()
-        bottomBar.axis = .horizontal
-        bottomBar.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(bottomBar)
-
-        let globe = makeSpecialKey("🌐")
-        globe.setWidth(44)
-        globe.addAction(UIAction { [weak self] _ in
-            DispatchQueue.global(qos: .userInteractive).async {
-                AudioServicesPlaySystemSound(1104)
-            }
-            self?.advanceToNextInputMode()
-        }, for: .touchUpInside)
-        let del = makeSpecialKey("⌫")
-        del.setWidth(44)
-        del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
-        bottomBar.addArrangedSubview(globe)
-        bottomBar.addArrangedSubview(UIView())
-        bottomBar.addArrangedSubview(del)
+        // Bottom delete bar removed per spec — the scroll view extends
+        // straight to the container bottom.
 
         let scrollView = UIScrollView()
         scrollView.alwaysBounceVertical = true
@@ -2760,12 +2743,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             scrollView.topAnchor.constraint(equalTo: container.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -4),
-
-            bottomBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            bottomBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            bottomBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: 34),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
 
         let vStack = UIStackView()
@@ -3145,17 +3123,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             catRow.addArrangedSubview(btn)
         }
 
-        // Bottom bar
-        let bottomBar = UIStackView()
-        bottomBar.axis = .horizontal
-        bottomBar.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(bottomBar)
-        let del = makeSpecialKey("⌫")
-        del.setWidth(44)
-        del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
-        attachBackspaceLongPress(to: del)
-        bottomBar.addArrangedSubview(UIView())
-        bottomBar.addArrangedSubview(del)
+        // Bottom delete bar removed per spec — the grid scroll view extends
+        // straight to the container bottom.
 
         // Grid scroll view
         let scrollView = UIScrollView()
@@ -3192,12 +3161,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             scrollView.topAnchor.constraint(equalTo: catScroll.bottomAnchor, constant: 4),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -4),
-
-            bottomBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            bottomBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            bottomBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: 36),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
 
             gridStack.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 5),
             gridStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 5),
@@ -3442,6 +3406,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Translate Mode
 
     private func buildTranslateMode() {
+        // NOTE: `restoreTranslateState()` is intentionally NOT called here —
+        // `buildTranslateMode` also runs on intra-tab rebuilds (language
+        // dropdown / swap / direct-input toggle), and restoring then would
+        // overwrite the user's just-made change with the stale App Group
+        // snapshot. `showMode` calls `restoreTranslateState()` instead, gated
+        // on a genuine tab entry. This builder just reads whatever
+        // `sourceLangIndex`/`translationInput`/`lastTranslation` currently
+        // hold.
+
         // ── Translation field view (modeBar 위에 표시) ──
         let fieldView = UIStackView()
         fieldView.axis = .vertical; fieldView.spacing = 2
@@ -3620,6 +3593,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // 자체에 한/영/ㅇㅁ/번역/삽입이 있어 bottom bar 중복 회피.
         addTranslateBottomBarIfNeeded(to: stack)
         updateTranslateInputDisplay()
+
+        // Reflect a restored translation result into the result label
+        // (`updateTranslateInputDisplay` only handles the input side).
+        if !lastTranslation.isEmpty {
+            translateResultLabel?.text = lastTranslation
+            translateResultLabel?.textColor = .darkText
+        }
     }
 
     /// Build the translate-mode bottom bar (한/영 / !?123 / space / 번역 /
@@ -4234,11 +4214,65 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         translateResultLabel?.text = "번역 결과가 여기에 표시됩니다"
         translateResultLabel?.textColor = .lightGray
         updateTranslateInputDisplay()
+        // Also drop the persisted copy so a reopen doesn't resurrect the
+        // just-cleared text. Lang selection is intentionally left as-is.
+        clearSavedTranslateState()
     }
 
     @objc private func dismissTranslateKeyboard() {
         translateInputField?.resignFirstResponder()
         hgFlush()
+    }
+
+    // MARK: - Translate state persistence (App Group)
+    // Survives keyboard close/reopen and extension process recycling. Uses the
+    // same App Group suite as the subscription sync. Independent of the
+    // `translateDailyCount` quota keys — those are untouched.
+
+    private static let translateStateKeys = (
+        src:    "translate_source_lang_index",
+        tgt:    "translate_target_lang_index",
+        input:  "translate_input_text",
+        result: "translate_result_text"
+    )
+
+    /// Write the current translate-tab state to the App Group.
+    private func saveTranslateState() {
+        guard let d = UserDefaults(suiteName: "group.com.yunajung.fonki") else { return }
+        let k = Self.translateStateKeys
+        d.set(sourceLangIndex, forKey: k.src)
+        d.set(targetLangIndex, forKey: k.tgt)
+        d.set(translationInput, forKey: k.input)
+        d.set(lastTranslation, forKey: k.result)
+    }
+
+    /// Restore translate-tab state from the App Group. Missing keys leave the
+    /// in-memory defaults intact (한국어→영어, empty text). Lang indices are
+    /// bounds-checked against `translateLangs` in case the list ever shrinks.
+    private func restoreTranslateState() {
+        guard let d = UserDefaults(suiteName: "group.com.yunajung.fonki") else { return }
+        let k = Self.translateStateKeys
+        if d.object(forKey: k.src) != nil {
+            let i = d.integer(forKey: k.src)
+            if i >= 0 && i < translateLangs.count { sourceLangIndex = i }
+        }
+        if d.object(forKey: k.tgt) != nil {
+            let i = d.integer(forKey: k.tgt)
+            if i >= 0 && i < translateLangs.count { targetLangIndex = i }
+        }
+        translationInput = d.string(forKey: k.input) ?? translationInput
+        lastTranslation = d.string(forKey: k.result) ?? lastTranslation
+    }
+
+    /// Wipe the saved input + result text — invoked from the 🗑 button so a
+    /// clear also empties the persisted copy. The src/tgt language keys are
+    /// left intact: the 🗑 button doesn't reset the user's language choice,
+    /// so neither should this.
+    private func clearSavedTranslateState() {
+        guard let d = UserDefaults(suiteName: "group.com.yunajung.fonki") else { return }
+        let k = Self.translateStateKeys
+        d.removeObject(forKey: k.input)
+        d.removeObject(forKey: k.result)
     }
 
     /// Rebuild the keyboard rows AND the bottom bar.
@@ -4259,6 +4293,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         UIView.performWithoutAnimation {
             // Tear down + rebuild kbArea contents (rowStacks or cheonjiin
             // container). fieldView is in mainStack and is NOT touched here.
+            // Every translate keypad — 천지인 / QWERTY / 두벌식 / 숫자 — is
+            // built to the same total height (218pt, see
+            // `buildCheonjiinKeypadRows` + `buildTranslateKeyboardRows`), so
+            // swapping keypads no longer shifts mainStack's layout and the
+            // fieldView height stays constant without any capture/re-pin hack.
             container.arrangedSubviews.forEach { $0.removeFromSuperview() }
             buildTranslateKeyboardRows(into: container)
             // Bottom bar lives as a sibling of kbArea inside outerStack —
@@ -4390,6 +4429,21 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func translateDeleteTapped() {
+        // Selected text in the host app → one `deleteBackward()` clears the
+        // whole selection. Only fires when the host app holds the selection;
+        // when the in-keyboard `translateInputField` is focused its own
+        // selection isn't reported here, so this falls through to the
+        // existing path (UITextView.deleteBackward handles its selection
+        // natively).
+        if let selected = textDocumentProxy.selectedText, !selected.isEmpty {
+            textDocumentProxy.deleteBackward()
+            hgFlush()
+            cjjReset()
+            DispatchQueue.global(qos: .userInteractive).async {
+                AudioServicesPlaySystemSound(1104)
+            }
+            return
+        }
         // Empty-target guard — suppress click sound on no-op delete.
         // Translate tab can target either the host app or the in-keyboard
         // translateInputField; check whichever is the current target.
@@ -4625,18 +4679,28 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return btn
         }
 
-        // Row metrics — kept tight to absorb the translate-tab chrome
-        // (fieldView 135pt + modeBar 36pt + stack spacings) that pushes
-        // the keypad bottom against the kbHeight ceiling on small
-        // devices. Two-stage tuning: previously 52/4 (=220pt) → 51/3
-        // (=213pt) → now 51/1 (=207pt). Shaves another 6pt off the
-        // container which addresses the recurring 5pt overflow report
-        // even on devices where the prior 213pt still bottomed-out.
-        // Applies to both fonts and translate cheonjiin (the container
-        // is shared), keeping the two tabs visually identical per the
-        // user's height-parity spec.
-        let rowHeight: CGFloat = 51
-        let rowSpacing: CGFloat = 1
+        // Row metrics — host-dependent.
+        //
+        // `.fontsTab`: kept tight (51/1 → 4×51 + 3×1 = 207pt) to absorb the
+        // fonts-tab chrome and avoid the small-device overflow.
+        //
+        // `.translateTab`: 53/2 → 4×53 + 3×2 = 218pt. This MATCHES the
+        // 두벌식/숫자 translate keypad total (kbArea 3×52 + 2×4 = 164, +
+        // stack.spacing 2, + bottomBar 52 = 218). Equalizing every translate
+        // keypad to 218pt is the root-cause fix for the fieldView height
+        // jumping on 한/영 keypad switches: with all keypads the same height,
+        // mainStack's layout never shifts when kbArea is rebuilt — no
+        // capture/re-pin hack needed.
+        let rowHeight: CGFloat
+        let rowSpacing: CGFloat
+        switch host {
+        case .fontsTab:
+            rowHeight = 51
+            rowSpacing = 1
+        case .translateTab:
+            rowHeight = 53
+            rowSpacing = 2
+        }
 
         // All 4 rows live inside a single `cheonjiinContainer` vertical
         // stack with `distribution = .fillEqually`. That guarantees the
@@ -4871,6 +4935,19 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func cheonjiinBackspaceTapped() {
+        // Selected text in the host app → one `deleteBackward()` clears the
+        // whole selection. Composer/cheonjiin paths below only peel a single
+        // jamo and ignore the selection, so intercept here and reset both
+        // buffers.
+        if let selected = textDocumentProxy.selectedText, !selected.isEmpty {
+            textDocumentProxy.deleteBackward()
+            hgFlush()
+            cjjReset()
+            DispatchQueue.global(qos: .userInteractive).async {
+                AudioServicesPlaySystemSound(1104)
+            }
+            return
+        }
         // Empty-target guard — suppress click sound on no-op delete. The
         // cheonjiin keypad is shared between fonts and translate tabs, so
         // pick the right target via `translateTargetsHostApp` (true when no
@@ -5139,16 +5216,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // exhausted — because none of those constraints apply to a purely
         // local table lookup. On miss we fall through to the existing API
         // path unchanged.
-        if let cached = TranslationDB.lookup(
-            text: translationInput,
-            from: translateLangs[sourceLangIndex].1,
-            to: translateLangs[targetLangIndex].1
-        ) {
-            lastTranslation = sanitizeTranslationOutput(cached)
-            translateResultLabel?.text = lastTranslation
-            translateResultLabel?.textColor = .darkText
-            return
-        }
+
+        // MARK: - DB lookup 임시 비활성화 (DB 정리 후 재활성화 예정)
+        // if let cached = TranslationDB.lookup(
+        //     text: translationInput,
+        //     from: translateLangs[sourceLangIndex].1,
+        //     to: translateLangs[targetLangIndex].1
+        // ) {
+        //     lastTranslation = sanitizeTranslationOutput(cached)
+        //     translateResultLabel?.text = lastTranslation
+        //     return
+        // }
 
         // Full Access check — keyboard extensions cannot make network
         // requests without Full Access in Settings.
@@ -5223,33 +5301,32 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             "model": "gpt-4o-mini",
             "messages": [
                 ["role": "system", "content":
-                    "You are a natural chat translation assistant.\n" +
-                    "Your goal is to produce translations that sound natural in real conversations between native speakers.\n" +
-                    "\n" +
+                    "You are a professional chat translation assistant.\n" +
+                    "Translate naturally for real conversations between people of any relationship — friends, colleagues, acquaintances, customers, or superiors.\n" +
                     "Rules:\n" +
-                    "- Preserve the original meaning and tone.\n" +
-                    "- Prefer natural conversational expressions over overly literal translation.\n" +
-                    "- Keep short casual messages concise and native-like.\n" +
-                    "- If a literal translation sounds awkward, unnatural, rude, or misleading, rewrite it naturally.\n" +
-                    "- For slang, idioms, memes, or culturally specific expressions, translate the intended meaning rather than the literal words.\n" +
-                    "- Do not over-translate or add information.\n" +
-                    "- Keep emotional intensity similar to the original.\n" +
-                    "- Output exactly one translation only.\n" +
-                    "- No explanations, no quotation marks, no labels, no language prefixes.\n" +
-                    "\n" +
+                    "- Preserve the original meaning, emotional tone, and nuance.\n" +
+                    "- Always produce socially appropriate and respectful translations.\n" +
+                    "- Avoid translations that sound rude, aggressive, confrontational, or offensive unless the original explicitly contains strong hostility.\n" +
+                    "- For casual expressions, use natural conversational language without becoming impolite.\n" +
+                    "- For formal Korean (존댓말), use appropriately polite and professional language.\n" +
+                    "- For casual Korean (반말), use natural everyday conversational language that still feels socially acceptable.\n" +
+                    "- For slang, idioms, memes, or culturally specific expressions, translate the intended meaning naturally rather than literally.\n" +
+                    "- Keep the emotional intensity similar to the original text.\n" +
+                    "- Prefer neutral and widely acceptable phrasing over internet-specific slang.\n" +
+                    "- Do not over-formalize short casual messages.\n" +
+                    "- Output exactly one translated sentence only.\n" +
+                    "- No explanations, quotation marks, labels, emojis, or language prefixes.\n" +
                     "Examples:\n" +
                     "어이없어 → I can't believe this.\n" +
-                    "기가 막히네 → That's insane.\n" +
-                    "개웃겨 → That's hilarious.\n" +
+                    "기가 막히네 → Unbelievable.\n" +
                     "귀가 얇다 → You're easily influenced.\n" +
                     "낯빛이 안 좋아 → You don't look well.\n" +
                     "나 지금 가는 중 → I'm on my way.\n" +
                     "대충 살자 → Let's not stress too much.\n" +
-                    "귀가 얇다 → You're easily influenced.\n" +
-                    "가슴이 넓다 → You're broad-minded.\n" +
-                    "코가 높다 → You have high standards.\n" +
-                    "입이 가볍다 → You can't keep a secret.\n" +
-                    "\n" +
+                    "뭐해? → What are you up to?\n" +
+                    "잘 부탁드립니다 → I look forward to working with you.\n" +
+                    "수고하셨습니다 → Thank you for your hard work.\n" +
+                    "코가 높다 → You seem hard to approach.\n" +
                     "Translate from \(srcLang) to \(tgtLang):"
                 ],
                 ["role": "user", "content": translationInput],
@@ -5441,17 +5518,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             catRow.addArrangedSubview(btn)
         }
 
-        // Bottom bar
-        let bottomBar = UIStackView()
-        bottomBar.axis = .horizontal
-        bottomBar.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(bottomBar)
-        let del = makeSpecialKey("⌫")
-        del.setWidth(44)
-        del.addTarget(self, action: #selector(backspaceTapped), for: .touchUpInside)
-        attachBackspaceLongPress(to: del)
-        bottomBar.addArrangedSubview(UIView())
-        bottomBar.addArrangedSubview(del)
+        // Bottom bar removed entirely — the favorites tab's only bottom-bar
+        // control was the ⌫ button, removed per spec. The scroll view now
+        // extends straight to the container bottom (see constraints below).
 
         // Scroll view for content
         let scrollView = UIScrollView()
@@ -5468,12 +5537,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             scrollView.topAnchor.constraint(equalTo: catScroll.bottomAnchor, constant: 4),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomBar.topAnchor, constant: -4),
-
-            bottomBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            bottomBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            bottomBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            bottomBar.heightAnchor.constraint(equalToConstant: 36),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
 
         let gridStack = UIStackView()
@@ -5743,6 +5807,20 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func backspaceTapped() {
+        // Selected text in the host app → a single `deleteBackward()` clears
+        // the whole selection. The composer-aware path below peels just one
+        // jamo and ignores the selection, so we must intercept here. Reset
+        // both Hangul and cheonjiin buffers since the syllable they were
+        // tracking is gone with the selection.
+        if let selected = textDocumentProxy.selectedText, !selected.isEmpty {
+            textDocumentProxy.deleteBackward()
+            hgFlush()
+            cjjReset()
+            DispatchQueue.global(qos: .userInteractive).async {
+                AudioServicesPlaySystemSound(1104)
+            }
+            return
+        }
         // No text before cursor → bail early so the click sound doesn't fire
         // on a no-op delete. In Korean fonts mode the composing syllable is
         // already inserted into the host editor (handleHangulInput writes via
@@ -6173,17 +6251,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let budget = tabContainerHeight
         let pickerH: CGFloat = 36
         let catH: CGFloat = fontPickerExpanded ? 36 : 0
-        let lettersH: CGFloat
-        let visibleGapCount: CGFloat
-        if isNumberMode {
-            // [pickerRow, row1, row2, row3, bottom] direct in `stack`
-            lettersH = 3 * 52
-            visibleGapCount = fontPickerExpanded ? 5 : 4
-        } else {
-            // [pickerRow, lettersWrapper(174), bottom]
-            lettersH = 3 * 56 + 2 * 3
-            visibleGapCount = fontPickerExpanded ? 3 : 2
-        }
+        // Mode-independent: QWERTY/dubeolsik use `lettersWrapper` and number
+        // mode now uses `numberWrapper` — both are 174pt tall and sit in
+        // `stack` with the same surrounding gap structure. So the bottom bar
+        // computes to the SAME height in every fonts-tab mode.
+        // Layout: [pickerRow(36), wrapper(174), bottom]
+        let lettersH: CGFloat = 3 * 56 + 2 * 3
+        let visibleGapCount: CGFloat = fontPickerExpanded ? 3 : 2
         let gaps = visibleGapCount * 3  // stack.spacing = 3
         return max(24, budget - pickerH - lettersH - catH - gaps)
     }
