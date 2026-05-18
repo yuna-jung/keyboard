@@ -2,7 +2,9 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding/onboarding_page1.dart';
 import 'services/subscription_service.dart';
 
 const _pink = Color(0xFF5BC8F5);
@@ -68,7 +70,41 @@ class FontKeyboardApp extends StatelessWidget {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
-      home: const HomeScreen(),
+      home: const _LaunchRouter(),
+    );
+  }
+}
+
+/// Decides between onboarding and the home screen on every cold launch by
+/// reading the persisted [onboardingCompletedKey] flag. The brief blank frame
+/// while the future resolves is intentional — gating navigation on
+/// `SharedPreferences.getInstance()` avoids flashing onboarding to a returning
+/// user.
+class _LaunchRouter extends StatefulWidget {
+  const _LaunchRouter();
+
+  @override
+  State<_LaunchRouter> createState() => _LaunchRouterState();
+}
+
+class _LaunchRouterState extends State<_LaunchRouter> {
+  late final Future<bool> _completed = _readCompleted();
+
+  Future<bool> _readCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(onboardingCompletedKey) ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _completed,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Scaffold(backgroundColor: Colors.white);
+        }
+        return snapshot.data! ? const HomeScreen() : const OnboardingPage1();
+      },
     );
   }
 }
