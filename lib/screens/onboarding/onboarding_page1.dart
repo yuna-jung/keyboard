@@ -46,16 +46,16 @@ class OnboardingPage1 extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     Image.asset(
-                      'assets/images/구름.png',
-                      width: 200,
-                      height: 160,
+                      'assets/images/cloud.png',
+                      width: 280,
+                      height: 220,
                       fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 32),
                     const Text(
                       '환영해요!',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
@@ -88,7 +88,7 @@ class OnboardingPage1 extends StatelessWidget {
                   child: const Text(
                     '시작하기',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -100,7 +100,7 @@ class OnboardingPage1 extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 32),
               child: Text(
-                '당사의 이용 약관을 수락하고 개인정보 보호정책에 대해 고지받으신 것으로 간주됩니다.',
+                '당사의 이용 약관을 수락하고 개인정보 보호정책에 대해\n고지받으신 것으로 간주됩니다.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),

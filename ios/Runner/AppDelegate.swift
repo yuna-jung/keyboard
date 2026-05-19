@@ -24,6 +24,35 @@ import UIKit
     )
     appGroupChannel = channel
 
+    // ── Keyboard-enabled check channel ──────────────────────────────────
+    // Onboarding page 2 calls this after the user returns from iOS Settings
+    // so we can advance only when Fonkii is actually in their active input
+    // modes — falling back to "any third-party keyboard" would silently let
+    // users past with Gboard/Naver enabled but Fonkii not.
+    let keyboardCheckChannel = FlutterMethodChannel(
+      name: "com.yunajung.fonki/keyboard_check",
+      binaryMessenger: controller.binaryMessenger
+    )
+    keyboardCheckChannel.setMethodCallHandler { (call, result) in
+      switch call.method {
+      case "isKeyboardEnabled":
+        let targetID = "com.yunajung.fonki.keyboard"
+        let enabled = UITextInputMode.activeInputModes.contains { mode in
+          // `identifier` is read via KVC because the property is private —
+          // a long-standing, App Store–accepted pattern for matching a
+          // specific keyboard extension. The returned string for our
+          // extension looks like "com.yunajung.fonki.keyboard@…" so a
+          // prefix match handles the locale/layout suffix iOS appends.
+          guard let id = mode.value(forKey: "identifier") as? String,
+                mode.primaryLanguage != nil else { return false }
+          return id.hasPrefix(targetID)
+        }
+        result(enabled)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     channel.setMethodCallHandler { [weak self] (call, result) in
       guard let self = self else { return }
 

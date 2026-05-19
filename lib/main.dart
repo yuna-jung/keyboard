@@ -14,6 +14,12 @@ const _pink = Color(0xFF5BC8F5);
 /// paywall plumbing are also gated to iOS in `home_screen.dart`.
 const _adaptyPublicKey = 'public_live_3DOX3Si9.vj8Cmt2zJnmbSqUZYtfk';
 
+/// Dev-only switch: when true, clears [onboardingCompletedKey] on every
+/// launch so the onboarding flow is guaranteed to appear. Flip back to
+/// `false` before shipping — otherwise returning users will see onboarding
+/// on every cold start.
+const _forceShowOnboarding = true;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
@@ -22,6 +28,10 @@ void main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+  if (_forceShowOnboarding) {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(onboardingCompletedKey, false);
+  }
   if (Platform.isIOS && _adaptyPublicKey != 'YOUR_ADAPTY_PUBLIC_KEY') {
     await SubscriptionService.instance.initialize(_adaptyPublicKey);
   }
