@@ -25,7 +25,7 @@ class OnboardingPage3 extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                '이제 Fonkii 키보드를 사용해봐요! 🎹',
+                '이제 Fonkii 키보드를 사용해봐요! ⌨️',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -47,7 +47,7 @@ class OnboardingPage3 extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Container(
-                height: 280,
+                height: 340,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: _illustrationBg,
@@ -97,92 +97,24 @@ class _Illustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: const [
-        _ChatInputMockup(),
-        SizedBox(height: 6),
-        _LongPressHint(),
-        SizedBox(height: 10),
-        _KeyboardPickerMockup(),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Popup is left-aligned so it visually sits above the globe key in
+        // the keyboard mockup below — mimicking iOS's actual long-press
+        // popover anchor.
+        const Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(width: 220, child: _PickerPopup()),
+        ),
+        const SizedBox(height: 10),
+        const Expanded(child: _KeyboardMockup()),
       ],
     );
   }
 }
 
-class _ChatInputMockup extends StatelessWidget {
-  const _ChatInputMockup();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E2E2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: const BoxDecoration(
-              color: Color(0xFFEAF4FF),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Text('🌐', style: TextStyle(fontSize: 15)),
-          ),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              '메시지 입력...',
-              style: TextStyle(color: Color(0xFFB0B0B0), fontSize: 13),
-            ),
-          ),
-          Container(
-            width: 30,
-            height: 30,
-            decoration: const BoxDecoration(
-              color: _accent,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Icon(Icons.send, size: 14, color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LongPressHint extends StatelessWidget {
-  const _LongPressHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 14),
-      child: Row(
-        children: const [
-          Icon(Icons.arrow_upward, color: _accent, size: 16),
-          SizedBox(width: 4),
-          Text(
-            '꾹 누르기',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: _accent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _KeyboardPickerMockup extends StatelessWidget {
-  const _KeyboardPickerMockup();
+class _PickerPopup extends StatelessWidget {
+  const _PickerPopup();
 
   @override
   Widget build(BuildContext context) {
@@ -193,8 +125,8 @@ class _KeyboardPickerMockup extends StatelessWidget {
         boxShadow: const [
           BoxShadow(
             color: Color(0x14000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -202,14 +134,128 @@ class _KeyboardPickerMockup extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Column(
           children: const [
-            _PickerRow(label: 'Fonkii', selected: true),
-            _PickerDivider(),
-            _PickerRow(label: 'English (US)'),
-            _PickerDivider(),
             _PickerRow(label: '한국어'),
             _PickerDivider(),
             _PickerRow(label: '이모지'),
+            _PickerDivider(),
+            _PickerRow(label: 'English (US)'),
+            _PickerDivider(),
+            _PickerRow(label: 'font_keyboard — Fonkii', selected: true),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _KeyboardMockup extends StatelessWidget {
+  const _KeyboardMockup();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        _KeyRow(count: 10),
+        SizedBox(height: 4),
+        _KeyRow(count: 9),
+        SizedBox(height: 4),
+        _KeyRow(count: 8),
+        SizedBox(height: 4),
+        _KeyboardBottomRow(),
+        SizedBox(height: 6),
+        Padding(
+          padding: EdgeInsets.only(left: 2),
+          child: Text(
+            '꾹 누르기 →',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _accent,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _KeyRow extends StatelessWidget {
+  const _KeyRow({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(count, (i) {
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: i == count - 1 ? 0 : 4),
+            child: Container(
+              height: 22,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDADCDE),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _KeyboardBottomRow extends StatelessWidget {
+  const _KeyboardBottomRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        // Globe key — blue circle to highlight the long-press target.
+        Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            color: _accent,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: const Text('🌐', style: TextStyle(fontSize: 14)),
+        ),
+        const SizedBox(width: 4),
+        _SpecialKey(label: '한/영', width: 40),
+        const SizedBox(width: 4),
+        const Expanded(child: _SpecialKey(label: 'space')),
+        const SizedBox(width: 4),
+        _SpecialKey(label: 'return', width: 56, accent: true),
+      ],
+    );
+  }
+}
+
+class _SpecialKey extends StatelessWidget {
+  const _SpecialKey({required this.label, this.width, this.accent = false});
+  final String label;
+  final double? width;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 28,
+      decoration: BoxDecoration(
+        color: accent ? _accent : const Color(0xFFDADCDE),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          color: accent ? Colors.white : const Color(0xFF555555),
+          fontWeight: accent ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
     );
@@ -224,24 +270,17 @@ class _PickerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 30,
+      height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      color: selected ? _accent : Colors.transparent,
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: selected ? Colors.white : Colors.black87,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ),
-          if (selected)
-            const Icon(Icons.check, size: 14, color: Colors.white),
-        ],
+      color: selected ? const Color(0xFFE5E5E5) : Colors.transparent,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          color: Colors.black87,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+        ),
       ),
     );
   }

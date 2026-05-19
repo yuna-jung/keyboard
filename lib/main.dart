@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding/onboarding_page1.dart';
+import 'screens/onboarding/onboarding_page2.dart';
 import 'services/subscription_service.dart';
 
 const _pink = Color(0xFF5BC8F5);
@@ -18,7 +19,7 @@ const _adaptyPublicKey = 'public_live_3DOX3Si9.vj8Cmt2zJnmbSqUZYtfk';
 /// launch so the onboarding flow is guaranteed to appear. Flip back to
 /// `false` before shipping — otherwise returning users will see onboarding
 /// on every cold start.
-const _forceShowOnboarding = true;
+const _forceShowOnboarding = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +31,8 @@ void main() async {
   );
   if (_forceShowOnboarding) {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(onboardingCompletedKey, false);
+    await prefs.remove(onboardingPage2VisitedKey);
+    await prefs.remove(onboardingCompletedKey);
   }
   if (Platform.isIOS && _adaptyPublicKey != 'YOUR_ADAPTY_PUBLIC_KEY') {
     await SubscriptionService.instance.initialize(_adaptyPublicKey);
@@ -85,11 +87,17 @@ class FontKeyboardApp extends StatelessWidget {
   }
 }
 
-/// Decides between onboarding and the home screen on every cold launch by
-/// reading the persisted [onboardingCompletedKey] flag. The brief blank frame
-/// while the future resolves is intentional — gating navigation on
-/// `SharedPreferences.getInstance()` avoids flashing onboarding to a returning
-/// user.
+/// Three-way launch decision read once at cold launch:
+///   * [onboardingCompletedKey] set → home screen
+///   * [onboardingPage2VisitedKey] set → resume at page 2 (covers the
+///     iOS-eviction-during-Settings case: page 1's content was already
+///     seen, the user just needs to finish the keyboard hookup)
+///   * neither set → page 1
+/// Runs exactly once — no lifecycle observer, no rebuilds on resume —
+/// so a Settings excursion can't bounce the user back to page 1. The
+/// brief blank frame while the future resolves is intentional — gating
+/// navigation on `SharedPreferences.getInstance()` avoids flashing the
+/// wrong screen to a returning user.
 class _LaunchRouter extends StatefulWidget {
   const _LaunchRouter();
 
@@ -97,23 +105,38 @@ class _LaunchRouter extends StatefulWidget {
   State<_LaunchRouter> createState() => _LaunchRouterState();
 }
 
-class _LaunchRouterState extends State<_LaunchRouter> {
-  late final Future<bool> _completed = _readCompleted();
+enum _LaunchTarget { page1, page2, home }
 
-  Future<bool> _readCompleted() async {
+class _LaunchRouterState extends State<_LaunchRouter> {
+  late final Future<_LaunchTarget> _target = _resolveTarget();
+
+  Future<_LaunchTarget> _resolveTarget() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(onboardingCompletedKey) ?? false;
+    if (prefs.getBool(onboardingCompletedKey) ?? false) {
+      return _LaunchTarget.home;
+    }
+    if (prefs.getBool(onboardingPage2VisitedKey) ?? false) {
+      return _LaunchTarget.page2;
+    }
+    return _LaunchTarget.page1;
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _completed,
+    return FutureBuilder<_LaunchTarget>(
+      future: _target,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(backgroundColor: Colors.white);
         }
-        return snapshot.data! ? const HomeScreen() : const OnboardingPage1();
+        switch (snapshot.data!) {
+          case _LaunchTarget.home:
+            return const HomeScreen();
+          case _LaunchTarget.page2:
+            return const OnboardingPage2();
+          case _LaunchTarget.page1:
+            return const OnboardingPage1();
+        }
       },
     );
   }

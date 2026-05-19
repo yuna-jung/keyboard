@@ -28,7 +28,11 @@ import UIKit
     // Onboarding page 2 calls this after the user returns from iOS Settings
     // so we can advance only when Fonkii is actually in their active input
     // modes — falling back to "any third-party keyboard" would silently let
-    // users past with Gboard/Naver enabled but Fonkii not.
+    // users past with Gboard/Naver enabled but Fonkii not. Full Access is
+    // intentionally not checked here: it can't be queried from the host
+    // process, and gating onboarding on it deadlocks fresh users who
+    // haven't typed with Fonkii yet. Features that actually need Full
+    // Access (translation, etc.) surface their own hint in-extension.
     let keyboardCheckChannel = FlutterMethodChannel(
       name: "com.yunajung.fonki/keyboard_check",
       binaryMessenger: controller.binaryMessenger

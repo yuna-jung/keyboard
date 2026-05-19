@@ -1420,6 +1420,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// too, at most once per 30s to avoid a per-keystroke UserDefaults read.
     private var lastPremiumCheck = Date.distantPast
 
+    /// True while the host field is a URL/email/search-style input, for which
+    /// we force the fonts tab to Normal. The user's prior style selection is
+    /// stashed here and restored when they return to a normal text field —
+    /// without this, browsing to Safari's address bar with `Bold` selected
+    /// would silently send `𝐡𝐭𝐭𝐩𝐬://…` and break URL parsing.
+    private var isPlainTextField = false
+    private var savedFontCatIndex: Int?
+    private var savedFontStyleIndex: Int?
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -1456,6 +1465,68 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         checkPremiumStatus()
+        #if DEBUG
+        print("🔍 [viewWillAppear] calling applyPlainTextFieldGate()")
+        #endif
+        applyPlainTextFieldGate()
+    }
+
+    /// Detect whether the connected host field is URL/email/search-style and,
+    /// when entering or leaving one, snap the fonts tab to Normal (or restore
+    /// the user's prior selection). The translate tab is exempted — its
+    /// styling flow operates on its own UITextView, and force-resetting
+    /// indices mid-translation would be unexpected. The fonts tab is the only
+    /// surface that pipes styled output to the host text field, so re-rendering
+    /// is gated to that mode.
+    private func applyPlainTextFieldGate() {
+        if currentMode == .translate {
+            #if DEBUG
+            print("🔍 [gate] skipped — currentMode=.translate")
+            #endif
+            return
+        }
+
+        let kbType = textDocumentProxy.keyboardType
+        let returnType = textDocumentProxy.returnKeyType
+        let shouldForce =
+            kbType == .URL ||
+            kbType == .webSearch ||
+            kbType == .emailAddress ||
+            kbType == .numberPad ||
+            returnType == .search ||
+            returnType == .go ||
+            returnType == .send ||
+            // Belt-and-suspenders: some host apps don't set keyboardType
+            // honestly but DO emit a leading zero-width space we previously
+            // inserted as a marker. Treat that as a plain-text context too.
+            textDocumentProxy.documentContextBeforeInput?
+                .contains("\u{200B}") == true
+
+        #if DEBUG
+        print("🔍 [gate] kbType=\(kbType?.rawValue.description ?? "nil") returnType=\(returnType?.rawValue.description ?? "nil") shouldForce=\(shouldForce) isPlainTextField=\(isPlainTextField) currentMode=\(currentMode) cat=\(fontCatIndex) style=\(fontStyleIndex)")
+        #endif
+
+        if shouldForce && !isPlainTextField {
+            savedFontCatIndex = fontCatIndex
+            savedFontStyleIndex = fontStyleIndex
+            fontCatIndex = 0
+            fontStyleIndex = 0
+            isPlainTextField = true
+            #if DEBUG
+            print("🔍 [gate] FORCED → Normal. saved=(\(savedFontCatIndex ?? -1), \(savedFontStyleIndex ?? -1)) now=(0, 0). willRedraw=\(currentMode == .fonts)")
+            #endif
+            if currentMode == .fonts { showMode(.fonts) }
+        } else if !shouldForce && isPlainTextField {
+            #if DEBUG
+            print("🔍 [gate] RESTORING from saved=(\(savedFontCatIndex ?? -1), \(savedFontStyleIndex ?? -1))")
+            #endif
+            if let cat = savedFontCatIndex { fontCatIndex = cat }
+            if let style = savedFontStyleIndex { fontStyleIndex = style }
+            savedFontCatIndex = nil
+            savedFontStyleIndex = nil
+            isPlainTextField = false
+            if currentMode == .fonts { showMode(.fonts) }
+        }
     }
 
     /// Persist the translate-tab state (langs / input / result) so closing
@@ -1486,6 +1557,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             lastPremiumCheck = Date()
             checkPremiumStatus()
         }
+        // Catch field-type changes when iOS reuses this VC across text fields
+        // and skips `viewWillAppear`. The gate is cheap when state matches.
+        #if DEBUG
+        print("🔍 [textDidChange] calling applyPlainTextFieldGate()")
+        #endif
+        applyPlainTextFieldGate()
     }
 
     /// Device-branched keyboard height — single source of truth used by
@@ -5756,7 +5833,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         guard !styles.isEmpty else { return }
         let safeStyle = min(fontStyleIndex, styles.count - 1)
         let style = styles[safeStyle]
-        let converted = style.convert(ch)
+        // Plain-text fields (URL/email/search etc.) bypass styling entirely.
+        // `fontStyleIndex` was already reset to 0 by `applyPlainTextFieldGate`,
+        // but this guard is a hard floor in case detection ever lags a tap.
+        let converted = isPlainTextField ? ch : style.convert(ch)
         textDocumentProxy.insertText(converted)
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)

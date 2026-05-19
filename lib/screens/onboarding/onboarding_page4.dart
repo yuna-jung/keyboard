@@ -95,7 +95,7 @@ class _OnboardingPage4State extends State<OnboardingPage4> {
                             ),
                           ),
                           child: const Text(
-                            '시작하기 🚀',
+                            '시작하기',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -241,8 +241,8 @@ class _FontSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     return const _SlideShell(
       icon: 'Aa',
-      title: '46가지 이상의 폰트',
-      description: '영문 채팅을 더 특별하게! 46가지 폰트로',
+      title: '46가지의 폰트 변환',
+      description: '채팅을 더 특별하게! 나만의 개성 폰트',
       preview: _PreviewCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -462,92 +462,134 @@ class _ReplacementSlide extends StatelessWidget {
       icon: '📱',
       title: '인스타에서도 써봐요! 📸',
       description: 'Fonkii 폰트로 인스타 스토리, 게시물을 더 특별하게!',
-      preview: _PreviewCard(
-        child: Column(
-          children: [
-            _ProfileMini(
-              name: '𝓢𝓾𝓷𝓼𝓱𝓲𝓷𝓮',
-              bio: '✦ 𝘭𝘪𝘷𝘪𝘯𝘨 𝘮𝘺 𝘣𝘦𝘴𝘵 𝘭𝘪𝘧𝘦 ✦',
-            ),
-            SizedBox(height: 8),
-            _ProfileMini(
-              name: '𝕄𝕠𝕠𝕟𝕝𝕚𝕘𝕙𝕥',
-              bio: '☽ dream big, shine bright ☾',
-            ),
-            SizedBox(height: 8),
-            _ProfileMini(
-              name: 'ꜰʟᴏᴡᴇʀ',
-              bio: '🌸 𝘣𝘭𝘰𝘰𝘮 𝘸𝘩𝘦𝘳𝘦 𝘺𝘰𝘶 𝘢𝘳𝘦 𝘱𝘭𝘢𝘯𝘵𝘦𝘥 🌸',
-            ),
-          ],
-        ),
-      ),
+      preview: _InstagramProfileCard(),
     );
   }
 }
 
-class _ProfileMini extends StatelessWidget {
-  const _ProfileMini({required this.name, required this.bio});
-  final String name;
-  final String bio;
+class _InstagramProfileCard extends StatelessWidget {
+  const _InstagramProfileCard();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E5E5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _PreviewCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE5E5E5),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.person,
-                  size: 18,
-                  color: Color(0xFFB8B8B8),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
+              const Center(
                 child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  'ꜰᴏɴᴋɪɪ_ᴋᴇʏʙᴏᴀʀᴅ',
+                  style: TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
                   ),
                 ),
               ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  ClipOval(
+                    child: Image.asset(
+                      'assets/images/app_icon.jpg',
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _IGStat(count: '1,234', label: 'Posts'),
+                        _IGStat(count: '2M', label: 'Followers'),
+                        _IGStat(count: '9,101', label: 'Following'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'fonkii_keyboard',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                '키보드 앱',
+                style: TextStyle(fontSize: 12, color: Color(0xFF777777)),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '⌨️ 𝒀𝒐𝒖𝒓 𝒌𝒆𝒚𝒃𝒐𝒂𝒓𝒅, 𝒚𝒐𝒖𝒓 𝒔𝒕𝒚𝒍𝒆 ✨',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.black87,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                '𝟰𝟲 𝗳𝗼𝗻𝘁𝘀 • 𝗿𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝘁𝗿𝗮𝗻𝘀𝗹𝗮𝘁𝗶𝗼𝗻 🌐',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.black87,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                'ᴍᴀᴋᴇ ᴇᴠᴇʀʏ ᴍᴇssᴀɢᴇ ᴜɴꜰᴏʀɢᴇᴛᴛᴀʙʟᴇ 💬',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.black87,
+                  height: 1.35,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            bio,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF555555),
-              height: 1.3,
-            ),
-          ),
-        ],
-      ),
+        ),
+        // Floating emoji at top-right. `Clip.none` on the Stack lets it
+        // extend slightly past the card corner without being cut by the
+        // surrounding SingleChildScrollView's edges.
+        const Positioned(
+          top: -12,
+          right: -8,
+          child: Text('😍', style: TextStyle(fontSize: 36)),
+        ),
+      ],
+    );
+  }
+}
+
+class _IGStat extends StatelessWidget {
+  const _IGStat({required this.count, required this.label});
+  final String count;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          count,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF555555)),
+        ),
+      ],
     );
   }
 }

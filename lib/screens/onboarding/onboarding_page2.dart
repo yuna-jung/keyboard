@@ -3,12 +3,19 @@ import 'dart:io' show Platform;
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'onboarding_page3.dart';
 
 /// Matches the channel registered in `ios/Runner/AppDelegate.swift`.
 const _keyboardCheckChannel =
     MethodChannel('com.yunajung.fonki/keyboard_check');
+
+/// Persisted the first time the user reaches page 2. Read by `main.dart`'s
+/// launch router so a cold relaunch mid-flow (iOS routinely evicts the app
+/// during the Settings excursion from this page) resumes at page 2 instead
+/// of restarting at page 1.
+const onboardingPage2VisitedKey = 'onboarding_page2_visited';
 
 const _bgBlue = Color(0xFFC8E8FF);
 const _borderBlue = Color(0xFFA8D4F0);
@@ -33,6 +40,18 @@ class _OnboardingPage2State extends State<OnboardingPage2>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _markPage2Visited();
+    // Cold-launch resume path: if iOS evicted the app while the user was in
+    // Settings, _LaunchRouter brings them back here. If they already enabled
+    // the keyboard before the eviction, skip straight to page 3 instead of
+    // making them tap the settings button again just to fire the lifecycle
+    // observer.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoAdvanceIfReady());
+  }
+
+  Future<void> _markPage2Visited() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(onboardingPage2VisitedKey, true);
   }
 
   @override
@@ -55,25 +74,31 @@ class _OnboardingPage2State extends State<OnboardingPage2>
   }
 
   /// Asks the iOS side whether Fonkii is in `UITextInputMode.activeInputModes`.
-  /// On Android (and on any channel error) we stay on this page and surface
-  /// the same not-yet-enabled hint — there's no reliable parallel API to
-  /// derive enablement from, so failing closed is safer than auto-advancing.
-  Future<void> _checkKeyboardAndAdvance() async {
-    bool enabled = false;
-    if (Platform.isIOS) {
-      try {
-        enabled = await _keyboardCheckChannel
-                .invokeMethod<bool>('isKeyboardEnabled') ??
-            false;
-      } catch (_) {
-        enabled = false;
-      }
+  /// On Android (and on any channel error) returns false — there's no
+  /// reliable parallel API to derive enablement from, so failing closed is
+  /// safer than auto-advancing.
+  Future<bool> _isKeyboardEnabled() async {
+    if (!Platform.isIOS) return false;
+    try {
+      return await _keyboardCheckChannel
+              .invokeMethod<bool>('isKeyboardEnabled') ??
+          false;
+    } catch (_) {
+      return false;
     }
+  }
+
+  Future<void> _autoAdvanceIfReady() async {
+    final enabled = await _isKeyboardEnabled();
+    if (!mounted || !enabled) return;
+    _goToPage3();
+  }
+
+  Future<void> _checkKeyboardAndAdvance() async {
+    final enabled = await _isKeyboardEnabled();
     if (!mounted) return;
     if (enabled) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const OnboardingPage3()),
-      );
+      _goToPage3();
     } else {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -86,6 +111,12 @@ class _OnboardingPage2State extends State<OnboardingPage2>
           ),
         );
     }
+  }
+
+  void _goToPage3() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const OnboardingPage3()),
+    );
   }
 
   @override
