@@ -17,6 +17,13 @@ const _keyboardCheckChannel =
 /// of restarting at page 1.
 const onboardingPage2VisitedKey = 'onboarding_page2_visited';
 
+/// Persisted between the "설정하러 가기" tap and the keyboard check that
+/// follows the return. Stored (not just an in-memory field) because iOS
+/// routinely evicts the app during the Settings excursion — on the cold
+/// relaunch this page is re-mounted with any in-memory flag gone, so the
+/// pending-return state has to survive in SharedPreferences.
+const _awaitingSettingsReturnKey = 'awaiting_settings_return';
+
 const _bgBlue = Color(0xFFC8E8FF);
 const _borderBlue = Color(0xFFA8D4F0);
 const _accent = Color(0xFF7FC7FF);
@@ -30,23 +37,19 @@ class OnboardingPage2 extends StatefulWidget {
 
 class _OnboardingPage2State extends State<OnboardingPage2>
     with WidgetsBindingObserver {
-  /// True only between the "지금 설정하기" tap and the next foreground.
-  /// Without this gate, the very first time the user tabs back from the app
-  /// switcher or pulls down notifications, they'd be silently advanced to
-  /// page 3 having seen nothing of this page.
-  bool _awaitingReturnFromSettings = false;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _markPage2Visited();
-    // Cold-launch resume path: if iOS evicted the app while the user was in
-    // Settings, _LaunchRouter brings them back here. If they already enabled
-    // the keyboard before the eviction, skip straight to page 3 instead of
-    // making them tap the settings button again just to fire the lifecycle
-    // observer.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _autoAdvanceIfReady());
+    // Resume the keyboard check if the user was mid-Settings-excursion when
+    // the app was last foregrounded — covers the cold-launch case where iOS
+    // evicted the app in Settings and this page is freshly mounted. The
+    // [_awaitingSettingsReturnKey] flag is only set after the user taps
+    // "설정하러 가기", so a first-time visitor (who hasn't tapped it) is never
+    // auto-advanced past this page.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _resumeIfAwaitingSettings());
   }
 
   Future<void> _markPage2Visited() async {
@@ -62,14 +65,24 @@ class _OnboardingPage2State extends State<OnboardingPage2>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _awaitingReturnFromSettings) {
-      _awaitingReturnFromSettings = false;
+    if (state == AppLifecycleState.resumed) {
+      _resumeIfAwaitingSettings();
+    }
+  }
+
+  /// Runs the keyboard check only if the persisted "awaiting return from
+  /// Settings" flag is set. Reads from SharedPreferences so the gate survives
+  /// an iOS process eviction during the Settings excursion.
+  Future<void> _resumeIfAwaitingSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_awaitingSettingsReturnKey) ?? false) {
       _checkKeyboardAndAdvance();
     }
   }
 
   Future<void> _openSettings() async {
-    _awaitingReturnFromSettings = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_awaitingSettingsReturnKey, true);
     await AppSettings.openAppSettings();
   }
 
@@ -88,16 +101,13 @@ class _OnboardingPage2State extends State<OnboardingPage2>
     }
   }
 
-  Future<void> _autoAdvanceIfReady() async {
-    final enabled = await _isKeyboardEnabled();
-    if (!mounted || !enabled) return;
-    _goToPage3();
-  }
-
   Future<void> _checkKeyboardAndAdvance() async {
     final enabled = await _isKeyboardEnabled();
     if (!mounted) return;
     if (enabled) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_awaitingSettingsReturnKey, false);
+      if (!mounted) return;
       _goToPage3();
     } else {
       ScaffoldMessenger.of(context)

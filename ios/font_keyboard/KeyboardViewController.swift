@@ -1454,6 +1454,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let heightConstraint = view.heightAnchor.constraint(equalToConstant: kbHeight)
         heightConstraint.priority = UILayoutPriority(999)
         heightConstraint.isActive = true
+
+        // The default tab (.fonts) is shown via showMode above, not modeTapped,
+        // so its first-entry tip would never fire. Trigger it here once the
+        // layout has settled. Re-show is already guarded by the per-tab
+        // UserDefaults flag, so this can't double up with the modeTapped path.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let self = self else { return }
+            self.showTipIfNeeded(for: self.currentMode)
+        }
     }
 
     /// `viewDidLoad` runs only once per VC instance, but iOS keeps the
@@ -1834,6 +1843,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 return
             }
             showMode(mode)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.showTipIfNeeded(for: .translate)
+            }
             return
         }
 
@@ -1852,6 +1864,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
 
         showMode(mode)
+        // Defer so showMode finishes building before the tip overlays it —
+        // otherwise the first entry into a tab can swallow the popup. Tip is
+        // a no-op for non-fonts/gif modes and once the per-tab flag is set,
+        // so calling it unconditionally here is safe.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.showTipIfNeeded(for: mode)
+        }
     }
 
     // MARK: - Accent Color Palette
@@ -3270,6 +3289,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     private func fetchGiphy(append: Bool) {
+        // A keyboard extension can't reach the network without Full Access, so
+        // the request would fail and surface the generic "API Key" error,
+        // misdiagnosing the cause. Detect it up front and guide the user.
+        if !hasFullAccess {
+            if !append { showGifFullAccessNotice() }
+            return
+        }
         print("🔍 GIF DEBUG - Starting fetch, apiKey length: \(giphyApiKey.count)")
         isLoadingGifs = true
         if !append {
@@ -3348,6 +3374,63 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 }
             }
         }.resume()
+    }
+
+    /// Shown when GIF can't load because Full Access is off (the extension
+    /// has no network otherwise). Replaces the misleading API-key error with
+    /// an explanation and a jump to the iOS Keyboard settings.
+    private func showGifFullAccessNotice() {
+        isLoadingGifs = false
+        gifImages = []
+        gifGridStack?.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        gifLoadingLabel?.isHidden = true
+
+        guard let scrollView = gifScrollView else { return }
+
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 16
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            stack.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 30),
+            stack.widthAnchor.constraint(equalToConstant: 280),
+        ])
+
+        let label = UILabel()
+        label.text = "GIF를 사용하려면\n전체 접근 허용이 필요해요\n\n설정 → 일반 → 키보드 → Fonkii\n→ 전체 접근 허용 켜기"
+        label.font = .systemFont(ofSize: 14)
+        label.textColor = .gray
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        stack.addArrangedSubview(label)
+
+        let btn = UIButton(type: .system)
+        btn.setTitle("설정으로 가기", for: .normal)
+        btn.setTitleColor(.white, for: .normal)
+        btn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
+        btn.backgroundColor = UIColor(red: 0x7F / 255, green: 0xC7 / 255, blue: 0xFF / 255, alpha: 1)
+        btn.layer.cornerRadius = 10
+        btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 18, bottom: 8, right: 18)
+        btn.addTarget(self, action: #selector(openKeyboardSettings), for: .touchUpInside)
+        stack.addArrangedSubview(btn)
+    }
+
+    /// Walk the responder chain to find the host `UIApplication` and open the
+    /// iOS Keyboard settings — the same trick `openPaywallApp()` uses, since
+    /// `UIApplication.shared` is off-limits in extensions.
+    @objc private func openKeyboardSettings() {
+        guard let url = URL(string: "App-Prefs:root=General&path=Keyboard") else { return }
+        var responder: UIResponder? = self
+        while let r = responder {
+            if let app = r as? UIApplication {
+                app.open(url, options: [:], completionHandler: nil)
+                return
+            }
+            responder = r.next
+        }
     }
 
     private func renderGifGrid() {
@@ -6563,6 +6646,129 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         view.addSubview(overlay)
         overlay.addGestureRecognizer(UITapGestureRecognizer(target: overlay, action: #selector(UIView.removeFromSuperview)))
         return overlay
+    }
+
+    // MARK: - First-entry usage tips
+
+    /// Live tip popup state. Tracked so both the "확인" button and a
+    /// background tap route through `dismissTip()` — which persists the
+    /// per-tab flag so the tip never reappears.
+    private var tipOverlay: UIView?
+    private var tipCard: UIView?
+    private var tipFlagKey: String?
+
+    /// Shows the one-time usage tip for fonts / translate / gif the first
+    /// time the user opens that tab. No-op for every other mode and once the
+    /// per-tab flag is set. The flag lives in the extension's own
+    /// `UserDefaults.standard` (not the App Group) so deleting the app clears
+    /// it — a reinstall shows the tips again.
+    private func showTipIfNeeded(for mode: Mode) {
+        let tip: (emoji: String, title: String, body: String, key: String)?
+        switch mode {
+        case .fonts:
+            tip = ("✨", "폰트 변경 방법",
+                   "텍스트를 선택한 후\n다른 폰트를 탭하면\n해당 폰트로 변경돼요!",
+                   "tip_shown_fonts")
+        case .translate:
+            tip = ("🌐", "번역 기능 사용법",
+                   "① 왼쪽 칸에 번역할 내용 입력\n② 번역 버튼 탭\n③ 삽입 버튼으로 채팅창에 바로 입력!\n\n💡 왼쪽 칸의 ✓ 버튼을 눌러야\n채팅창 내용을 수정할 수 있어요.",
+                   "tip_shown_translate")
+        case .gif:
+            tip = ("🎬", "GIF 사용법",
+                   "원하는 GIF를 검색하고\n탭하면 자동으로 복사돼요.\n채팅창에 붙여넣기로 전송하세요!",
+                   "tip_shown_gif")
+        default:
+            tip = nil
+        }
+        guard let tip = tip else { return }
+        guard isPremiumUser else { return }  // locked tabs don't get a tip
+
+        if UserDefaults.standard.bool(forKey: tip.key) { return }
+
+        showTip(emoji: tip.emoji, title: tip.title, body: tip.body, flagKey: tip.key)
+    }
+
+    private func showTip(emoji: String, title: String, body: String, flagKey: String) {
+        // Dedicated overlay (alpha 0.5, vs makeOverlay's 0.3) so the tip reads
+        // as a modal rather than the lighter popup-picker dimming.
+        let overlay = UIView()
+        overlay.backgroundColor = UIColor(white: 0, alpha: 0.5)
+        overlay.frame = view.bounds
+        overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(overlay)
+        overlay.addGestureRecognizer(
+            UITapGestureRecognizer(target: self, action: #selector(tipBackgroundTapped(_:))))
+
+        let card = UIView()
+        card.backgroundColor = .white
+        card.layer.cornerRadius = 16
+        card.translatesAutoresizingMaskIntoConstraints = false
+        overlay.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.centerYAnchor.constraint(equalTo: overlay.centerYAnchor),
+            card.leadingAnchor.constraint(equalTo: overlay.leadingAnchor, constant: 24),
+            card.trailingAnchor.constraint(equalTo: overlay.trailingAnchor, constant: -24),
+        ])
+
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: card.topAnchor, constant: 20),
+            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -20),
+            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
+        ])
+
+        let titleLabel = UILabel()
+        titleLabel.text = "\(emoji) \(title)"
+        titleLabel.font = .systemFont(ofSize: 16, weight: .bold)
+        titleLabel.textColor = .black
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
+        stack.addArrangedSubview(titleLabel)
+
+        let bodyLabel = UILabel()
+        bodyLabel.text = body
+        bodyLabel.font = .systemFont(ofSize: 14)
+        bodyLabel.textColor = .gray
+        bodyLabel.textAlignment = .center
+        bodyLabel.numberOfLines = 0
+        stack.addArrangedSubview(bodyLabel)
+
+        let confirm = UIButton(type: .system)
+        confirm.setTitle("확인", for: .normal)
+        confirm.setTitleColor(.white, for: .normal)
+        confirm.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        confirm.backgroundColor = UIColor(red: 0x7F / 255, green: 0xC7 / 255, blue: 0xFF / 255, alpha: 1)
+        confirm.layer.cornerRadius = 12
+        confirm.setHeight(44)
+        confirm.addAction(UIAction { [weak self] _ in self?.dismissTip() }, for: .touchUpInside)
+        stack.addArrangedSubview(confirm)
+
+        tipOverlay = overlay
+        tipCard = card
+        tipFlagKey = flagKey
+    }
+
+    @objc private func tipBackgroundTapped(_ g: UITapGestureRecognizer) {
+        // Taps that land on the card itself shouldn't dismiss — only the
+        // surrounding dimmed background should.
+        guard let overlay = tipOverlay, let card = tipCard else { return }
+        if card.frame.contains(g.location(in: overlay)) { return }
+        dismissTip()
+    }
+
+    private func dismissTip() {
+        if let key = tipFlagKey {
+            UserDefaults.standard.set(true, forKey: key)
+        }
+        tipOverlay?.removeFromSuperview()
+        tipOverlay = nil
+        tipCard = nil
+        tipFlagKey = nil
     }
 
     private func makePopupStack(in overlay: UIView) -> UIStackView {
