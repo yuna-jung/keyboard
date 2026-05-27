@@ -1,0 +1,91 @@
+/* Tab names */
+"tab_font"         = "Aa";
+"tab_translate"    = "Trans";
+"tab_text_replace" = "💬";
+"tab_emoticon"     = "( • ɞ• )";
+"tab_kaomoji"      = "( • ɞ• )";
+"tab_special"      = "✦";
+"tab_gif"          = "GIF";
+"tab_favorite"     = "♥";
+"tab_settings"     = "";
+
+/* Translate tab */
+"translate_placeholder"        = "Type here...";
+"translate_result_placeholder" = "Translation will appear here";
+"translate_button"             = "Trans";
+"insert_button"                = "Insert";
+
+/* Settings */
+"keyboard_type_standard"  = "Standard";
+"keyboard_type_cheonjiin" = "Cheonjiin";
+"keyboard_standard"       = "Standard";
+"keyboard_cheonjiin"      = "Cheonjiin";
+"settings_title"          = "Settings";
+
+/* Font tab */
+"font_normal" = "Normal";
+
+/* GIF tab */
+"gif_search_placeholder" = "Search GIFs...";
+"gif_trending"           = "Trending";
+"gif_search_empty"       = "No results found";
+"gif_no_access"          = "Full Access is required\nto use GIFs\n\nSettings → General → Keyboard\n→ Fonkii → Allow Full Access";
+"gif_settings_button"    = "Go to Settings";
+
+/* Special character categories */
+"special_heart"       = "Heart";
+"special_star_flower" = "Star/Flower";
+"special_arrow"       = "Arrow";
+"special_deco"        = "Deco";
+"special_symbol"      = "Symbol";
+"special_shape"       = "Shape";
+"special_hieroglyph"  = "Ancient";
+"special_pattern"     = "Pattern";
+"special_deco_line"   = "Border";
+
+/* Kaomoji categories */
+"kaomoji_happy"     = "Happy";
+"kaomoji_sad"       = "Sad";
+"kaomoji_angry"     = "Angry";
+"kaomoji_animal"    = "Animal";
+"kaomoji_love"      = "Love";
+"kaomoji_reaction"  = "Reaction";
+"kaomoji_best"      = "Best";
+"kaomoji_surprised" = "Surprised";
+"kaomoji_cute"      = "Cute";
+"kaomoji_greeting"  = "Greeting";
+"kaomoji_apologize" = "Sorry";
+"kaomoji_etc"       = "Etc";
+
+/* Font tab categories */
+"font_cat_favorite"   = "Favs";
+"font_cat_classic"    = "Classic";
+"font_cat_modern"     = "Modern";
+"font_cat_bold"       = "Bold";
+"font_cat_fun"        = "Fun";
+"font_cat_decorative" = "Decorative";
+"font_cat_extra"      = "Extra";
+"font_cat_unique"     = "Unique";
+
+/* GIF tab categories */
+"gif_cat_funny"    = "Funny";
+"gif_cat_love"     = "Love";
+"gif_cat_sad"      = "Sad";
+"gif_cat_reaction" = "Reaction";
+"gif_cat_angry"    = "Angry";
+
+/* Favorites tab categories */
+"fav_cat_all"      = "All";
+"fav_cat_emoticon" = "Emoticon";
+"fav_cat_special"  = "Special";
+"fav_cat_dotart"   = "Dot Art";
+
+/* Favorites tab */
+"favorite_empty"     = "No favorites yet";
+"favorite_empty_sub" = "Long press any emoticon\nor kaomoji to add";
+"favorite_added"     = "Added to favorites";
+"favorite_removed"   = "Removed from favorites";
+
+/* Common */
+"ok_button"     = "OK";
+"cancel_button" = "Cancel";

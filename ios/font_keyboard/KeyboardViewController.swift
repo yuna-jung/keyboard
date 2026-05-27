@@ -206,7 +206,7 @@ private let _udReverseMap: [UInt32: UInt32] = {
 }()
 
 let allFontCategories: [(String, [FontStyleDef])] = [
-    ("클래식", [
+    (NSLocalizedString("font_cat_classic", bundle: Bundle(for: KeyboardViewController.self), comment: ""), [
         FontStyleDef(name: "Normal",       convert: { $0 }),
         FontStyleDef(name: "Italic",       convert: { _oc($0, 0x1D434, 0x1D44E, nil, _itX) }),
         FontStyleDef(name: "Bold",         convert: { _oc($0, 0x1D5D4, 0x1D5EE, 0x1D7EC) }),
@@ -219,19 +219,19 @@ let allFontCategories: [(String, [FontStyleDef])] = [
         FontStyleDef(name: "Comic",        convert: { _cm($0, _alienMap) }),
         FontStyleDef(name: "Cursive",      convert: { _cm($0, _slightlyCursiveMap) }),
     ]),
-    ("모던", [
+    (NSLocalizedString("font_cat_modern", bundle: Bundle(for: KeyboardViewController.self), comment: ""), [
         FontStyleDef(name: "Wide",         convert: { _oc($0, 0xFF21, 0xFF41, 0xFF10) }),
         FontStyleDef(name: "Dark",         convert: { _oc($0, 0x1D56C, 0x1D586, nil) }),
         FontStyleDef(name: "Sans",         convert: { _oc($0, 0x1D5A0, 0x1D5BA, 0x1D7E2) }),
         FontStyleDef(name: "Sans Italic",  convert: { _oc($0, 0x1D608, 0x1D622, nil) }),
         FontStyleDef(name: "Heavy",        convert: { _oc($0, 0x1D63C, 0x1D656, nil) }),
     ]),
-    ("굵게", [
+    (NSLocalizedString("font_cat_bold", bundle: Bundle(for: KeyboardViewController.self), comment: ""), [
         FontStyleDef(name: "Serif Bold",   convert: { _oc($0, 0x1D400, 0x1D41A, 0x1D7CE) }),
         FontStyleDef(name: "Chunky",       convert: { _oc($0, 0x1F150, 0x1F150, nil) }),
         FontStyleDef(name: "Block",        convert: { _oc($0, 0x1F170, 0x1F170, nil) }),
     ]),
-    ("재미있는", [
+    (NSLocalizedString("font_cat_fun", bundle: Bundle(for: KeyboardViewController.self), comment: ""), [
         FontStyleDef(name: "Flip",         convert: { _ud($0) }),
         FontStyleDef(name: "Bubble",       convert: { _oc($0, 0x24B6, 0x24D0, nil) }),
         FontStyleDef(name: "Square",       convert: { _oc($0, 0x1F130, 0x1F130, nil) }),
@@ -248,19 +248,19 @@ let allFontCategories: [(String, [FontStyleDef])] = [
         FontStyleDef(name: "Super",        convert: { _cm($0, _supMap) }),
         FontStyleDef(name: "Cloudy",       convert: { $0.map { $0 == " " ? " " : "☁\($0)" }.joined() }),
     ]),
-    ("장식", [
+    (NSLocalizedString("font_cat_decorative", bundle: Bundle(for: KeyboardViewController.self), comment: ""), [
         FontStyleDef(name: "Overline",     convert: { _cc($0, "\u{0305}") }),
         FontStyleDef(name: "Sparkle",      convert: { _cc($0, "꙰") }),
         FontStyleDef(name: "Candy",        convert: { $0.map { $0 == " " ? " " : "♡\($0)♡" }.joined() }),
         FontStyleDef(name: "Pinched",      convert: { _cc($0, "\u{0303}") }),
     ]),
-    ("추가스타일", [
+    (NSLocalizedString("font_cat_extra", bundle: Bundle(for: KeyboardViewController.self), comment: ""), [
         FontStyleDef(name: "Ringed",       convert: { _cc($0, "\u{030A}") }),
         FontStyleDef(name: "Dotted",       convert: { _cc($0, "\u{0323}") }),
         FontStyleDef(name: "Box",          convert: { $0.map { $0 == " " ? " " : "[\($0)]" }.joined() }),
         FontStyleDef(name: "Sub",          convert: { _cm($0, _subMap) }),
     ]),
-    ("독특한", [
+    (NSLocalizedString("font_cat_unique", bundle: Bundle(for: KeyboardViewController.self), comment: ""), [
         FontStyleDef(name: "Chaos",        convert: { _cc($0, "\u{0489}") }),
         FontStyleDef(name: "Zalgo",        convert: { _cc($0, "\u{0334}\u{0308}\u{0330}") }),
         FontStyleDef(name: "Ancient",      convert: { _oc($0, 0x10300, 0x10300, nil) }),
@@ -523,11 +523,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     enum Mode: Int, CaseIterable {
         case fonts = 0, translate, calculator, emoticon, textTemplate, special, dotArt, gif, favorites, palette
         var title: String {
+            let bundle = Bundle(for: KeyboardViewController.self)
             switch self {
             case .fonts:        return "Aa"
-            case .translate:    return "번역"
+            case .translate:    return NSLocalizedString("tab_translate", bundle: bundle, comment: "")
             case .calculator:   return ""  // SF Symbol image used instead (plusminus.circle)
-            case .emoticon:     return "( • ɞ• )"
+            case .emoticon:     return "( ◡̉̈ )"
             case .textTemplate: return "💬"
             case .special:      return "✦"
             case .dotArt:       return "⣿"
@@ -538,13 +539,19 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
         var fontSize: CGFloat {
             switch self {
-            case .emoticon:  return 9
+            case .emoticon:  return 11
             case .special:   return 16
             case .dotArt:    return 16
             case .translate: return 12
             default:         return 14
             }
         }
+    }
+
+    // MARK: - Localization
+
+    private func loc(_ key: String) -> String {
+        NSLocalizedString(key, bundle: Bundle(for: type(of: self)), comment: "")
     }
 
     // MARK: - State
@@ -581,6 +588,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var fontPickerExpanded = false
     private weak var fontCategoryRowView: UIView?
     private weak var fontToggleButton: UIButton?
+    private weak var fontPickerRowView: UIView?
+    private weak var fontPanel: UIView?
+    private weak var fontPanelGridScroll: UIScrollView?
     /// Fonts-tab bottom bar height — held strongly so `fontPickerToggleTapped`
     /// can resize it on picker expand/collapse. Reset to nil at the start of
     /// every `buildFontsMode` and re-set when the bottom bar is actually
@@ -621,7 +631,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             for s in styles where byName[s.name] == nil { byName[s.name] = s }
         }
         let favDefs = favNames.compactMap { byName[$0] }
-        return [("즐겨찾기", favDefs)] + allFontCategories
+        return [(loc("font_cat_favorite"), favDefs)] + allFontCategories
     }
     private var isShifted = false
     private var isCapsLock = false
@@ -658,26 +668,26 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     // MARK: - Emoticon Data
 
-    private let emoticonCategories: [(String, [String])] = [
-        ("행복", ["(◕‿◕)", "(｡◕‿◕｡)", "ヽ(＾▽＾)ノ", "(★‿★)", "٩(◕‿◕)۶", "(*^▽^*)", "(≧◡≦)", "ヾ(＾∇＾)",
+    private lazy var emoticonCategories: [(String, [String])] = [
+        (loc("kaomoji_happy"), ["(◕‿◕)", "(｡◕‿◕｡)", "ヽ(＾▽＾)ノ", "(★‿★)", "٩(◕‿◕)۶", "(*^▽^*)", "(≧◡≦)", "ヾ(＾∇＾)",
                   "ʕ ᐢ ᵕ ᐢ ʔ", "⌯⦁⩊⦁⌯ಣ", "≽^•༚• ྀི≼", "(՞•-•՞)", "૮₍ •̀ ⩊ •́ ₎ა", "໒꒰ྀི˶•⤙•˶꒱ྀིა",
                   "(๑˃́ꇴ˂̀๑)", "(๑>ᴗ<๑)", "(๑′ᴗ‵๑)", "(๑•᎑<๑)ｰ☆", "٩(•̮̮̃•̃)۶", "(´•᎑•`)♡",
                   "✪‿✪", "꜆₍ᐢ˶•ᴗ•˶ᐢ₎꜆", "( ՞ෆ ෆ՞ )",
                   "ツ", "㋡", "◡̎", "⎝⍥⎠", "( ◡̉̈ )"]),
-        ("슬픔", ["(；﹏；)", "(╥_╥)", "(T_T)", "(つ﹏⊂)", "(っ˘̩╭╮˘̩)っ", "(-_-)zzZ", "(ಥ_ಥ)", "(◞‸◟)",
+        (loc("kaomoji_sad"), ["(；﹏；)", "(╥_╥)", "(T_T)", "(つ﹏⊂)", "(っ˘̩╭╮˘̩)っ", "(-_-)zzZ", "(ಥ_ಥ)", "(◞‸◟)",
                   "ʕ ﹷ ᴥ ﹷʔ", ".·°՞(っ-ᯅ-ς)՞°·.", "꒰ ᐢ ◞‸◟ᐢ꒱", "｡°(° ᷄ᯅ ᷅°)°｡",
                   "૮₍´›̥̥̥ ᜊ ‹̥̥̥ `₎ა", "( ˘•∽•˘ )", "໒꒰ ྀི ′̥̥̥ ᵔ ‵̥̥̥ ꒱ྀིა", "(ˊ̥̥̥̥̥ ³ ˋ̥̥̥̥̥)",
                   ".·´¯`(>▂<)´¯`·.", "（ｉДｉ）", "(•̩̩̩̩＿•̩̩̩̩)", "(•́ɞ•̀)",
                   "( •̥ ˍ •̥ )", "( ;ᯅ; )", "(っ◞‸◟c)", "₍ᐡඉ ̫ ඉᐡ₎",
                   "༼ ˃ɷ˂ഃ༽", "⚲_⚲", "(˘•̥-•̥˘)", "(•̥̥̥⌓•̥̥̥)", "⩌ ᯅ ⩌"]),
-        ("화남", ["( ᴖ_ᴖ )💢", "ᐡ ᵒ̴ – ᵒ̴ ᐡ💢", "ヽ(｀⌒´メ)ノ",
+        (loc("kaomoji_angry"), ["( ᴖ_ᴖ )💢", "ᐡ ᵒ̴ – ᵒ̴ ᐡ💢", "ヽ(｀⌒´メ)ノ",
                   "̿' ̿'\\̵͇̿̿\\з=( ͡ °_̯͡° )=ε/̵͇̿̿/'̿'̿ ̿", "✧ `↼´˵", "ʕ •̀ o •́ ʔ",
                   "¸◕ˇ‸ˇ◕˛", "ʕ •̀ ω •́ ʔ", "(◟‸◞)", "(  '-'  ꐦ)",
                   "(◦`~´◦)", "( ｡ •̀ ⤙ •́ ｡ )", "ʕ•̀⤙•́ ʔ", "૮(•᷄‎ࡇ•᷅ )ა",
                   "( ò_ó)", "(   ꐦ •̀ ⤙ •́ )  =3", "૮(っ `O´  c)ა", "• ︡ᯅ•︠",
                   "/ᐠ •̀ ˕ •́ マ", "ʕ•̀ ω •́ʔ.:",
                   "◠̈"]),
-        ("동물", ["(=^･ω･^=)", "ʕ•ᴥ•ʔ", "(◕ᴥ◕)", "=^.^=", "(づ｡◕‿‿◕｡)づ", "ʕ·͡ᴥ·ʔ", "(^・ω・^ )", "≽^•⩊•^≼",
+        (loc("kaomoji_animal"), ["(=^･ω･^=)", "ʕ•ᴥ•ʔ", "(◕ᴥ◕)", "=^.^=", "(づ｡◕‿‿◕｡)づ", "ʕ·͡ᴥ·ʔ", "(^・ω・^ )", "≽^•⩊•^≼",
                   "ʕ•ᴥ•.ʔ", "ʕ๑•ﻌ•๑ʔ", "ʕ•͡ɛ•͡ʼʼʔ", "( ⁻(❢)⁻ )", "₍ᐢ•ᴥ•ᐢ₎", "(✦(ᴥ)✦)",
                   "ʕ òᴥó ʔ", "ʕ*•-•ʔฅ", "ʕ•̀д•́ʔﾉ", "/ᐠ ˵• ﻌ •˵マ", "꜀(^｡ ̫ ｡^꜀ )꜆੭",
                   "/.\\___/.\\ <(야옹)", "o(=´∇｀=)o", "/ᐠ - ̫ -マ", "(=･ｪ･=?", "●ᴥ●",
@@ -687,13 +697,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                   "(̂•͈Ꙫ•͈⑅)̂ ୭", "₍ᐢ. ֑ .ᐢ₎", "( ᐢ, ,ᐢ)", "⎛⑉・⊝・⑉⎞", "•᷅ ʚ •᷄",
                   "ʚ(•Θ•)ɞ", "୧(•̀ө•́)୨", "(๑•̀ɞ•́๑)✧", "( • ɞ• )", "(・ε・)",
                   "(๑❛ө❛๑ )三", "（ˇ ⊖ˇ）", "( ˙◊˙ )", "( 'Θ')ﾉ", "𓆩(•࿉•)𓆪"]),
-        ("사랑", ["(♥ω♥)", "(づ￣³￣)づ", "( ˘ ³˘)♥", "(っ´▽`)っ♥", "(/^▽^)/♥", "(◍•ᴗ•◍)❤", "♡(˘▽˘>", "(˘⌣˘)♡",
+        (loc("kaomoji_love"), ["(♥ω♥)", "(づ￣³￣)づ", "( ˘ ³˘)♥", "(っ´▽`)っ♥", "(/^▽^)/♥", "(◍•ᴗ•◍)❤", "♡(˘▽˘>", "(˘⌣˘)♡",
                   "꜀(  ꜆-⩊-)꜆♡", "( ˶'ᵕ'🫶🏻)💕", "(⸝⸝´▽︎ `⸝⸝)", "( ⸝⸝⸝•   •⸝⸝⸝)",
                   "＞ ̫＜ ♡", "(ღˇᴗˇ)", "(๑•́ ₃ •̀๑)", "(●´□`)♡",
                   "( ๑ ❛ ڡ ❛ ๑ )❤", "⸜(♡ ॑ᗜ ॑♡)⸝", "•́ε•̀٥", "( ◜ᴗ◝ )♡",
                   "(ღ•͈ᴗ•͈ღ)♥", "໒( ♥ ◡ ♥ )७", "♡ ᐡ◕ ̫ ◕ᐡ ♡", "♥(〃´૩`〃)♥",
                   "( . ̫ .)💗", "(♡´౪`♡)", "( っ꒪⌓꒪)っ—̳͟͞͞♡", "૮ - ﻌ • ა ♥", "⁎⁍̴̆Ɛ⁍̴̆⁎"]),
-        ("반응", ["(°ロ°)", "Σ(°△°)", "¯\\_(ツ)_/¯", "(-_-;)", "m(_ _)m", "(；一_一)", "╰(*°▽°*)╯", "(・o・)",
+        (loc("kaomoji_reaction"), ["(°ロ°)", "Σ(°△°)", "¯\\_(ツ)_/¯", "(-_-;)", "m(_ _)m", "(；一_一)", "╰(*°▽°*)╯", "(・o・)",
                   "･ᴗ･ )੭''", "( *´ᗜ`*)ﾉ", "(๑'• ֊ •'๑)੭", "٩( ´◡` )( ´◡` )۶", "_(._.)_",
                   "( •⍸• )", "c(   'o')っ", "(⊙_⊙)", "( ´o` )", "ᯤ ᯅ ᯤ",
                   "૮₍ •́ ₃•̀₎ა", "ϲ( ´•ϲ̲̃ ̲̃•` )ɔ", "( っ •‌ᜊ•‌ )う", "ˣ‿ˣ", "(๑•́‧̫•̀๑)",
@@ -701,13 +711,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                   "₍ᐢ - ̫ - ᐢ₎", "( > ~ < )💦", "•́.•̀", "•̆₃•̑", "( ᖛ ̫ ᖛ )",
                   "( • ̀ω•́ )✧", "(๑•̆૩•̆)", "👉🏻(˚ ˃̣̣̥ ▵ ˂̣̣̥ )꒱👈🏻💧", "˙∧˙", "（≩∇≨）",
                   "❛‿˂̵✧", "(  > ᴗ • )", "( ͡~ ͜ʖ ͡°)", "(･ω<)☆", "˶ˊᜊˋ˶ಣ"]),
-        ("최고", ["ദ്ദിᐢ. .ᐢ₎", "ദ്ദി（• ˕ •マ.ᐟ", "ദ്ദി •⤙• )", "( ദ്ദി ˙ᗜ˙ )",
+        (loc("kaomoji_best"), ["ദ്ദിᐢ. .ᐢ₎", "ദ്ദി（• ˕ •マ.ᐟ", "ദ്ദി •⤙• )", "( ദ്ദി ˙ᗜ˙ )",
                   "ჱ̒՞ ̳ᴗ ̫ ᴗ ̳՞꒱", "(՞ •̀֊•́՞)ฅ", "ჱ̒^. ̫ .^）", "ദ്ദി*ˊᗜˋ*)",
                   "( 　'-' )ノദ്ദി)`-' )", "ჱ̒⸝⸝•̀֊•́⸝⸝)", "ദ്ദി  ॑꒳ ॑c)", "ദ്ദിᐢ- ̫-ᐢ₎",
                   "ദ്ദി˙∇˙)ว", "ദ്ദി  ॑꒳ ॑c)", "ദ്ദി（• ˕ •マ.ᐟ", "ദി՞˶ෆ . ෆ˶ ՞",
                   "( ദ്ദി ˙ᗜ˙ )", "👍🏻ᖛ ̫ ᖛ )", "ദ്ദി¯•ω•¯ )", "ദ്ദി•̀.̫•́✧",
                   "ദ്ദി ˘ ͜ʖ ˘)", "ദ്ദി  ͡° ͜ʖ ͡°)", "ദ്ദി❁´◡`❁)",
                   "ദ്ദി * ॑꒳ ॑*)⸝⋆｡✧♡", "ദ്ദി ≽^⎚˕⎚^≼ .ᐟ"]),
+        // MARK: - 카오모지 큰 이모티콘 비활성화 (복구 시 주석 해제)
+        /*
         ("큰 이모티콘", ["  　 　　 (\\ \\  /)\n　　 　 ( 'ㅅ' )\n 　  (\\ (\\ (\\  /) /) /)\n　   ('ㅅ' ( 'ㅅ' ) 'ㅅ')\n(\\ (\\ (\\ (\\  (\\   /) /) /) /) /)\n('ㅅ' ('ㅅ'  ( 'ㅅ' ) 'ㅅ') 'ㅅ')",
                        "|￣￣￣￣￣￣￣|\n| message\n|＿＿＿＿＿＿＿|\n(\\__/) ||\n(•ㅅ•).||\n/ . . . .づ",
                        "︧︠ᴖ ︨︡\nᖤ • ᴥ • ᖢ > 폼폼푸린",
@@ -724,43 +736,44 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                        "  ╭┈┈┈┈╯  ╰┈┈┈╮\n\n ╰┳┳╯   ╰┳┳╯\n\n  💧　    　　💧\n\n 💧  　   　　💧\n    ╰┈┈╯\n 💧╭━━━━━╮　💧\n    ┈┈┈┈\n　　💧     　　💧",
                        " 　　　　｜\n　　／￣￣￣＼\n　／　　∧　　＼\n　│　／川＼　│\n　＼／┏┻┓＼／\n。゛＃┃생┃゛。\n，。┃일┃＃。゛\n。゜＃┃축┃゛。゛\n，＊。┃하┃゜。＃\n＃゜。┃해┃゜＊。\n　　　┃☆┃\n　　　┗┯┛\n　∧∧　│\n　(*´∀`)│\n　　/　⊃",
                        "  \\(•_•)\n((>포기!\n/\\\n\n(•_•)\n<))>했지렁!\n/\\\n\n(•_•)\n<))╯인생!\n/\\\n\n\\(•_•)\n((>포기!\n/\\\n\n(•_•)\n<))>했지렁!\n/\\"]),
+        */
     ]
     private var selectedEmoticonCat = 0
 
     // MARK: - Special Character Data
 
-    private let specialCategories: [(String, [String])] = [
-        ("하트",  ["♡", "♥", "❥", "❦", "❧", "☙", "▷♡◁", "♡̴", "ꕤ", "ʚ♡ɞ", "﹤𝟹",
+    private lazy var specialCategories: [(String, [String])] = [
+        (loc("special_heart"),  ["♡", "♥", "❥", "❦", "❧", "☙", "▷♡◁", "♡̴", "ꕤ", "ʚ♡ɞ", "﹤𝟹",
                   "۵", "ლ", "ஐ", "༺♡༻", "(✿◡‿◡)", "♡̷",
                   "ꯁ", "ɞ", "ʚ", "εïз", "♡=͟͟͞͞ ³ ³", "»-♡→", "-\u{0060}♥´-", "-\u{0060}♡´-", "⸜♡⸝\u{200D}", "-ˋˏ ♡ ˎˊ-", "ʚ◡̈ɞ", "₊⁺♡̶₊⁺", "˚ෆ*₊"]),
-        ("별/꽃", ["★", "☆", "✦", "✧", "✿", "❀", "✾", "❁", "✺", "❋", "✹", "✸",
+        (loc("special_star_flower"), ["★", "☆", "✦", "✧", "✿", "❀", "✾", "❁", "✺", "❋", "✹", "✸",
                   "⁂", "✼", "✽", "❃", "❅", "❆", "⋆", "˚", "✶", "✵",
                   "⛤", "✰", "✮", "✪", "✳"]),
-        ("화살표", ["→", "←", "↑", "↓", "➜", "⇒", "⟶", "⇄", "↔",
+        (loc("special_arrow"), ["→", "←", "↑", "↓", "➜", "⇒", "⟶", "⇄", "↔",
                   "↖", "↗", "↘", "↙", "⇐", "⇑", "⇓", "⇔", "⇕", "⇖", "⇗", "⇘", "⇙",
                   "↺", "↻", "⟰", "⟱", "⤴\u{FE0E}", "⤵\u{FE0E}", "↨", "⇅", "⇆",
                   "⇦", "⇧", "⇨", "⇩", "⌦", "⌫", "⇰", "⤶", "⤷", "➲", "⇣", "⇤", "⇥", "↰", "↱", "↲", "↳", "↶", "↷"
         ]),
-        ("장식",  ["꩜", "⁂", "✳\u{FE0E}", "❊", "✦", "❈", "⁕", "꧁", "꧂", "࿇", "꒰", "꒱",
+        (loc("special_deco"),  ["꩜", "⁂", "✳\u{FE0E}", "❊", "✦", "❈", "⁕", "꧁", "꧂", "࿇", "꒰", "꒱",
                   "⌘", "⌥", "⇧", "⌫", "☯\u{FE0E}", "☸\u{FE0E}", "♾\u{FE0E}", "⚜\u{FE0E}",
                   "✡\u{FE0E}", "☪\u{FE0E}",
                   "※", "✥", "✤", "✣", "❖", "ꔛ", "ꕀ", "｡", "･", "∘", "•", "‥", "…",
                   "⌒", "˘", "‿", "⌣", "╰╯", "╭╮", "﹏", "﹋", "﹌", "︵", "︶",
                   "〔", "〕", "【", "】", "《", "》", "〈", "〉", "「", "」", "『", "』"]),
-        ("기호", ["©", "®", "™", "°", "%", "&", "@", "#", "$", "€", "£", "¥", "₩", "¢",
+        (loc("special_symbol"), ["©", "®", "™", "°", "%", "&", "@", "#", "$", "€", "£", "¥", "₩", "¢",
                 "±", "×", "÷", "≠", "≈", "∞", "√", "π", "∑",
                 "♩", "♪", "♫", "♬",
                 "☎\u{FE0E}", "✉\u{FE0E}", "✂\u{FE0E}", "✏\u{FE0E}", "✒\u{FE0E}",
                 "✄", "✎", "✓", "✔", "✆", "✉", "❛", "❜"]),
-        ("도형", ["■", "□", "▪", "▫", "▲", "△", "▶", "▷", "▼", "▽", "◀", "◁",
+        (loc("special_shape"), ["■", "□", "▪", "▫", "▲", "△", "▶", "▷", "▼", "▽", "◀", "◁",
                 "●", "○", "◆", "◇", "◉", "◎", "▣", "▤", "▥", "▦", "▧", "▨",
                 "⛶"]),
-        ("상형문자", ["𓁹", "𓂡", "𓂢", "𓂩", "𓂽", "𓂾", "𓃀", "𓃒", "𓃔", "𓃗", "𓃙", "𓃟", "𓃡", "𓃩",
+        (loc("special_hieroglyph"), ["𓁹", "𓂡", "𓂢", "𓂩", "𓂽", "𓂾", "𓃀", "𓃒", "𓃔", "𓃗", "𓃙", "𓃟", "𓃡", "𓃩",
                    "𓃬", "𓃰", "𓃱", "𓃴", "𓃵", "𓃹", "𓃾", "𓄁", "𓄀", "𓄃", "𓄇", "𓅺", "𓅬", "𓆙",
                    "𓆟", "𓇼", "𓇽", "𓈉", "𓊍", "𓊎", "𓍳"]),
-        ("패턴", ["░", "▒", "▓", "█", "▌", "▐", "▀", "▄", "┼", "╬", "═", "║",
+        (loc("special_pattern"), ["░", "▒", "▓", "█", "▌", "▐", "▀", "▄", "┼", "╬", "═", "║",
                 "╔", "╗", "╚", "╝", "┌", "┐", "└", "┘", "├", "┤", "┬", "┴"]),
-        ("장식선", ["════════════════", "────────────────", "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄",
+        (loc("special_deco_line"), ["════════════════", "────────────────", "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄",
                   "------------------------", "— — — — — — — —", "________________",
                   "················································", "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈",
                   "·͜·♡·͜·♡·͜·♡·͜·♡·͜·", "ξ 3ξ 3ξ 3ξ 3ξ 3",
@@ -1181,13 +1194,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     // MARK: - GIF State
 
-    private let gifCategories: [(String, String?)] = [
-        ("인기", nil),
-        ("재미있는", "funny"),
-        ("사랑", "love"),
-        ("슬픔", "sad"),
-        ("반응", "reaction"),
-        ("화남", "angry"),
+    private lazy var gifCategories: [(String, String?)] = [
+        (loc("gif_trending"), nil),
+        (loc("gif_cat_funny"), "funny"),
+        (loc("gif_cat_love"), "love"),
+        (loc("gif_cat_sad"), "sad"),
+        (loc("gif_cat_reaction"), "reaction"),
+        (loc("gif_cat_angry"), "angry"),
     ]
     private var gifCategoryIndex = 0
     private var gifImages: [GiphyImage] = []
@@ -1201,10 +1214,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Translate State
 
     private let translateLangs: [(String, String)] = [
-        ("🇰🇷 한국어", "Korean"), ("🇺🇸 영어", "English"), ("🇯🇵 일본어", "Japanese"),
-        ("🇨🇳 중국어", "Chinese"), ("🇪🇸 스페인어", "Spanish"), ("🇫🇷 프랑스어", "French"),
-        ("🇩🇪 독일어", "German"), ("🇻🇳 베트남어", "Vietnamese"), ("🇹🇭 태국어", "Thai"),
-        ("🇮🇩 인니어", "Indonesian"),
+        ("🇰🇷 Korean", "Korean"), ("🇺🇸 English", "English"), ("🇯🇵 Japanese", "Japanese"),
+        ("🇨🇳 Chinese", "Chinese"), ("🇪🇸 Spanish", "Spanish"), ("🇫🇷 French", "French"),
+        ("🇩🇪 German", "German"), ("🇻🇳 Vietnamese", "Vietnamese"), ("🇹🇭 Thai", "Thai"),
+        ("🇮🇩 Indonesian", "Indonesian"),
     ]
     private weak var translateKeyboardContainer: UIStackView?
     private weak var translateNumToggleButton: UIButton?
@@ -1240,8 +1253,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var translationInput = ""
     private var lastTranslation = ""
     private var isTranslateDirectInput = true
-    private var sourceLangIndex = 0   // 🇰🇷 한국어
-    private var targetLangIndex = 1   // 🇺🇸 영어
+    private var sourceLangIndex = 0   // 🇰🇷 Korean
+    private var targetLangIndex = 1   // 🇺🇸 English
     private var isKoreanMode = true
     private var isTranslateShifted = false
     private var isTranslateCapsLock = false
@@ -1449,8 +1462,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         setupLayout()
         showMode(.fonts)
 
-        let kbHeight: CGFloat = (view.window?.windowScene?.screen ?? UIScreen.main).bounds.height < 700 ? 260 :
-                                (view.window?.windowScene?.screen ?? UIScreen.main).bounds.height < 850 ? 307 : 320
+        let kbHeight: CGFloat = (view.window?.windowScene?.screen ?? UIScreen.main).bounds.height < 700 ? 248 :
+                                (view.window?.windowScene?.screen ?? UIScreen.main).bounds.height < 850 ? 295 : 308
         let heightConstraint = view.heightAnchor.constraint(equalToConstant: kbHeight)
         heightConstraint.priority = UILayoutPriority(999)
         heightConstraint.isActive = true
@@ -1577,8 +1590,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// Device-branched keyboard height — single source of truth used by
     /// viewDidLoad (view.heightAnchor) and by each build method (container height).
     private var kbHeight: CGFloat {
-        (view.window?.windowScene?.screen ?? UIScreen.main).bounds.height < 700 ? 260 :
-        (view.window?.windowScene?.screen ?? UIScreen.main).bounds.height < 850 ? 307 : 320
+        (view.window?.windowScene?.screen ?? UIScreen.main).bounds.height < 700 ? 248 :
+        (view.window?.windowScene?.screen ?? UIScreen.main).bounds.height < 850 ? 295 : 308
     }
 
     /// contentView height available to each tab builder — keyboard height minus
@@ -1592,7 +1605,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         modeBar.axis = .horizontal
         modeBar.distribution = .fillEqually
         modeBar.spacing = 4
-        for mode in Mode.allCases {
+        let modeOrder: [Mode] = [
+            .fonts, .translate, .textTemplate, .emoticon, .special, .gif, .favorites, .palette,
+            // 비활성화 탭 (순서 복구 시 위 배열로 이동):
+            .calculator, .dotArt,
+        ]
+        for mode in modeOrder {
+            // MARK: - 계산기 탭 비활성화 (복구 시 주석 해제)
+            if mode == .calculator { continue }
+            // MARK: - ASCII 탭 비활성화 (복구 시 주석 해제)
+            if mode == .dotArt { continue }
             let btn = makeModeButton(mode)
             modeBar.addArrangedSubview(btn)
         }
@@ -1863,6 +1885,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return
         }
 
+        // MARK: - 계산기 탭 비활성화 (복구 시 주석 해제)
+        // if mode == .calculator { return }
+
         showMode(mode)
         // Defer so showMode finishes building before the tip overlays it —
         // otherwise the first entry into a tab can swallow the popup. Tip is
@@ -1954,8 +1979,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         inputRow.distribution = .fillEqually
         inputRow.heightAnchor.constraint(equalToConstant: 32).isActive = true
         let modes: [(label: String, value: String)] = [
-            ("두벌식", "dubeolsik"),
-            ("천지인", "cheonjiin"),
+            (loc("keyboard_standard"), "dubeolsik"),
+            (loc("keyboard_cheonjiin"), "cheonjiin"),
         ]
         for (label, value) in modes {
             let btn = UIButton(type: .system)
@@ -2163,43 +2188,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let visibleCats = visibleFontCategories()
         let safeCatIndex = min(fontCatIndex, max(visibleCats.count - 1, 0))
 
-        // Category row — always created; toggle animates isHidden/alpha only.
-        // FontScrollView lets drags on category buttons cancel into scroll.
-        let catScroll = FontScrollView()
-        catScroll.showsHorizontalScrollIndicator = false
-        catScroll.delaysContentTouches = false
-        catScroll.canCancelContentTouches = true
-        catScroll.setHeight(36)
-        let catRow = UIStackView()
-        catRow.axis = .horizontal; catRow.spacing = 8
-        catRow.translatesAutoresizingMaskIntoConstraints = false
-        catScroll.addSubview(catRow)
-        NSLayoutConstraint.activate([
-            catRow.topAnchor.constraint(equalTo: catScroll.topAnchor),
-            catRow.leadingAnchor.constraint(equalTo: catScroll.leadingAnchor, constant: 6),
-            catRow.trailingAnchor.constraint(equalTo: catScroll.trailingAnchor, constant: -6),
-            catRow.bottomAnchor.constraint(equalTo: catScroll.bottomAnchor),
-            catRow.heightAnchor.constraint(equalTo: catScroll.heightAnchor),
-        ])
-        for (i, cat) in visibleCats.enumerated() {
-            let btn = UIButton(type: .system)
-            btn.setTitle(cat.0, for: .normal)
-            btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
-            btn.tag = i
-            btn.layer.cornerRadius = 14
-            btn.contentEdgeInsets = UIEdgeInsets(top: 4, left: 12, bottom: 4, right: 12)
-            let sel = i == safeCatIndex
-            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
-            btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
-            btn.isExclusiveTouch = false
-            btn.addTarget(self, action: #selector(fontCatTapped(_:)), for: .touchUpInside)
-            catRow.addArrangedSubview(btn)
-        }
-        catScroll.isHidden = !fontPickerExpanded
-        catScroll.alpha = fontPickerExpanded ? 1 : 0
-        stack.addArrangedSubview(catScroll)
-        fontCategoryRowView = catScroll
-
         // Style row (always visible) + toggle button on the right
         let pickerRow = UIStackView()
         pickerRow.axis = .horizontal
@@ -2265,6 +2253,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         pickerRow.addArrangedSubview(styleScroll)
         pickerRow.addArrangedSubview(toggleBtn)
         stack.addArrangedSubview(pickerRow)
+        fontPickerRowView = pickerRow
 
         // Restore scroll offset after layout
         DispatchQueue.main.async { [weak self] in
@@ -2492,7 +2481,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottomHC.isActive = true
         fontsBottomBarHeightConstraint = bottomHC
 
-        let langToggle = makeSpecialKey("한/영")
+        let langToggle = makeSpecialKey(isFontsKorean ? "En" : "Ko")
         langToggle.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
         // In number mode the 한/영 key serves a different role: it exits the
         // number/symbol page back to the previous letter layout (preserving
@@ -3369,7 +3358,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 } else {
                     self.gifImages = gifs
                     self.gifLoadingLabel?.isHidden = !gifs.isEmpty
-                    if gifs.isEmpty { self.gifLoadingLabel?.text = "결과 없음" }
+                    if gifs.isEmpty { self.gifLoadingLabel?.text = self.loc("gif_search_empty") }
                     self.renderGifGrid()
                 }
             }
@@ -3400,7 +3389,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         ])
 
         let label = UILabel()
-        label.text = "GIF를 사용하려면\n전체 접근 허용이 필요해요\n\n설정 → 일반 → 키보드 → Fonkii\n→ 전체 접근 허용 켜기"
+        label.text = loc("gif_no_access")
         label.font = .systemFont(ofSize: 14)
         label.textColor = .gray
         label.textAlignment = .center
@@ -3408,7 +3397,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         stack.addArrangedSubview(label)
 
         let btn = UIButton(type: .system)
-        btn.setTitle("설정으로 가기", for: .normal)
+        btn.setTitle(loc("gif_settings_button"), for: .normal)
         btn.setTitleColor(.white, for: .normal)
         btn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
         btn.backgroundColor = UIColor(red: 0x7F / 255, green: 0xC7 / 255, blue: 0xFF / 255, alpha: 1)
@@ -3652,7 +3641,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         translateInputField = inputField
 
         let placeholderLabel = UILabel()
-        placeholderLabel.text = "타이핑..."
+        placeholderLabel.text = loc("translate_placeholder")
         placeholderLabel.textColor = .lightGray
         placeholderLabel.font = .systemFont(ofSize: 15)
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -3700,7 +3689,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         resultBox.layer.cornerRadius = 8
 
         let resultLabel = UILabel()
-        resultLabel.text = "번역 결과가 여기에 표시됩니다"
+        resultLabel.text = loc("translate_result_placeholder")
         resultLabel.textColor = .lightGray
         resultLabel.font = .systemFont(ofSize: 12); resultLabel.numberOfLines = 0
         resultLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -3779,7 +3768,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottom.translatesAutoresizingMaskIntoConstraints = false
         bottom.heightAnchor.constraint(equalToConstant: 52).isActive = true
 
-        let langToggle = makeSpecialKey("한/영")
+        let langToggle = makeSpecialKey(isKoreanMode ? "En" : "Ko")
         langToggle.backgroundColor = isKoreanMode ? UIColor.systemBlue.withAlphaComponent(0.15) : UIColor(white: 0.88, alpha: 1)
         langToggle.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         langToggle.setWidth(48)
@@ -3798,14 +3787,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         space.addTarget(self, action: #selector(translateSpaceTapped), for: .touchUpInside)
         bottom.addArrangedSubview(space)
 
-        let trBtn = makeSpecialKey("번역")
+        let trBtn = makeSpecialKey(loc("translate_button"))
         trBtn.backgroundColor = UIColor(white: 0.88, alpha: 1)
         trBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         trBtn.setWidth(48)
         trBtn.addTarget(self, action: #selector(translateTriggered), for: .touchUpInside)
         bottom.addArrangedSubview(trBtn)
 
-        let insBtn = makeSpecialKey("삽입")
+        let insBtn = makeSpecialKey(loc("insert_button"))
         insBtn.backgroundColor = accentColor; insBtn.setTitleColor(.white, for: .normal)
         insBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         insBtn.setWidth(48)
@@ -4024,7 +4013,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         container.addSubview(resultBox)
 
         let resultLabel = UILabel()
-        resultLabel.text = "번역 결과가 여기에 표시됩니다"
+        resultLabel.text = loc("translate_result_placeholder")
         resultLabel.textColor = .lightGray
         resultLabel.font = .systemFont(ofSize: 13)
         resultLabel.numberOfLines = 0
@@ -4045,13 +4034,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottomBar.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(bottomBar)
 
-        let translateBtn = makeSpecialKey("번역")
+        let translateBtn = makeSpecialKey(loc("translate_button"))
         translateBtn.backgroundColor = UIColor(white: 0.88, alpha: 1)
         translateBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
         translateBtn.addTarget(self, action: #selector(translateTriggered), for: .touchUpInside)
         bottomBar.addArrangedSubview(translateBtn)
 
-        let insertBtn = makeSpecialKey("번역 삽입")
+        let insertBtn = makeSpecialKey(loc("insert_button"))
         insertBtn.backgroundColor = accentColor
         insertBtn.setTitleColor(.white, for: .normal)
         insertBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
@@ -4159,7 +4148,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         translateInputField = inputField
 
         let resultLabel = UILabel()
-        resultLabel.text = "번역 결과"
+        resultLabel.text = loc("translate_result_placeholder")
         resultLabel.textColor = .lightGray
         resultLabel.font = .systemFont(ofSize: 11); resultLabel.numberOfLines = 0
         resultLabel.backgroundColor = UIColor(white: 0.95, alpha: 1)
@@ -4255,7 +4244,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let bottom = UIStackView()
         bottom.axis = .horizontal; bottom.spacing = 3
 
-        let langToggle = makeSpecialKey("한/영")
+        let langToggle = makeSpecialKey(isKoreanMode ? "En" : "Ko")
         langToggle.backgroundColor = isKoreanMode ? UIColor.systemBlue.withAlphaComponent(0.15) : UIColor(white: 0.88, alpha: 1)
         langToggle.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
         langToggle.setWidth(40)
@@ -4273,14 +4262,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         space.addTarget(self, action: #selector(translateSpaceTapped), for: .touchUpInside)
         bottom.addArrangedSubview(space)
 
-        let trBtn = makeSpecialKey("번역")
+        let trBtn = makeSpecialKey(loc("translate_button"))
         trBtn.backgroundColor = UIColor(white: 0.88, alpha: 1)
         trBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
         trBtn.setWidth(40)
         trBtn.addTarget(self, action: #selector(translateTriggered), for: .touchUpInside)
         bottom.addArrangedSubview(trBtn)
 
-        let insBtn = makeSpecialKey("삽입")
+        let insBtn = makeSpecialKey(loc("insert_button"))
         insBtn.backgroundColor = accentColor; insBtn.setTitleColor(.white, for: .normal)
         insBtn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
         insBtn.setWidth(40)
@@ -4371,7 +4360,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     @objc private func translateClearTapped() {
         translationInput = ""
         lastTranslation = ""
-        translateResultLabel?.text = "번역 결과가 여기에 표시됩니다"
+        translateResultLabel?.text = loc("translate_result_placeholder")
         translateResultLabel?.textColor = .lightGray
         updateTranslateInputDisplay()
         // Also drop the persisted copy so a reopen doesn't resurrect the
@@ -4971,7 +4960,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
             // 한/영 — toggles `isFontsKorean` (cheonjiin ↔ QWERTY English).
             // Accent highlight when Korean is active.
-            let langToggle = makeFnKey(title: "한/영")
+            let langToggle = makeFnKey(title: isFontsKorean ? "En" : "Ko")
             langToggle.addTarget(self, action: #selector(fontLangToggleTapped), for: .touchDown)
             if isFontsKorean {
                 langToggle.backgroundColor = accentColor
@@ -5026,8 +5015,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             slot1.distribution = .fillEqually
             slot1.spacing = 4
 
-            // 한/영 — accent highlight (always Korean mode in translate cheonjiin)
-            let langToggle = makeFnKey(title: "한/영")
+            // "En" because translate cheonjiin only appears in Korean mode
+            let langToggle = makeFnKey(title: "En")
             langToggle.backgroundColor = accentColor
             langToggle.setTitleColor(.white, for: .normal)
             langToggle.addTarget(self, action: #selector(translateToggleKorEng), for: .touchUpInside)
@@ -5060,13 +5049,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             slot4.distribution = .fillEqually
             slot4.spacing = 4
 
-            let trBtn = makeFnKey(title: "번역")
+            let trBtn = makeFnKey(title: loc("translate_button"))
             trBtn.backgroundColor = UIColor(white: 0.88, alpha: 1)
             trBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
             trBtn.addTarget(self, action: #selector(translateTriggered), for: .touchUpInside)
             slot4.addArrangedSubview(trBtn)
 
-            let insBtn = makeFnKey(title: "삽입")
+            let insBtn = makeFnKey(title: loc("insert_button"))
             insBtn.backgroundColor = accentColor
             insBtn.setTitleColor(.white, for: .normal)
             insBtn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
@@ -5377,16 +5366,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // local table lookup. On miss we fall through to the existing API
         // path unchanged.
 
-        // MARK: - DB lookup 임시 비활성화 (DB 정리 후 재활성화 예정)
-        // if let cached = TranslationDB.lookup(
-        //     text: translationInput,
-        //     from: translateLangs[sourceLangIndex].1,
-        //     to: translateLangs[targetLangIndex].1
-        // ) {
-        //     lastTranslation = sanitizeTranslationOutput(cached)
-        //     translateResultLabel?.text = lastTranslation
-        //     return
-        // }
+        if let cached = TranslationDB.lookup(
+            text: translationInput,
+            from: translateLangs[sourceLangIndex].1,
+            to: translateLangs[targetLangIndex].1
+        ) {
+            lastTranslation = sanitizeTranslationOutput(cached)
+            translateResultLabel?.text = lastTranslation
+            return
+        }
 
         // Full Access check — keyboard extensions cannot make network
         // requests without Full Access in Settings.
@@ -5728,8 +5716,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         if totalEmpty {
             let emptyLabel = UILabel()
             emptyLabel.text = allEmpty
-                ? "이모티콘이나 특수문자를 꾹 누르면\n즐겨찾기에 추가돼요 ♥"
-                : "이 카테고리에 즐겨찾기가 없어요"
+                ? loc("favorite_empty_sub")
+                : loc("favorite_empty")
             emptyLabel.numberOfLines = 0
             emptyLabel.textColor = .lightGray
             emptyLabel.textAlignment = .center
@@ -6360,12 +6348,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         if favs.contains(styleName) {
             favs.removeAll { $0 == styleName }
             saveFavoriteFontNames(favs)
-            showToast("즐겨찾기 제거됨")
+            showToast(loc("favorite_removed"))
         } else {
             favs.append(styleName)
             saveFavoriteFontNames(favs)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            showToast("⭐ 즐겨찾기 추가됨")
+            showToast(loc("favorite_added"))
         }
 
         // Re-map indices to same category/style name in new layout
@@ -6387,19 +6375,198 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func fontPickerToggleTapped() {
-        guard let catRow = fontCategoryRowView else { return }
-        fontPickerExpanded.toggle()
-        let expanded = fontPickerExpanded
-        fontToggleButton?.setTitle(expanded ? "▲" : "▼", for: .normal)
-        // Resize the bottom bar synchronously (no animation per spec) so the
-        // catScroll (+36pt) can fit without overflowing kbHeight. catRow
-        // visibility stays animated for the same easing the user already had.
-        fontsBottomBarHeightConstraint?.constant = computedFontsBottomBarHeight()
-        UIView.animate(withDuration: 0.2) {
-            catRow.isHidden = !expanded
-            catRow.alpha = expanded ? 1 : 0
-            self.view.layoutIfNeeded()
+        if fontPickerExpanded {
+            fontPickerExpanded = false
+            fontPanel = nil  // buildFontsMode clears contentView subviews
+            savedFontScrollOffset = .zero
+            showMode(.fonts)  // full rebuild with current fontCatIndex/fontStyleIndex
+            DispatchQueue.main.async { [weak self] in self?.scrollFontStyleToSelected() }
+        } else {
+            fontPickerExpanded = true
+            fontToggleButton?.setTitle("▲", for: .normal)
+            showFontPanel()
         }
+    }
+
+    private func scrollFontStyleToSelected() {
+        guard let sv = fontStyleScrollView else { return }
+        guard let stack = sv.subviews.compactMap({ $0 as? UIStackView }).first else { return }
+        let buttons = stack.arrangedSubviews.compactMap { $0 as? UIButton }
+        guard fontStyleIndex < buttons.count else { return }
+        sv.scrollRectToVisible(buttons[fontStyleIndex].frame, animated: false)
+    }
+
+    private func showFontPanel() {
+        fontPanel?.removeFromSuperview()
+
+        // Hide the style-picker row while the panel is open.
+        fontPickerRowView?.isHidden = true
+
+        let panel = UIView()
+        panel.backgroundColor = .systemBackground
+        panel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(panel)
+        pinToEdges(panel, in: contentView)
+        fontPanel = panel
+
+        let visibleCats = visibleFontCategories()
+        let safeCatIndex = min(fontCatIndex, max(visibleCats.count - 1, 0))
+
+        // ── Top row: category scroll + toggle button ──
+        let topRow = UIView()
+        topRow.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(topRow)
+
+        let catScroll = UIScrollView()
+        catScroll.showsHorizontalScrollIndicator = false
+        catScroll.translatesAutoresizingMaskIntoConstraints = false
+        topRow.addSubview(catScroll)
+
+        let catRow = UIStackView()
+        catRow.axis = .horizontal
+        catRow.spacing = 8
+        catRow.translatesAutoresizingMaskIntoConstraints = false
+        catScroll.addSubview(catRow)
+        NSLayoutConstraint.activate([
+            catRow.topAnchor.constraint(equalTo: catScroll.topAnchor),
+            catRow.leadingAnchor.constraint(equalTo: catScroll.leadingAnchor, constant: 6),
+            catRow.trailingAnchor.constraint(equalTo: catScroll.trailingAnchor, constant: -6),
+            catRow.bottomAnchor.constraint(equalTo: catScroll.bottomAnchor),
+            catRow.heightAnchor.constraint(equalTo: catScroll.heightAnchor),
+        ])
+        for (i, cat) in visibleCats.enumerated() {
+            let btn = UIButton(type: .system)
+            btn.setTitle(cat.0, for: .normal)
+            btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
+            btn.tag = i
+            btn.layer.cornerRadius = 14
+            btn.contentEdgeInsets = UIEdgeInsets(top: 4, left: 12, bottom: 4, right: 12)
+            let sel = i == safeCatIndex
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
+            btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
+            btn.addTarget(self, action: #selector(fontPanelCatTapped(_:)), for: .touchUpInside)
+            catRow.addArrangedSubview(btn)
+        }
+
+        let closeBtn = UIButton(type: .system)
+        closeBtn.setTitle("▲", for: .normal)
+        closeBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .bold)
+        closeBtn.setTitleColor(.darkGray, for: .normal)
+        closeBtn.backgroundColor = UIColor(white: 0.94, alpha: 1)
+        closeBtn.layer.cornerRadius = 14
+        closeBtn.translatesAutoresizingMaskIntoConstraints = false
+        closeBtn.addTarget(self, action: #selector(fontPickerToggleTapped), for: .touchUpInside)
+        topRow.addSubview(closeBtn)
+
+        NSLayoutConstraint.activate([
+            catScroll.topAnchor.constraint(equalTo: topRow.topAnchor),
+            catScroll.leadingAnchor.constraint(equalTo: topRow.leadingAnchor),
+            catScroll.bottomAnchor.constraint(equalTo: topRow.bottomAnchor),
+            catScroll.trailingAnchor.constraint(equalTo: closeBtn.leadingAnchor, constant: -4),
+
+            closeBtn.centerYAnchor.constraint(equalTo: topRow.centerYAnchor),
+            closeBtn.trailingAnchor.constraint(equalTo: topRow.trailingAnchor, constant: -6),
+            closeBtn.widthAnchor.constraint(equalToConstant: 36),
+            closeBtn.heightAnchor.constraint(equalToConstant: 28),
+        ])
+
+        // ── Font grid scroll ──
+        let gridScroll = UIScrollView()
+        gridScroll.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(gridScroll)
+        fontPanelGridScroll = gridScroll
+
+        NSLayoutConstraint.activate([
+            topRow.topAnchor.constraint(equalTo: panel.topAnchor, constant: 4),
+            topRow.leadingAnchor.constraint(equalTo: panel.leadingAnchor),
+            topRow.trailingAnchor.constraint(equalTo: panel.trailingAnchor),
+            topRow.heightAnchor.constraint(equalToConstant: 36),
+
+            gridScroll.topAnchor.constraint(equalTo: topRow.bottomAnchor, constant: 4),
+            gridScroll.leadingAnchor.constraint(equalTo: panel.leadingAnchor),
+            gridScroll.trailingAnchor.constraint(equalTo: panel.trailingAnchor),
+            gridScroll.bottomAnchor.constraint(equalTo: panel.bottomAnchor),
+        ])
+
+        let styles = visibleCats.isEmpty ? [] : visibleCats[safeCatIndex].1
+        buildFontPanelGrid(in: gridScroll, styles: styles)
+    }
+
+    private func buildFontPanelGrid(in scrollView: UIScrollView, styles: [FontStyleDef]) {
+        scrollView.subviews.forEach { $0.removeFromSuperview() }
+
+        let cols = 2
+        let hPad: CGFloat = 8
+        let spacing: CGFloat = 6
+
+        let grid = UIStackView()
+        grid.axis = .vertical
+        grid.spacing = spacing
+        grid.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(grid)
+        NSLayoutConstraint.activate([
+            grid.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 6),
+            grid.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: hPad),
+            grid.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -hPad),
+            grid.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -6),
+            grid.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -hPad * 2),
+        ])
+
+        let chunks = stride(from: 0, to: styles.count, by: cols).map {
+            Array(styles[$0..<min($0 + cols, styles.count)])
+        }
+        for (rowIdx, rowStyles) in chunks.enumerated() {
+            let rowStack = UIStackView()
+            rowStack.axis = .horizontal
+            rowStack.distribution = .fillEqually
+            rowStack.spacing = spacing
+            let startIdx = rowIdx * cols
+            for (colIdx, style) in rowStyles.enumerated() {
+                let styleIdx = startIdx + colIdx
+                let btn = UIButton(type: .system)
+                btn.setTitle(displayFontName(style), for: .normal)
+                btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
+                btn.titleLabel?.adjustsFontSizeToFitWidth = true
+                btn.titleLabel?.minimumScaleFactor = 0.6
+                btn.tag = styleIdx
+                btn.layer.cornerRadius = 10
+                btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+                btn.heightAnchor.constraint(equalToConstant: 40).isActive = true
+                let sel = styleIdx == fontStyleIndex
+                btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
+                btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
+                if isFavoriteFont(style.name) {
+                    btn.layer.borderWidth = 1.5
+                    btn.layer.borderColor = accentColor.cgColor
+                }
+                btn.addTarget(self, action: #selector(fontPanelStyleTapped(_:)), for: .touchUpInside)
+                let lp = UILongPressGestureRecognizer(target: self, action: #selector(fontStyleLongPressed(_:)))
+                lp.minimumPressDuration = 0.5
+                btn.addGestureRecognizer(lp)
+                rowStack.addArrangedSubview(btn)
+            }
+            if rowStyles.count < cols {
+                for _ in rowStyles.count..<cols { rowStack.addArrangedSubview(UIView()) }
+            }
+            grid.addArrangedSubview(rowStack)
+        }
+    }
+
+    @objc private func fontPanelCatTapped(_ s: UIButton) {
+        fontCatIndex = s.tag
+        fontStyleIndex = 0
+        showFontPanel()
+    }
+
+    @objc private func fontPanelStyleTapped(_ s: UIButton) {
+        fontStyleIndex = s.tag
+        guard let scroll = fontPanelGridScroll else { return }
+        let offset = scroll.contentOffset
+        let visibleCats = visibleFontCategories()
+        let safeCatIndex = min(fontCatIndex, max(visibleCats.count - 1, 0))
+        let styles = visibleCats.isEmpty ? [] : visibleCats[safeCatIndex].1
+        buildFontPanelGrid(in: scroll, styles: styles)
+        DispatchQueue.main.async { scroll.setContentOffset(offset, animated: false) }
     }
 
     /// Compute the ideal bottom-bar height for the current fonts-tab state:
@@ -6413,16 +6580,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private func computedFontsBottomBarHeight() -> CGFloat {
         let budget = tabContainerHeight
         let pickerH: CGFloat = 36
-        let catH: CGFloat = fontPickerExpanded ? 36 : 0
-        // Mode-independent: QWERTY/dubeolsik use `lettersWrapper` and number
-        // mode now uses `numberWrapper` — both are 174pt tall and sit in
-        // `stack` with the same surrounding gap structure. So the bottom bar
-        // computes to the SAME height in every fonts-tab mode.
-        // Layout: [pickerRow(36), wrapper(174), bottom]
         let lettersH: CGFloat = 3 * 56 + 2 * 3
-        let visibleGapCount: CGFloat = fontPickerExpanded ? 3 : 2
-        let gaps = visibleGapCount * 3  // stack.spacing = 3
-        return max(24, budget - pickerH - lettersH - catH - gaps)
+        let gaps: CGFloat = 2 * 3  // stack.spacing = 3, 2 gaps: [picker, letters, bottom]
+        return max(24, budget - pickerH - lettersH - gaps)
     }
 
     @objc private func toggleNumberMode() {
@@ -6444,7 +6604,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         guard let text = s.title(for: .normal) else { return }
         // 장식선: copy to clipboard instead of insert (long text)
         if currentMode == .special && selectedSpecialCat < specialCategories.count
-            && specialCategories[selectedSpecialCat].0 == "장식선" {
+            && specialCategories[selectedSpecialCat].0 == loc("special_deco_line") {
             UIPasteboard.general.string = text
             showToast("복사됨")
         } else {
@@ -6472,7 +6632,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private static let maxFav         = 100
 
     private var favCategoryIndex = 0
-    private let favCategoryNames = ["전체", "이모티콘", "특수문자", "도트아트", "GIF"]
+    private lazy var favCategoryNames = [loc("fav_cat_all"), loc("fav_cat_emoticon"), loc("fav_cat_special"), loc("fav_cat_dotart"), "GIF"]
 
     private func favDefaults() -> UserDefaults {
         UserDefaults(suiteName: Self.favAppGroup) ?? .standard
@@ -6497,14 +6657,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         if items.count >= Self.maxFav { items.removeLast() }
         items.insert(text, at: 0)
         saveFavList(key, items)
-        showToast("즐겨찾기에 추가됐어요 ♥")
+        showToast(loc("favorite_added"))
     }
 
     private func removeFavorite(_ text: String, key: String) {
         var items = loadFavList(key)
         items.removeAll { $0 == text }
         saveFavList(key, items)
-        showToast("즐겨찾기에서 삭제됐어요")
+        showToast(loc("favorite_removed"))
         showMode(.favorites)
     }
 
@@ -6620,7 +6780,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             stack.addArrangedSubview(copyBtn)
         }
 
-        stack.addArrangedSubview(makePopupButton(title: "취소", color: .darkGray) {
+        stack.addArrangedSubview(makePopupButton(title: loc("cancel_button"), color: .darkGray) {
             overlay.removeFromSuperview()
         })
     }
@@ -6633,7 +6793,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             overlay.removeFromSuperview()
             self.removeFavorite(text, key: favKey)
         })
-        stack.addArrangedSubview(makePopupButton(title: "취소", color: .darkGray) {
+        stack.addArrangedSubview(makePopupButton(title: loc("cancel_button"), color: .darkGray) {
             overlay.removeFromSuperview()
         })
     }
@@ -6739,7 +6899,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         stack.addArrangedSubview(bodyLabel)
 
         let confirm = UIButton(type: .system)
-        confirm.setTitle("확인", for: .normal)
+        confirm.setTitle(loc("ok_button"), for: .normal)
         confirm.setTitleColor(.white, for: .normal)
         confirm.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
         confirm.backgroundColor = UIColor(red: 0x7F / 255, green: 0xC7 / 255, blue: 0xFF / 255, alpha: 1)

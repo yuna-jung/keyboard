@@ -1,0 +1,91 @@
+/* 탭 이름 */
+"tab_font"         = "Aa";
+"tab_translate"    = "번역";
+"tab_text_replace" = "💬";
+"tab_emoticon"     = "( • ɞ• )";
+"tab_kaomoji"      = "( • ɞ• )";
+"tab_special"      = "✦";
+"tab_gif"          = "GIF";
+"tab_favorite"     = "♥";
+"tab_settings"     = "";
+
+/* 번역 탭 */
+"translate_placeholder"        = "타이핑...";
+"translate_result_placeholder" = "번역 결과가 여기에 표시됩니다";
+"translate_button"             = "번역";
+"insert_button"                = "삽입";
+
+/* 설정 */
+"keyboard_type_standard"  = "두벌식";
+"keyboard_type_cheonjiin" = "천지인";
+"keyboard_standard"       = "두벌식";
+"keyboard_cheonjiin"      = "천지인";
+"settings_title"          = "설정";
+
+/* 폰트 탭 */
+"font_normal" = "일반";
+
+/* GIF 탭 */
+"gif_search_placeholder" = "GIF 검색...";
+"gif_trending"           = "인기";
+"gif_search_empty"       = "검색 결과가 없습니다";
+"gif_no_access"          = "GIF를 사용하려면\n전체 접근 허용이 필요해요\n\n설정 → 일반 → 키보드 → Fonkii\n→ 전체 접근 허용 켜기";
+"gif_settings_button"    = "설정으로 가기";
+
+/* 특수문자 카테고리 */
+"special_heart"       = "하트";
+"special_star_flower" = "별/꽃";
+"special_arrow"       = "화살표";
+"special_deco"        = "장식";
+"special_symbol"      = "기호";
+"special_shape"       = "도형";
+"special_hieroglyph"  = "상형문자";
+"special_pattern"     = "패턴";
+"special_deco_line"   = "장식선";
+
+/* 카오모지 카테고리 */
+"kaomoji_happy"     = "행복";
+"kaomoji_sad"       = "슬픔";
+"kaomoji_angry"     = "화남";
+"kaomoji_animal"    = "동물";
+"kaomoji_love"      = "사랑";
+"kaomoji_reaction"  = "반응";
+"kaomoji_best"      = "최고";
+"kaomoji_surprised" = "놀람";
+"kaomoji_cute"      = "귀여움";
+"kaomoji_greeting"  = "인사";
+"kaomoji_apologize" = "사과";
+"kaomoji_etc"       = "기타";
+
+/* 폰트 탭 카테고리 */
+"font_cat_favorite"   = "즐겨찾기";
+"font_cat_classic"    = "클래식";
+"font_cat_modern"     = "모던";
+"font_cat_bold"       = "굵게";
+"font_cat_fun"        = "재미있는";
+"font_cat_decorative" = "장식";
+"font_cat_extra"      = "추가스타일";
+"font_cat_unique"     = "독특한";
+
+/* GIF 탭 카테고리 */
+"gif_cat_funny"    = "재미있는";
+"gif_cat_love"     = "사랑";
+"gif_cat_sad"      = "슬픔";
+"gif_cat_reaction" = "반응";
+"gif_cat_angry"    = "화남";
+
+/* 즐겨찾기 탭 카테고리 */
+"fav_cat_all"      = "전체";
+"fav_cat_emoticon" = "이모티콘";
+"fav_cat_special"  = "특수문자";
+"fav_cat_dotart"   = "도트아트";
+
+/* 즐겨찾기 탭 */
+"favorite_empty"     = "즐겨찾기가 없습니다";
+"favorite_empty_sub" = "이모티콘이나 카오모지를\n길게 눌러 추가해보세요";
+"favorite_added"     = "즐겨찾기에 추가됐어요";
+"favorite_removed"   = "즐겨찾기에서 삭제됐어요";
+
+/* 공통 */
+"ok_button"     = "확인";
+"cancel_button" = "취소";
