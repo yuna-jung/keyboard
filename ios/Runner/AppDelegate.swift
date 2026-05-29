@@ -9,6 +9,8 @@ import UIKit
   /// Flutter's Dart-side method handler is wired up. Drained by Dart via
   /// `consumePendingPaywall` once `HomeScreen` finishes its first build.
   private var pendingPaywall = false
+  private var pendingAddPhrase = false
+  private let myPhrasesKey = "user_custom_phrases"
 
   override func application(
     _ application: UIApplication,
@@ -103,12 +105,46 @@ import UIKit
         result(nil)
 
       case "consumePendingPaywall":
-        // Cold-start drain: Dart polls this once on startup to handle a
-        // `fonkii://paywall` URL that arrived before the Dart-side method
-        // handler was registered.
         let pending = self.pendingPaywall
         self.pendingPaywall = false
         result(pending)
+
+      case "consumePendingAddPhrase":
+        let pending = self.pendingAddPhrase
+        self.pendingAddPhrase = false
+        result(pending)
+
+      case "getCustomPhrases":
+        let defaults = UserDefaults(suiteName: self.appGroupID)
+        result(defaults?.stringArray(forKey: self.myPhrasesKey) ?? [])
+
+      case "addCustomPhrase":
+        guard let args = call.arguments as? [String: Any],
+              let phrase = args["phrase"] as? String,
+              !phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+          result(FlutterError(code: "INVALID_ARGS", message: nil, details: nil))
+          return
+        }
+        let defaults = UserDefaults(suiteName: self.appGroupID)
+        var list = defaults?.stringArray(forKey: self.myPhrasesKey) ?? []
+        let trimmed = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !list.contains(trimmed) { list.insert(trimmed, at: 0) }
+        defaults?.set(list, forKey: self.myPhrasesKey)
+        defaults?.synchronize()
+        result(nil)
+
+      case "deleteCustomPhrase":
+        guard let args = call.arguments as? [String: Any],
+              let phrase = args["phrase"] as? String else {
+          result(FlutterError(code: "INVALID_ARGS", message: nil, details: nil))
+          return
+        }
+        let defaults = UserDefaults(suiteName: self.appGroupID)
+        var list = defaults?.stringArray(forKey: self.myPhrasesKey) ?? []
+        list.removeAll { $0 == phrase }
+        defaults?.set(list, forKey: self.myPhrasesKey)
+        defaults?.synchronize()
+        result(nil)
 
       default:
         result(FlutterMethodNotImplemented)
@@ -131,6 +167,8 @@ import UIKit
       appGroupChannel?.invokeMethod("openPaywall", arguments: nil)
       return true
     }
+    // All other fonkii:// URLs (e.g. addPhrase) are forwarded to the Flutter
+    // plugin chain so app_links can handle them in Dart.
     return super.application(application, open: url, options: options)
   }
 }

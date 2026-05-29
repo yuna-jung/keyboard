@@ -21,6 +21,8 @@
 "keyboard_standard"       = "두벌식";
 "keyboard_cheonjiin"      = "천지인";
 "settings_title"          = "설정";
+"settings_korean_input"   = "한글 입력 방식";
+"settings_point_color"    = "포인트 컬러";
 
 /* 폰트 탭 */
 "font_normal" = "일반";
@@ -77,14 +79,100 @@
 /* 즐겨찾기 탭 카테고리 */
 "fav_cat_all"      = "전체";
 "fav_cat_emoticon" = "이모티콘";
-"fav_cat_special"  = "특수문자";
+"fav_cat_special"  = "기호";
 "fav_cat_dotart"   = "도트아트";
+"fav_cat_text"     = "자동완성";
 
 /* 즐겨찾기 탭 */
 "favorite_empty"     = "즐겨찾기가 없습니다";
 "favorite_empty_sub" = "이모티콘이나 카오모지를\n길게 눌러 추가해보세요";
 "favorite_added"     = "즐겨찾기에 추가됐어요";
 "favorite_removed"   = "즐겨찾기에서 삭제됐어요";
+
+/* 텍스트 대치 탭 */
+"text_replace_mylist"         = "내 목록";
+"text_replace_add"            = "+ 추가";
+"text_replace_delete_confirm" = "삭제하시겠어요?";
+"text_replace_delete_yes"     = "삭제";
+"text_replace_delete_no"      = "취소";
+"text_replace_cheer" = "응원";
+"text_replace_react" = "반응";
+"text_replace_daily" = "일상";
+"text_replace_quick" = "빠른 메시지";
+"text_replace_en"    = "EN";
+"text_replace_ko"    = "KO";
+
+/* 텍스트 대치 - Daily KO 섹션 */
+"daily_good_morning"  = "좋은 아침! ☀️";
+"daily_great_day"     = "오늘 하루도 잘 보내! ✨";
+"daily_what_doing"    = "뭐하고 있어?";
+"daily_weather"       = "오늘 날씨 진짜 좋다!";
+"daily_ate"           = "밥은 먹었어?";
+"daily_fighting"      = "오늘도 화이팅 🔥";
+"daily_tired"         = "오늘 왜 이렇게 피곤하지";
+"daily_busy"          = "오늘 진짜 정신없다";
+"daily_going_home"    = "나 지금 집 가는 중";
+"daily_text_home"     = "이따가 집 가서 연락할게!";
+"daily_safe_home"     = "조심히 들어가! 도착하면 톡해~";
+"daily_arrived"       = "집 도착했어?";
+"daily_rest"          = "푹 쉬어!";
+"daily_dont_overwork" = "너무 무리하지 마!";
+"daily_hard_work"     = "오늘도 고생 많았어 🥺";
+"daily_good_night"    = "잘 자! 좋은 꿈 꿔 🌙";
+"daily_weekend"       = "주말 잘 보내 ☀️";
+"daily_monday"        = "월요병 이겨내자… 😭";
+"daily_eat_together"  = "언제 한번 진짜 밥 먹자 ㅋㅋ";
+"daily_bored"         = "심심하다 ㅠㅠ";
+"daily_daebak"        = "헐 대박 ㅋㅋㅋ";
+"daily_funny"         = "아 개웃겨 진짜";
+"daily_agree"         = "인정 ㅋㅋ";
+"daily_miss"          = "나도 보고 싶었어 🥺";
+
+/* 텍스트 대치 - React KO 섹션 */
+"react_no_way"    = "말도 안돼 😱";
+"react_so_cool"   = "완전 멋있어 🔥";
+"react_obsessed"  = "미쳤다 진짜 😭";
+"react_everything"= "이게 전부야 🙌";
+"react_crying"    = "눈물 나 진짜 😭";
+"react_mind_blown"= "머리 터질 것 같아 🤯";
+"react_best"      = "역대급이다 👑";
+
+/* 텍스트 대치 - Quick KO 섹션 */
+"quick_on_way"    = "지금 가는 중! 🏃";
+"quick_brb"       = "잠깐만 기다려 ✌️";
+"quick_miss"      = "벌써 보고싶다 🥺";
+"quick_let_know"  = "알려줘! 😊";
+"quick_sounds_good"= "좋아 👍";
+"quick_take_care" = "건강 챙겨 🌸";
+"quick_good_luck" = "파이팅! 🍀";
+"quick_text_later"= "나중에 연락할게 💬";
+
+/* 텍스트 대치 - 응원 KO 섹션 (신규) */
+"cheer_ko_1"  = "존재 자체가 감동임 진짜로";
+"cheer_ko_2"  = "오늘도 덕분에 버텼다 고마워 🤍";
+"cheer_ko_3"  = "내 행복의 99%는 네 덕분이야";
+"cheer_ko_4"  = "아프지 말고 건강만 해, 그거면 돼";
+"cheer_ko_5"  = "항상 네 편이니까 기죽지 마";
+"cheer_ko_6"  = "네가 걷는 길은 다 정답이야";
+"cheer_ko_7"  = "언제나 늘 응원하고 있어";
+"cheer_ko_8"  = "네가 주는 에너지가 진짜 커";
+"cheer_ko_9"  = "매일 매 순간 고마워";
+"cheer_ko_10" = "세상이 억까해도 나는 네 편임 ㅇㅇ";
+"cheer_ko_11" = "네가 잘되면 내가 다 뿌듯해";
+"cheer_ko_12" = "너는 그냥 즐기기만 해, 응원은 내가 할게";
+"cheer_ko_13" = "언제나 네 눈엔 예쁜 것만 담기길 ✨";
+
+/* 텍스트 대치 - 응원 KO 섹션 (레거시) */
+"cheer_worked_hard"    = "오늘도 수고했어 💕";
+"cheer_cheering"       = "항상 응원할게 ✨";
+"cheer_thank_existing" = "존재해줘서 고마워 🥺";
+"cheer_stay_healthy"   = "건강이 제일 중요해 🌸";
+"cheer_happy"          = "너 덕분에 행복해 💫";
+"cheer_always_here"    = "우리 항상 여기 있을게 🤍";
+"cheer_best"           = "네가 최고야 👑";
+"cheer_miss_you"       = "사랑해 보고싶다 ㅠㅠ 💕";
+"cheer_hard_work"      = "열심히 해줘서 고마워 🙏";
+"cheer_take_easy"      = "쉬엄쉬엄 해도 돼 🫶";
 
 /* 공통 */
 "ok_button"     = "확인";

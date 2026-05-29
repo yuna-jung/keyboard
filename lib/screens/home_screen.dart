@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/subscription_service.dart';
+import 'add_phrase_screen.dart';
 import 'guide_screen.dart';
 import 'paywall_screen.dart';
 import 'settings_screen.dart';
@@ -52,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // was wired up, the pending flag is still set on the native side.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _drainPendingPaywall();
+      _drainPendingAddPhrase();
     });
   }
 
@@ -71,6 +73,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<dynamic> _handleNativeCall(MethodCall call) async {
     if (call.method == 'openPaywall') {
       _showPaywall();
+    } else if (call.method == 'openAddPhrase') {
+      _showAddPhrase();
     }
     return null;
   }
@@ -84,6 +88,14 @@ class _HomeScreenState extends State<HomeScreen> {
       // Native handler not registered yet on first launch — ignore; live
       // `openPaywall` events still flow through `setMethodCallHandler`.
     }
+  }
+
+  Future<void> _drainPendingAddPhrase() async {
+    try {
+      final pending =
+          await _appGroupChannel.invokeMethod<bool>('consumePendingAddPhrase');
+      if (pending == true) _showAddPhrase();
+    } catch (_) {}
   }
 
   void _showPaywall() {
@@ -101,6 +113,16 @@ class _HomeScreenState extends State<HomeScreen> {
       } finally {
         if (mounted) _paywallShowing = false;
       }
+    });
+  }
+
+  void _showAddPhrase() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const AddPhraseScreen()),
+      );
     });
   }
 
@@ -148,6 +170,16 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Image.asset(logoAsset, height: 28),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: Icon(Icons.format_list_bulleted,
+                color: isDark ? Colors.white : Colors.black87),
+            tooltip: '내 목록 관리',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AddPhraseScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.settings_outlined,
                 color: isDark ? Colors.white : Colors.black87),

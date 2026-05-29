@@ -19,6 +19,8 @@ PODS:
     - AdaptyUIBuilder (= 3.15.7)
   - AdaptyUIBuilder (3.15.7):
     - AdaptyLogger (= 3.15.7)
+  - app_links (6.4.1):
+    - Flutter
   - app_settings (5.1.1):
     - Flutter
   - Flutter (1.0.0)
@@ -32,6 +34,7 @@ PODS:
 
 DEPENDENCIES:
   - adapty_flutter (from `.symlinks/plugins/adapty_flutter/ios`)
+  - app_links (from `.symlinks/plugins/app_links/ios`)
   - app_settings (from `.symlinks/plugins/app_settings/ios`)
   - Flutter (from `Flutter`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
@@ -49,6 +52,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   adapty_flutter:
     :path: ".symlinks/plugins/adapty_flutter/ios"
+  app_links:
+    :path: ".symlinks/plugins/app_links/ios"
   app_settings:
     :path: ".symlinks/plugins/app_settings/ios"
   Flutter:
@@ -67,6 +72,7 @@ SPEC CHECKSUMS:
   AdaptyPlugin: 4613933dd9d1f5676bfd64d2cf413972be60513b
   AdaptyUI: 4cde24413c1a424eda3669c1580e4622c1e55e4a
   AdaptyUIBuilder: 50ddeffc81a5bcf3b1fe06b2a2eda24944cd3a03
+  app_links: 3dbc685f76b1693c66a6d9dd1e9ab6f73d97dc0a
   app_settings: 5127ae0678de1dcc19f2293271c51d37c89428b2
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a

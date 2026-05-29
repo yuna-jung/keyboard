@@ -1,12 +1,17 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/add_phrase_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding/onboarding_page1.dart';
 import 'screens/onboarding/onboarding_page2.dart';
 import 'services/subscription_service.dart';
+
+final _navigatorKey = GlobalKey<NavigatorState>();
 
 const _pink = Color(0xFF5BC8F5);
 
@@ -82,6 +87,7 @@ class FontKeyboardApp extends StatelessWidget {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
+      navigatorKey: _navigatorKey,
       home: const _LaunchRouter(),
     );
   }
@@ -109,6 +115,42 @@ enum _LaunchTarget { page1, page2, home }
 
 class _LaunchRouterState extends State<_LaunchRouter> {
   late final Future<_LaunchTarget> _target = _resolveTarget();
+  StreamSubscription<Uri>? _linkSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initDeepLinks() async {
+    final appLinks = AppLinks();
+
+    // Cold start: app was closed and opened via deep link
+    try {
+      final initial = await appLinks.getInitialLink();
+      if (initial != null) _handleLink(initial);
+    } catch (_) {}
+
+    // Warm start: app already running, new link arrives
+    _linkSub = appLinks.uriLinkStream.listen(_handleLink);
+  }
+
+  void _handleLink(Uri uri) {
+    if (uri.scheme == 'fonkii' && uri.host == 'addphrase') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (_) => const AddPhraseScreen()),
+        );
+      });
+    }
+  }
 
   Future<_LaunchTarget> _resolveTarget() async {
     final prefs = await SharedPreferences.getInstance();

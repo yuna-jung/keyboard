@@ -797,8 +797,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     ]
     private var selectedSpecialCat = 0
 
+    /* MARK: - 기존 텍스트 대치 데이터 비활성화 (복구 시 주석 해제)
     // MARK: - Text Templates
-
+    
     private let textTemplates: [(preview: String, full: String)] = [
         ("푸항항 ꉂꉂ(ᵔᗜᵔ*)", "푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*) 푸항항 ꉂꉂ(ᵔᗜᵔ*)"),
         ("🎷빠빠빠빠 굿모닝", "🎷🎺🎷🎷🎷🎺빠빠빠빠🎷🎷빠빠빠빠빠🎷🎷🎷🎺굿모닝🎷🎺🎺🎷🎷🎺🎺🎷빠빠빠빠빠🎷🎺🎺🎷🎺빠빠빠빠🎷🎺🎺굿모닝🎷🎺🎷🎺🎷🎷빠빠빠빠빠🎷🎷🎺🎺🎷🎺빠빠빠빠🎷🎷🎺🎷🎷뷰리풀데이🎷🎺🎺🎷🎷🎷빠빠빠빠빠🎷🎷🎺🎷이츠뷰리풀데이🎷🎷🎷🎺🎷🎷🎷🎺딩딩딩🎵🎶🎵굿모닝🎶🎵🎶딩딩딩🎵🎶🎵굿모닝🎶🎵🎶딩딩딩🎵🎶🎵🎷🎺🎷🎷🎷🎺빠빠빠빠🎷🎷빠빠빠빠빠🎷🎷🎷🎺굿모닝"),
@@ -842,6 +843,240 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         ("(ง˙∇˙)ง 덤벼! (ง˙∇˙)ง 덤비라규!", "(ง˙∇˙)ง 덤벼! (ง˙∇˙)ง 덤비라규! (ง˙∇˙)ว 퍽! 아 (ง˙∇˙)ง 덤벼! (ง˙∇˙)ง(ง˙∇˙)ง 덤벼! (ง˙∇˙)ง 덤비라규! (ง˙∇˙)ว 퍽! 아 (ง˙∇˙)ง 덤벼! (ง˙∇˙)ง(ง˙∇˙)ง 덤벼! (ง˙∇˙)ง 덤비라규! (ง˙∇˙)ว 퍽! 아 (ง˙∇˙)ง 덤벼! (ง˙∇˙)ง(ง˙∇˙)ง 덤벼! (ง˙∇˙)ง 덤비라규! (ง˙∇˙)ว 퍽! 아 (ง˙∇˙)ง 덤벼! (ง˙∇˙)ง"),
         ("1. 왜 그런 말을 했는지 1-1 어떠한 경위로", "1. 왜 그런 말을 했는지 1-1 어떠한 경위로 그런 말을 했는지 1-2 왜 그런 단어 선택을 했는지 1-3 평소에 그런 말을 자주 하는지 2. 그 말을 할 때 어떤 생각을 했는지 2-1 평소에 생각을 자주 하는 편인지 2-2 그 말을 떠올리면 어떤 생각이 드는지 2-3 말하기 전에 생각 했는지 3. 앞으로 어떻게 할 건지 3-1 어떤 생각을 가지고 살 건지 3-2 피해 보상은 생각해봤는지 3-3 보상을 한다면 어떤 방법으로 할건지 4. 최종 의견 4-1 최종적으로 어떤 생각을 하게 됐는지 4-2 앞으로 어떻게 할 건지")
     ]
+    */
+
+    // MARK: - Fandom Preset Data
+
+    private struct FandomItem {
+        let label: String       // button display text (English fallback)
+        let output: String      // text inserted on tap
+        var labelKey: String?   // localization key for display text (KO section only)
+    }
+    private struct FandomSection {
+        let title: String
+        let items: [FandomItem]
+    }
+    private struct FandomCategory {
+        let title: String
+        let sections: [FandomSection]
+    }
+
+    private let fandomCategories: [FandomCategory] = [
+        FandomCategory(title: "MyList", sections: []),   // My List — no preset sections, custom phrases only
+        FandomCategory(title: "Daily", sections: [
+            FandomSection(title: "EN", items: [
+                FandomItem(label: "Good Morning",  output: "Good morning! ☀️"),
+                FandomItem(label: "Morning",       output: "Morning ☀️"),
+                FandomItem(label: "Great Day",     output: "Hope you have a great day."),
+                FandomItem(label: "Doing Well",    output: "Hope you're doing well."),
+                FandomItem(label: "Going Well",    output: "Hope everything's going well!"),
+                FandomItem(label: "Slept Well",    output: "Hope you slept well!"),
+                FandomItem(label: "What's Up",     output: "Hey! What's up?"),
+                FandomItem(label: "Heyyy",         output: "Heyyy"),
+                FandomItem(label: "Day Going",     output: "How's your day going?"),
+                FandomItem(label: "How've You Been", output: "How have you been?"),
+                FandomItem(label: "Up To",         output: "What are you up to?"),
+                FandomItem(label: "Wyd",           output: "Wyd?"),
+                FandomItem(label: "Been Busy",     output: "Been busy lately?"),
+                FandomItem(label: "Checking In",   output: "Just checking in."),
+                FandomItem(label: "You Good",      output: "You good?"),
+                FandomItem(label: "Glad",          output: "Glad to hear that."),
+                FandomItem(label: "Sounds Good",   output: "Sounds good!"),
+                FandomItem(label: "Makes Sense",   output: "That makes sense."),
+                FandomItem(label: "I Get You",     output: "I get you."),
+                FandomItem(label: "No Worries",    output: "No worries!"),
+                FandomItem(label: "Take Time",     output: "Take your time!"),
+                FandomItem(label: "Text Free",     output: "Text me when you're free."),
+                FandomItem(label: "Talk Soon",     output: "Talk to you soon."),
+                FandomItem(label: "Catch Later",   output: "Catch you later!"),
+                FandomItem(label: "Good One",      output: "Have a good one!"),
+                FandomItem(label: "Stay Safe",     output: "Stay safe!"),
+                FandomItem(label: "Take Care",     output: "Take care!"),
+                FandomItem(label: "Sweet Dreams",  output: "Sweet dreams ✨"),
+                FandomItem(label: "Just Saw",      output: "Sorry, just saw this!"),
+                FandomItem(label: "Almost There",  output: "Almost there. I'll text you when I get there."),
+                FandomItem(label: "On My Way",     output: "On my way!"),
+                FandomItem(label: "Home",          output: "Finally home 🫠"),
+                FandomItem(label: "Tired",         output: "I'm so tired lol"),
+                FandomItem(label: "Don't Overwork", output: "Don't work too hard 😭"),
+                FandomItem(label: "Eaten",         output: "Did you eat yet?"),
+                FandomItem(label: "Miss You",      output: "Miss you already."),
+            ]),
+            FandomSection(title: "KO", items: [
+                FandomItem(label: "Good Morning",   output: "좋은 아침! ☀️",                      labelKey: "daily_good_morning"),
+                FandomItem(label: "Great Day",      output: "오늘 하루도 잘 보내! ✨",             labelKey: "daily_great_day"),
+                FandomItem(label: "What Doing",     output: "뭐하고 있어?",                        labelKey: "daily_what_doing"),
+                FandomItem(label: "Weather",        output: "오늘 날씨 진짜 좋다!",                labelKey: "daily_weather"),
+                FandomItem(label: "Ate",            output: "밥은 먹었어?",                        labelKey: "daily_ate"),
+                FandomItem(label: "Fighting",       output: "오늘도 화이팅 🔥",                    labelKey: "daily_fighting"),
+                FandomItem(label: "Tired",          output: "오늘 왜 이렇게 피곤하지",             labelKey: "daily_tired"),
+                FandomItem(label: "Busy",           output: "오늘 진짜 정신없다",                  labelKey: "daily_busy"),
+                FandomItem(label: "Going Home",     output: "나 지금 집 가는 중",                  labelKey: "daily_going_home"),
+                FandomItem(label: "Text Home",      output: "이따가 집 가서 연락할게!",             labelKey: "daily_text_home"),
+                FandomItem(label: "Safe Home",      output: "조심히 들어가! 도착하면 톡해~",       labelKey: "daily_safe_home"),
+                FandomItem(label: "Arrived",        output: "집 도착했어?",                        labelKey: "daily_arrived"),
+                FandomItem(label: "Rest",           output: "푹 쉬어!",                            labelKey: "daily_rest"),
+                FandomItem(label: "No Overwork",    output: "너무 무리하지 마!",                   labelKey: "daily_dont_overwork"),
+                FandomItem(label: "Hard Work",      output: "오늘도 고생 많았어 🥺",               labelKey: "daily_hard_work"),
+                FandomItem(label: "Good Night",     output: "잘 자! 좋은 꿈 꿔 🌙",               labelKey: "daily_good_night"),
+                FandomItem(label: "Weekend",        output: "주말 잘 보내 ☀️",                     labelKey: "daily_weekend"),
+                FandomItem(label: "Monday",         output: "월요병 이겨내자… 😭",                 labelKey: "daily_monday"),
+                FandomItem(label: "Eat Together",   output: "언제 한번 진짜 밥 먹자 ㅋㅋ",        labelKey: "daily_eat_together"),
+                FandomItem(label: "Bored",          output: "심심하다 ㅠㅠ",                       labelKey: "daily_bored"),
+                FandomItem(label: "Daebak",         output: "헐 대박 ㅋㅋㅋ",                     labelKey: "daily_daebak"),
+                FandomItem(label: "Funny",          output: "아 개웃겨 진짜",                      labelKey: "daily_funny"),
+                FandomItem(label: "Agree",          output: "인정 ㅋㅋ",                           labelKey: "daily_agree"),
+                FandomItem(label: "Miss",           output: "나도 보고 싶었어 🥺",                 labelKey: "daily_miss"),
+            ]),
+        ]),
+        FandomCategory(title: "React", sections: [
+            /* 기존 React EN 데이터 보존 (복구 시 주석 해제)
+            FandomSection(title: "EN", items: [
+                FandomItem(label: "No Way",      output: "No way!! 😱"),
+                FandomItem(label: "So Cool",     output: "That's so cool 🔥"),
+                FandomItem(label: "Obsessed",    output: "I'm obsessed 😭"),
+                FandomItem(label: "Everything",  output: "This is everything 🙌"),
+                FandomItem(label: "Can't Even",  output: "I can't even 💀"),
+                FandomItem(label: "Crying",      output: "Literally crying rn 😭"),
+                FandomItem(label: "Mind Blown",  output: "Mind blown 🤯"),
+                FandomItem(label: "Best Ever",   output: "Best thing ever 👑"),
+            }),
+            */
+            FandomSection(title: "EN", items: [
+                FandomItem(label: "No Way 💀",          output: "No way 💀"),
+                FandomItem(label: "Be So Real",          output: "Be so for real right now."),
+                FandomItem(label: "Actually Insane",     output: "That's actually insane."),
+                FandomItem(label: "I'm Crying 😭",       output: "I'm crying 😭"),
+                FandomItem(label: "Stoppp 😭",           output: "Stoppp 😭"),
+                FandomItem(label: "Ain't No Way",        output: "Ain't no way."),
+                FandomItem(label: "Sending Me",          output: "This is sending me."),
+                FandomItem(label: "Obsessed",            output: "I'm obsessed."),
+                FandomItem(label: "That's Wild",         output: "That's wild."),
+                FandomItem(label: "Real.",               output: "Real."),
+                FandomItem(label: "Help 😭",             output: "Help 😭"),
+                FandomItem(label: "I'm Weak",            output: "I'm weak."),
+                FandomItem(label: "Okayyyy 👀",          output: "Okayyyy I see you 👀"),
+                FandomItem(label: "You Ate",             output: "You ate."),
+                FandomItem(label: "Goes Hard",           output: "This goes hard."),
+                FandomItem(label: "Main Character",      output: "Main character energy."),
+                FandomItem(label: "I'm Dead 😭",         output: "I'm dead 😭"),
+                FandomItem(label: "So Real",             output: "You're so real for this."),
+                FandomItem(label: "Lowkey Obsessed",     output: "Lowkey obsessed."),
+                FandomItem(label: "Lowkey Iconic",       output: "Lowkey iconic."),
+                FandomItem(label: "This Ate",            output: "This ate."),
+                FandomItem(label: "Brooo 😭",            output: "Brooo 😭"),
+                FandomItem(label: "So Funny 😭",         output: "Why is this so funny 😭"),
+                FandomItem(label: "Nobody Talking",      output: "Why is nobody talking about this?"),
+                FandomItem(label: "Ate That Up",         output: "Oh you ate that up."),
+                FandomItem(label: "Crazy Work",          output: "Nah this is crazy work."),
+                FandomItem(label: "The Context 😭",      output: "The context?? 😭"),
+                FandomItem(label: "I Fear...",           output: "I fear..."),
+                FandomItem(label: "Top Tier",            output: "This is top tier."),
+                FandomItem(label: "We Are So Back",      output: "We are so back."),
+            ]),
+            FandomSection(title: "KO", items: [
+                FandomItem(label: "No Way",      output: "말도 안돼 😱",          labelKey: "react_no_way"),
+                FandomItem(label: "So Cool",     output: "완전 멋있어 🔥",        labelKey: "react_so_cool"),
+                FandomItem(label: "Obsessed",    output: "미쳤다 진짜 😭",        labelKey: "react_obsessed"),
+                FandomItem(label: "Everything",  output: "이게 전부야 🙌",        labelKey: "react_everything"),
+                FandomItem(label: "Crying",      output: "눈물 나 진짜 😭",       labelKey: "react_crying"),
+                FandomItem(label: "Mind Blown",  output: "머리 터질 것 같아 🤯",  labelKey: "react_mind_blown"),
+                FandomItem(label: "Best Ever",   output: "역대급이다 👑",          labelKey: "react_best"),
+            ]),
+        ]),
+        FandomCategory(title: "Cheer", sections: [
+            /* 기존 Cheer EN 데이터 보존 (복구 시 주석 해제)
+            FandomSection(title: "EN", items: [
+                FandomItem(label: "Did So Well",      output: "You did so well today 🥺"),
+                FandomItem(label: "So Proud",         output: "I'm so proud of you ✨"),
+                FandomItem(label: "Thank You",        output: "Thank you for working so hard 💕"),
+                FandomItem(label: "Rest Well",        output: "Please rest well and take care 🌸"),
+                FandomItem(label: "Deserve Love",     output: "You deserve all the love 💫"),
+                FandomItem(label: "Always Here",      output: "We'll always be here for you 🤍"),
+                FandomItem(label: "Never Unnoticed",  output: "Your hard work never goes unnoticed 🙏"),
+                FandomItem(label: "Better Place",     output: "You make the world a better place 💝"),
+                FandomItem(label: "Thank Existing",   output: "Thank you for existing 🫶"),
+                FandomItem(label: "Stay Healthy",     output: "Stay healthy, that's all we ask 💚"),
+            }),
+            */
+            FandomSection(title: "EN", items: [
+                FandomItem(label: "You Got This",    output: "You got this! 🔥"),
+                FandomItem(label: "Love To See It",  output: "We love to see it!"),
+                FandomItem(label: "Crushing It",     output: "You're crushing it 💪"),
+                FandomItem(label: "Go Get Em",       output: "Go get 'em! 🚀"),
+                FandomItem(label: "Good Vibes",      output: "Sending you all the good vibes."),
+                FandomItem(label: "Nail It",         output: "You're gonna nail it 💪"),
+                FandomItem(label: "Fingers Crossed", output: "Fingers crossed for you! 🤞"),
+                FandomItem(label: "Made For This",   output: "You were made for this."),
+                FandomItem(label: "Do Great",        output: "I know you'll do great."),
+                FandomItem(label: "So Proud",        output: "So proud of you."),
+                FandomItem(label: "Believe",         output: "I believe in you."),
+                FandomItem(label: "Proud Always",    output: "Proud of you always."),
+                FandomItem(label: "Goes Well",       output: "Hope everything goes well!"),
+                FandomItem(label: "Keep Shining",    output: "Keep shining ✨"),
+                FandomItem(label: "Doing Well",      output: "You're doing so well."),
+                FandomItem(label: "Best Of Luck",    output: "Wishing you the best of luck!"),
+                FandomItem(label: "Don't Stress",    output: "Don't stress too much 😭"),
+                FandomItem(label: "Deep Breath",     output: "Take a deep breath, you got this."),
+                FandomItem(label: "One Step",        output: "One step at a time!"),
+            ]),
+            /* 기존 Cheer KO 데이터 보존 (복구 시 주석 해제)
+            FandomSection(title: "KO", items: [
+                FandomItem(label: "Worked Hard",  output: "오늘도 수고했어 💕",       labelKey: "cheer_worked_hard"),
+                FandomItem(label: "Cheering",     output: "항상 응원할게 ✨",         labelKey: "cheer_cheering"),
+                FandomItem(label: "Thank You",    output: "존재해줘서 고마워 🥺",     labelKey: "cheer_thank_existing"),
+                FandomItem(label: "Stay Healthy", output: "건강이 제일 중요해 🌸",    labelKey: "cheer_stay_healthy"),
+                FandomItem(label: "Happy",        output: "너 덕분에 행복해 💫",      labelKey: "cheer_happy"),
+                FandomItem(label: "Always Here",  output: "우리 항상 여기 있을게 🤍", labelKey: "cheer_always_here"),
+                FandomItem(label: "Best",         output: "네가 최고야 👑",           labelKey: "cheer_best"),
+                FandomItem(label: "Miss You",     output: "사랑해 보고싶다 ㅠㅠ 💕", labelKey: "cheer_miss_you"),
+                FandomItem(label: "Hard Work",    output: "열심히 해줘서 고마워 🙏",  labelKey: "cheer_hard_work"),
+                FandomItem(label: "Take It Easy", output: "쉬엄쉬엄 해도 돼 🫶",    labelKey: "cheer_take_easy"),
+            }),
+            */
+            FandomSection(title: "KO", items: [
+                FandomItem(label: "Cheer 1",  output: "존재 자체가 감동임 진짜로",                labelKey: "cheer_ko_1"),
+                FandomItem(label: "Cheer 2",  output: "오늘도 덕분에 버텼다 고마워 🤍",          labelKey: "cheer_ko_2"),
+                FandomItem(label: "Cheer 3",  output: "내 행복의 99%는 네 덕분이야",             labelKey: "cheer_ko_3"),
+                FandomItem(label: "Cheer 4",  output: "아프지 말고 건강만 해, 그거면 돼",        labelKey: "cheer_ko_4"),
+                FandomItem(label: "Cheer 5",  output: "항상 네 편이니까 기죽지 마",              labelKey: "cheer_ko_5"),
+                FandomItem(label: "Cheer 6",  output: "네가 걷는 길은 다 정답이야",              labelKey: "cheer_ko_6"),
+                FandomItem(label: "Cheer 7",  output: "언제나 늘 응원하고 있어",                 labelKey: "cheer_ko_7"),
+                FandomItem(label: "Cheer 8",  output: "네가 주는 에너지가 진짜 커",              labelKey: "cheer_ko_8"),
+                FandomItem(label: "Cheer 9",  output: "매일 매 순간 고마워",                     labelKey: "cheer_ko_9"),
+                FandomItem(label: "Cheer 10", output: "세상이 억까해도 나는 네 편임 ㅇㅇ",      labelKey: "cheer_ko_10"),
+                FandomItem(label: "Cheer 11", output: "네가 잘되면 내가 다 뿌듯해",             labelKey: "cheer_ko_11"),
+                FandomItem(label: "Cheer 12", output: "너는 그냥 즐기기만 해, 응원은 내가 할게", labelKey: "cheer_ko_12"),
+                FandomItem(label: "Cheer 13", output: "언제나 네 눈엔 예쁜 것만 담기길 ✨",     labelKey: "cheer_ko_13"),
+            ]),
+        ]),
+        FandomCategory(title: "Quick", sections: [
+            FandomSection(title: "EN", items: [
+                FandomItem(label: "On My Way",    output: "On my way! 🏃"),
+                FandomItem(label: "BRB",          output: "Be right back ✌️"),
+                FandomItem(label: "Miss You",     output: "Miss you already 🥺"),
+                FandomItem(label: "Let Me Know",  output: "Let me know! 😊"),
+                FandomItem(label: "Sounds Good",  output: "Sounds good 👍"),
+                FandomItem(label: "Take Care",    output: "Take care 🌸"),
+                FandomItem(label: "Good Luck",    output: "Good luck! 🍀"),
+                FandomItem(label: "Text Later",   output: "I'll text you later 💬"),
+            ]),
+            FandomSection(title: "KO", items: [
+                FandomItem(label: "On My Way",    output: "지금 가는 중! 🏃",      labelKey: "quick_on_way"),
+                FandomItem(label: "BRB",          output: "잠깐만 기다려 ✌️",      labelKey: "quick_brb"),
+                FandomItem(label: "Miss You",     output: "벌써 보고싶다 🥺",      labelKey: "quick_miss"),
+                FandomItem(label: "Let Me Know",  output: "알려줘! 😊",            labelKey: "quick_let_know"),
+                FandomItem(label: "Sounds Good",  output: "좋아 👍",               labelKey: "quick_sounds_good"),
+                FandomItem(label: "Take Care",    output: "건강 챙겨 🌸",          labelKey: "quick_take_care"),
+                FandomItem(label: "Good Luck",    output: "파이팅! 🍀",            labelKey: "quick_good_luck"),
+                FandomItem(label: "Text Later",   output: "나중에 연락할게 💬",    labelKey: "quick_text_later"),
+            ]),
+        ]),
+    ]
+
+    private var fandomCatIndex = 0
+    private var fandomLangIsEN = true
+    private var fandomItemOutputs: [Int: String] = [:]
 
     // MARK: - Dot Art Data
 
@@ -1606,15 +1841,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         modeBar.distribution = .fillEqually
         modeBar.spacing = 4
         let modeOrder: [Mode] = [
-            .fonts, .translate, .textTemplate, .emoticon, .special, .gif, .favorites, .palette,
+            .fonts, .translate, .textTemplate, .emoticon, .special, .gif, .dotArt, .favorites, .palette,
             // 비활성화 탭 (순서 복구 시 위 배열로 이동):
-            .calculator, .dotArt,
+            .calculator,
         ]
         for mode in modeOrder {
             // MARK: - 계산기 탭 비활성화 (복구 시 주석 해제)
             if mode == .calculator { continue }
-            // MARK: - ASCII 탭 비활성화 (복구 시 주석 해제)
-            if mode == .dotArt { continue }
             let btn = makeModeButton(mode)
             modeBar.addArrangedSubview(btn)
         }
@@ -1967,7 +2200,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // ── Top: 한글 입력 방식 (full width) ────────────────────────────
         let inputHeader = UILabel()
-        inputHeader.text = "한글 입력 방식"
+        inputHeader.text = loc("settings_korean_input")
         inputHeader.font = .systemFont(ofSize: 13, weight: .semibold)
         inputHeader.textColor = .darkGray
         inputHeader.heightAnchor.constraint(equalToConstant: 18).isActive = true
@@ -2019,7 +2252,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottom.alignment = .center
 
         let leftLabel = UILabel()
-        leftLabel.text = "포인트 컬러"
+        leftLabel.text = loc("settings_point_color")
         leftLabel.font = .systemFont(ofSize: 13, weight: .semibold)
         leftLabel.textColor = .darkGray
         leftLabel.textAlignment = .center
@@ -2811,21 +3044,160 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Text Template Mode
 
     private func buildTextTemplateMode() {
+        fandomItemOutputs.removeAll()
+        let safeCat = min(fandomCatIndex, max(fandomCategories.count - 1, 0))
+        let extBundle = Bundle(for: type(of: self))
+
         let container = UIView()
         container.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(container)
         pinToEdges(container, in: contentView)
 
-        // Bottom delete bar removed per spec — the scroll view extends
-        // straight to the container bottom.
+        // ── Category tab bar ──
+        let catScroll = UIScrollView()
+        catScroll.showsHorizontalScrollIndicator = false
+        catScroll.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(catScroll)
 
+        let catRow = UIStackView()
+        catRow.axis = .horizontal
+        catRow.spacing = 8
+        catRow.translatesAutoresizingMaskIntoConstraints = false
+        catScroll.addSubview(catRow)
+        NSLayoutConstraint.activate([
+            catRow.topAnchor.constraint(equalTo: catScroll.topAnchor),
+            catRow.leadingAnchor.constraint(equalTo: catScroll.leadingAnchor, constant: 8),
+            catRow.trailingAnchor.constraint(equalTo: catScroll.trailingAnchor, constant: -8),
+            catRow.bottomAnchor.constraint(equalTo: catScroll.bottomAnchor),
+            catRow.heightAnchor.constraint(equalTo: catScroll.heightAnchor),
+        ])
+        for (i, cat) in fandomCategories.enumerated() {
+            let btn = UIButton(type: .system)
+            let catTitleKey = "text_replace_\(cat.title.lowercased())"
+            btn.setTitle(NSLocalizedString(catTitleKey, bundle: extBundle, comment: ""), for: .normal)
+            btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
+            btn.tag = i
+            btn.layer.cornerRadius = 14
+            btn.contentEdgeInsets = UIEdgeInsets(top: 4, left: 14, bottom: 4, right: 14)
+            let sel = i == safeCat
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
+            btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
+            btn.addTarget(self, action: #selector(fandomCatTapped(_:)), for: .touchUpInside)
+            catRow.addArrangedSubview(btn)
+        }
+
+        NSLayoutConstraint.activate([
+            catScroll.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            catScroll.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            catScroll.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            catScroll.heightAnchor.constraint(equalToConstant: 34),
+        ])
+
+        let selectedCat = fandomCategories[safeCat]
+
+        // ── My List branch ──────────────────────────────────────────────────
+        if selectedCat.sections.isEmpty {
+            let addBtn = UIButton(type: .system)
+            addBtn.setTitle(NSLocalizedString("text_replace_add", bundle: extBundle, comment: ""), for: .normal)
+            addBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
+            addBtn.backgroundColor = accentColor
+            addBtn.setTitleColor(.white, for: .normal)
+            addBtn.layer.cornerRadius = 10
+            addBtn.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(addBtn)
+            addBtn.addTarget(self, action: #selector(myListAddTapped), for: .touchUpInside)
+
+            let listScroll = UIScrollView()
+            listScroll.alwaysBounceVertical = true
+            listScroll.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(listScroll)
+
+            NSLayoutConstraint.activate([
+                addBtn.topAnchor.constraint(equalTo: catScroll.bottomAnchor, constant: 6),
+                addBtn.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
+                addBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+                addBtn.heightAnchor.constraint(equalToConstant: 36),
+
+                listScroll.topAnchor.constraint(equalTo: addBtn.bottomAnchor, constant: 6),
+                listScroll.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                listScroll.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                listScroll.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            ])
+
+            let vStack = UIStackView()
+            vStack.axis = .vertical
+            vStack.spacing = 5
+            vStack.translatesAutoresizingMaskIntoConstraints = false
+            listScroll.addSubview(vStack)
+            NSLayoutConstraint.activate([
+                vStack.topAnchor.constraint(equalTo: listScroll.contentLayoutGuide.topAnchor, constant: 4),
+                vStack.leadingAnchor.constraint(equalTo: listScroll.contentLayoutGuide.leadingAnchor, constant: 8),
+                vStack.trailingAnchor.constraint(equalTo: listScroll.contentLayoutGuide.trailingAnchor, constant: -8),
+                vStack.bottomAnchor.constraint(equalTo: listScroll.contentLayoutGuide.bottomAnchor, constant: -4),
+                vStack.widthAnchor.constraint(equalTo: listScroll.frameLayoutGuide.widthAnchor, constant: -16),
+            ])
+
+            let phrases = loadFavList(Self.myPhrasesKey)
+            for (idx, phrase) in phrases.enumerated() {
+                let btn = UIButton(type: .system)
+                btn.tag = idx
+                btn.setTitle(phrase, for: .normal)
+                btn.titleLabel?.font = .systemFont(ofSize: 14)
+                btn.titleLabel?.lineBreakMode = .byTruncatingTail
+                btn.contentHorizontalAlignment = .left
+                btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+                btn.backgroundColor = .white
+                btn.setTitleColor(.darkGray, for: .normal)
+                btn.layer.cornerRadius = 8
+                btn.layer.borderWidth = 0.5
+                btn.layer.borderColor = UIColor(white: 0.85, alpha: 1).cgColor
+                btn.heightAnchor.constraint(equalToConstant: 44).isActive = true
+                btn.addTarget(self, action: #selector(myListItemTapped(_:)), for: .touchUpInside)
+                let lp = UILongPressGestureRecognizer(target: self, action: #selector(myListItemLongPressed(_:)))
+                lp.minimumPressDuration = 0.5
+                btn.addGestureRecognizer(lp)
+                vStack.addArrangedSubview(btn)
+            }
+            return
+        }
+
+        // ── EN | KO toggle ──────────────────────────────────────────────────
+        let toggleRow = UIStackView()
+        toggleRow.axis = .horizontal
+        toggleRow.spacing = 6
+        toggleRow.distribution = .fillEqually
+        toggleRow.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(toggleRow)
+
+        let langKeys = selectedCat.sections.count > 1
+            ? ["text_replace_en", "text_replace_ko"]
+            : ["text_replace_en"]
+        for (i, langKey) in langKeys.enumerated() {
+            let btn = UIButton(type: .system)
+            btn.setTitle(NSLocalizedString(langKey, bundle: extBundle, comment: ""), for: .normal)
+            btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
+            btn.tag = i  // 0=EN, 1=KO
+            btn.layer.cornerRadius = 12
+            let sel = (i == 0) == fandomLangIsEN || langKeys.count == 1
+            btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
+            btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
+            btn.addTarget(self, action: #selector(fandomLangToggled(_:)), for: .touchUpInside)
+            toggleRow.addArrangedSubview(btn)
+        }
+
+        // ── Item list scroll ──
         let scrollView = UIScrollView()
         scrollView.alwaysBounceVertical = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(scrollView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: container.topAnchor),
+            toggleRow.topAnchor.constraint(equalTo: catScroll.bottomAnchor, constant: 6),
+            toggleRow.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
+            toggleRow.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+            toggleRow.heightAnchor.constraint(equalToConstant: 30),
+
+            scrollView.topAnchor.constraint(equalTo: toggleRow.bottomAnchor, constant: 6),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
@@ -2833,26 +3205,35 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         let vStack = UIStackView()
         vStack.axis = .vertical
-        vStack.spacing = 6
+        vStack.spacing = 5
         vStack.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(vStack)
-
         NSLayoutConstraint.activate([
-            vStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 6),
+            vStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 4),
             vStack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 8),
             vStack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -8),
-            vStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -6),
+            vStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -4),
             vStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -16),
         ])
 
-        for (index, item) in textTemplates.enumerated() {
+        let cat = fandomCategories[safeCat]
+        let sectionIndex = fandomLangIsEN ? 0 : 1
+        let safeSection = min(sectionIndex, cat.sections.count - 1)
+        let items = safeSection >= 0 ? cat.sections[safeSection].items : []
+
+        for (idx, item) in items.enumerated() {
             let btn = UIButton(type: .system)
-            btn.tag = index
-            btn.setTitle(item.preview, for: .normal)
+            btn.tag = idx
+            fandomItemOutputs[idx] = item.output
+            let displayText: String
+            if !fandomLangIsEN, let key = item.labelKey {
+                displayText = NSLocalizedString(key, bundle: extBundle, comment: "")
+            } else {
+                displayText = item.output
+            }
+            btn.setTitle(displayText, for: .normal)
             btn.titleLabel?.font = .systemFont(ofSize: 14)
             btn.titleLabel?.lineBreakMode = .byTruncatingTail
-            btn.titleLabel?.adjustsFontSizeToFitWidth = true
-            btn.titleLabel?.minimumScaleFactor = 0.7
             btn.contentHorizontalAlignment = .left
             btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
             btn.backgroundColor = .white
@@ -2860,16 +3241,28 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.layer.cornerRadius = 8
             btn.layer.borderWidth = 0.5
             btn.layer.borderColor = UIColor(white: 0.85, alpha: 1).cgColor
-            btn.setHeight(40)
-            btn.addTarget(self, action: #selector(textTemplateTapped(_:)), for: .touchUpInside)
+            btn.heightAnchor.constraint(equalToConstant: 44).isActive = true
+            btn.addTarget(self, action: #selector(fandomItemTapped(_:)), for: .touchUpInside)
+            let lp = UILongPressGestureRecognizer(target: self, action: #selector(fandomItemLongPressed(_:)))
+            lp.minimumPressDuration = 0.5
+            btn.addGestureRecognizer(lp)
             vStack.addArrangedSubview(btn)
         }
     }
 
-    @objc private func textTemplateTapped(_ s: UIButton) {
-        let idx = s.tag
-        guard idx >= 0 && idx < textTemplates.count else { return }
-        textDocumentProxy.insertText(textTemplates[idx].full)
+    @objc private func fandomCatTapped(_ s: UIButton) {
+        fandomCatIndex = s.tag
+        showMode(.textTemplate)
+    }
+
+    @objc private func fandomLangToggled(_ s: UIButton) {
+        fandomLangIsEN = (s.tag == 0)
+        showMode(.textTemplate)
+    }
+
+    @objc private func fandomItemTapped(_ s: UIButton) {
+        guard let output = fandomItemOutputs[s.tag] else { return }
+        textDocumentProxy.insertText(output)
         UIView.animate(withDuration: 0.06, animations: {
             s.transform = CGAffineTransform(scaleX: 0.97, y: 0.97)
             s.backgroundColor = self.accentColor.withAlphaComponent(0.15)
@@ -2879,6 +3272,89 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 s.backgroundColor = .white
             }
         }
+    }
+
+    @objc private func myListAddTapped() {
+        let isKo = Locale.current.language.languageCode?.identifier == "ko"
+        print("🔥 [MyList] hasFullAccess = \(self.hasFullAccess)")
+        print("🔥 [MyList] extensionContext = \(String(describing: self.extensionContext))")
+
+        guard hasFullAccess else {
+            showToast(isKo
+                ? "Fonkii 앱 → 내 목록 관리에서 추가해주세요"
+                : "Go to Fonkii app → My List to add phrases")
+            return
+        }
+        guard let url = URL(string: "fonkii://addPhrase"),
+              let ctx = extensionContext else {
+            print("🔥 [MyList] URL or extensionContext is nil")
+            return
+        }
+        print("🔥 [MyList] calling ctx.open(\(url))")
+        ctx.open(url) { [weak self] success in
+            print("🔥 [MyList] open result = \(success)")
+            if !success {
+                DispatchQueue.main.async {
+                    self?.showToast(isKo
+                        ? "Fonkii 앱 → 내 목록 관리에서 추가해주세요"
+                        : "Go to Fonkii app → My List to add phrases")
+                }
+            }
+        }
+    }
+
+    @objc private func myListItemTapped(_ s: UIButton) {
+        let phrases = loadFavList(Self.myPhrasesKey)
+        guard s.tag < phrases.count else { return }
+        textDocumentProxy.insertText(phrases[s.tag])
+    }
+
+    @objc private func myListItemLongPressed(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began else { return }
+        guard let btn = gesture.view as? UIButton else { return }
+        let phrases = loadFavList(Self.myPhrasesKey)
+        guard btn.tag < phrases.count else { return }
+        let text = phrases[btn.tag]
+        let overlay = makeOverlay()
+        let stack = makePopupStack(in: overlay)
+        stack.addArrangedSubview(makePopupButton(
+            title: loc("text_replace_delete_yes"), color: .systemRed) {
+            overlay.removeFromSuperview()
+            var list = self.loadFavList(Self.myPhrasesKey)
+            list.removeAll { $0 == text }
+            self.saveFavList(Self.myPhrasesKey, list)
+            self.showToast(self.loc("favorite_removed"))
+            self.showMode(.textTemplate)
+        })
+        stack.addArrangedSubview(makePopupButton(
+            title: loc("cancel_button"), color: .darkGray) {
+            overlay.removeFromSuperview()
+        })
+    }
+
+    @objc private func fandomItemLongPressed(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began else { return }
+        guard let btn = gesture.view as? UIButton else { return }
+        guard let output = fandomItemOutputs[btn.tag] else { return }
+        showAddPopup(text: output, favKey: Self.favKeyTextReplace)
+    }
+
+    @objc private func favTextReplaceTapped(_ s: UIButton) {
+        let items = loadFavList(Self.favKeyTextReplace)
+        guard s.tag < items.count else { return }
+        textDocumentProxy.insertText(items[s.tag])
+    }
+
+    @objc private func favTextReplaceLongPressed(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began else { return }
+        guard let btn = gesture.view as? UIButton else { return }
+        let items = loadFavList(Self.favKeyTextReplace)
+        guard btn.tag < items.count else { return }
+        showRemovePopup(text: items[btn.tag], favKey: Self.favKeyTextReplace)
+    }
+
+    @objc private func textTemplateTapped(_ s: UIButton) {
+        // Legacy handler — kept for compatibility; no longer called.
     }
 
     // MARK: - Calculator Mode
@@ -5624,9 +6100,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let emoFavs    = loadFavList(Self.favKeyEmoticon)
         let dotArtFavs = loadFavList(Self.favKeyDotArt)
         let gifFavs    = loadFavList(Self.favKeyGif)
+        let textFavs   = loadFavList(Self.favKeyTextReplace)
         // Font favorites surface in the Aa tab now — this tab no longer
         // duplicates them, so we don't fetch / render the font list here.
-        let allEmpty   = emoFavs.isEmpty && dotArtFavs.isEmpty && gifFavs.isEmpty
+        let allEmpty   = emoFavs.isEmpty && dotArtFavs.isEmpty && gifFavs.isEmpty && textFavs.isEmpty
 
         let container = UIView()
         container.translatesAutoresizingMaskIntoConstraints = false
@@ -5701,17 +6178,18 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             gridStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -10),
         ])
 
-        // Determine what to show. Categories: 0=전체, 1=이모티콘, 2=특수문자,
-        // 3=도트아트, 4=GIF. Emoticon and Special share the same favorites
-        // store, so both indices light it up.
+        // Determine what to show. Categories: 0=전체, 1=이모티콘, 2=기호, 3=GIF, 4=Text.
+        // (도트아트 카테고리 비활성화 — 전체에서만 표시)
         let showEmo    = favCategoryIndex == 0 || favCategoryIndex == 1 || favCategoryIndex == 2
-        let showDotArt = favCategoryIndex == 0 || favCategoryIndex == 3
-        let showGif    = favCategoryIndex == 0 || favCategoryIndex == 4
-        let filteredEmo = showEmo ? emoFavs : []
-        let filteredDA  = showDotArt ? dotArtFavs : []
-        let filteredGif = showGif ? gifFavs : []
+        let showDotArt = favCategoryIndex == 0
+        let showGif    = favCategoryIndex == 0 || favCategoryIndex == 3
+        let showText   = favCategoryIndex == 0 || favCategoryIndex == 4
+        let filteredEmo  = showEmo    ? emoFavs    : []
+        let filteredDA   = showDotArt ? dotArtFavs : []
+        let filteredGif  = showGif    ? gifFavs    : []
+        let filteredText = showText   ? textFavs   : []
 
-        let totalEmpty = filteredEmo.isEmpty && filteredDA.isEmpty && filteredGif.isEmpty
+        let totalEmpty = filteredEmo.isEmpty && filteredDA.isEmpty && filteredGif.isEmpty && filteredText.isEmpty
 
         if totalEmpty {
             let emptyLabel = UILabel()
@@ -5850,6 +6328,28 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 for _ in 0..<(cols - row.count) { rowStack.addArrangedSubview(UIView()) }
                 gridStack.addArrangedSubview(rowStack)
             }
+        }
+
+        // Text replace rows (full-width, 1 col)
+        for (i, text) in filteredText.enumerated() {
+            let btn = UIButton(type: .system)
+            btn.tag = i
+            btn.setTitle(text, for: .normal)
+            btn.titleLabel?.font = .systemFont(ofSize: 14)
+            btn.titleLabel?.lineBreakMode = .byTruncatingTail
+            btn.contentHorizontalAlignment = .left
+            btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+            btn.backgroundColor = .white
+            btn.setTitleColor(.darkGray, for: .normal)
+            btn.layer.cornerRadius = 8
+            btn.layer.borderWidth = 0.5
+            btn.layer.borderColor = UIColor(white: 0.85, alpha: 1).cgColor
+            btn.heightAnchor.constraint(equalToConstant: 44).isActive = true
+            btn.addTarget(self, action: #selector(favTextReplaceTapped(_:)), for: .touchUpInside)
+            let lp = UILongPressGestureRecognizer(target: self, action: #selector(favTextReplaceLongPressed(_:)))
+            lp.minimumPressDuration = 0.5
+            btn.addGestureRecognizer(lp)
+            gridStack.addArrangedSubview(btn)
         }
 
     }
@@ -6625,14 +7125,18 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     // MARK: - Favorites Storage
 
-    private static let favKeyEmoticon = "favorites"
-    private static let favKeyDotArt   = "favorites_dotart"
-    private static let favKeyGif      = "favorites_gif"
+    private static let favKeyEmoticon    = "favorites"
+    private static let favKeyDotArt     = "favorites_dotart"
+    private static let favKeyGif        = "favorites_gif"
+    private static let favKeyTextReplace = "favorite_text_replace"
+    private static let myPhrasesKey     = "user_custom_phrases"
     private static let favAppGroup    = "group.com.yunajung.fonki"
     private static let maxFav         = 100
 
     private var favCategoryIndex = 0
-    private lazy var favCategoryNames = [loc("fav_cat_all"), loc("fav_cat_emoticon"), loc("fav_cat_special"), loc("fav_cat_dotart"), "GIF"]
+    // MARK: - 도트아트 즐겨찾기 카테고리 비활성화 (복구 시 주석 해제)
+    // private lazy var favCategoryNames = [loc("fav_cat_all"), loc("fav_cat_emoticon"), loc("fav_cat_special"), loc("fav_cat_dotart"), "GIF"]
+    private lazy var favCategoryNames = [loc("fav_cat_all"), loc("fav_cat_emoticon"), loc("fav_cat_special"), "GIF", loc("fav_cat_text")]
 
     private func favDefaults() -> UserDefaults {
         UserDefaults(suiteName: Self.favAppGroup) ?? .standard

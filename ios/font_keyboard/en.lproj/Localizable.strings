@@ -21,6 +21,8 @@
 "keyboard_standard"       = "Standard";
 "keyboard_cheonjiin"      = "Cheonjiin";
 "settings_title"          = "Settings";
+"settings_korean_input"   = "Korean Input";
+"settings_point_color"    = "Point Color";
 
 /* Font tab */
 "font_normal" = "Normal";
@@ -77,14 +79,100 @@
 /* Favorites tab categories */
 "fav_cat_all"      = "All";
 "fav_cat_emoticon" = "Emoticon";
-"fav_cat_special"  = "Special";
+"fav_cat_special"  = "Symbol";
 "fav_cat_dotart"   = "Dot Art";
+"fav_cat_text"     = "Text";
 
 /* Favorites tab */
 "favorite_empty"     = "No favorites yet";
 "favorite_empty_sub" = "Long press any emoticon\nor kaomoji to add";
 "favorite_added"     = "Added to favorites";
 "favorite_removed"   = "Removed from favorites";
+
+/* Text template tab */
+"text_replace_mylist"         = "My List";
+"text_replace_add"            = "+ Add";
+"text_replace_delete_confirm" = "Delete this phrase?";
+"text_replace_delete_yes"     = "Delete";
+"text_replace_delete_no"      = "Cancel";
+"text_replace_cheer" = "Cheer";
+"text_replace_react" = "React";
+"text_replace_daily" = "Daily";
+"text_replace_quick" = "Quick";
+"text_replace_en"    = "EN";
+"text_replace_ko"    = "KO";
+
+/* Text template - Daily KO section */
+"daily_good_morning"  = "Good Morning ☀️";
+"daily_great_day"     = "Have a Great Day ✨";
+"daily_what_doing"    = "What Are You Doing?";
+"daily_weather"       = "Weather's So Nice!";
+"daily_ate"           = "Did You Eat?";
+"daily_fighting"      = "Fighting Today 🔥";
+"daily_tired"         = "So Tired Today";
+"daily_busy"          = "Crazy Busy Today";
+"daily_going_home"    = "Heading Home Now";
+"daily_text_home"     = "I'll Text You When I'm Home!";
+"daily_safe_home"     = "Get Home Safe! Text Me~";
+"daily_arrived"       = "Home Yet?";
+"daily_rest"          = "Get Some Rest!";
+"daily_dont_overwork" = "Don't Overdo It!";
+"daily_hard_work"     = "Good Work Today 🥺";
+"daily_good_night"    = "Good Night! Sweet Dreams 🌙";
+"daily_weekend"       = "Have a Good Weekend ☀️";
+"daily_monday"        = "We Got This Monday… 😭";
+"daily_eat_together"  = "We Should Grab Food Sometime";
+"daily_bored"         = "I'm So Bored ㅠㅠ";
+"daily_daebak"        = "No Way 😱";
+"daily_funny"         = "That's Hilarious";
+"daily_agree"         = "Facts ㅋㅋ";
+"daily_miss"          = "Missed You Too 🥺";
+
+/* Text template - React KO section */
+"react_no_way"    = "No Way 😱";
+"react_so_cool"   = "So Cool 🔥";
+"react_obsessed"  = "Obsessed 😭";
+"react_everything"= "Everything 🙌";
+"react_crying"    = "Crying 😭";
+"react_mind_blown"= "Mind Blown 🤯";
+"react_best"      = "Best Ever 👑";
+
+/* Text template - Quick KO section */
+"quick_on_way"    = "On My Way 🏃";
+"quick_brb"       = "Be Right Back ✌️";
+"quick_miss"      = "Miss You 🥺";
+"quick_let_know"  = "Let Me Know 😊";
+"quick_sounds_good"= "Sounds Good 👍";
+"quick_take_care" = "Take Care 🌸";
+"quick_good_luck" = "Good Luck 🍀";
+"quick_text_later"= "Text You Later 💬";
+
+/* Text template - Cheer KO section (new) */
+"cheer_ko_1"  = "You're Everything";
+"cheer_ko_2"  = "Kept Me Going";
+"cheer_ko_3"  = "My 99% Happiness";
+"cheer_ko_4"  = "Just Stay Healthy";
+"cheer_ko_5"  = "Always On Your Side";
+"cheer_ko_6"  = "Your Path is Right";
+"cheer_ko_7"  = "Always Cheering";
+"cheer_ko_8"  = "Your Energy is Real";
+"cheer_ko_9"  = "Grateful Every Moment";
+"cheer_ko_10" = "Still Your Side";
+"cheer_ko_11" = "Your Win = My Pride";
+"cheer_ko_12" = "You Enjoy, I'll Cheer";
+"cheer_ko_13" = "See Only Beauty ✨";
+
+/* Text template - Cheer KO section (legacy) */
+"cheer_worked_hard"    = "Worked Hard 💕";
+"cheer_cheering"       = "Always Cheering ✨";
+"cheer_thank_existing" = "Thank You 🥺";
+"cheer_stay_healthy"   = "Stay Healthy 🌸";
+"cheer_happy"          = "You Make Me Happy 💫";
+"cheer_always_here"    = "Always Here 🤍";
+"cheer_best"           = "You're The Best 👑";
+"cheer_miss_you"       = "Miss You 💕";
+"cheer_hard_work"      = "Hard Work 🙏";
+"cheer_take_easy"      = "Take It Easy 🫶";
 
 /* Common */
 "ok_button"     = "OK";
