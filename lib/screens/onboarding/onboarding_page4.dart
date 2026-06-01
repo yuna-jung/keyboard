@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../home_screen.dart';
 import 'onboarding_page1.dart' show onboardingCompletedKey;
 
@@ -56,6 +57,7 @@ class _OnboardingPage4State extends State<OnboardingPage4> {
   @override
   Widget build(BuildContext context) {
     final isLast = _index == _pages.length - 1;
+    final l = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
@@ -94,9 +96,9 @@ class _OnboardingPage4State extends State<OnboardingPage4> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: const Text(
-                            '시작하기',
-                            style: TextStyle(
+                          child: Text(
+                            l.onboardingStart,
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -112,9 +114,9 @@ class _OnboardingPage4State extends State<OnboardingPage4> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: const Text(
-                            '다음',
-                            style: TextStyle(
+                          child: Text(
+                            l.onboardingNext,
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -239,11 +241,12 @@ class _FontSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _SlideShell(
+    final l = AppLocalizations.of(context)!;
+    return _SlideShell(
       icon: 'Aa',
-      title: '46가지의 폰트 변환',
-      description: '채팅을 더 특별하게! 나만의 개성 폰트',
-      preview: _PreviewCard(
+      title: l.onboarding4FontTitle,
+      description: l.onboarding4FontDesc,
+      preview: const _PreviewCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -323,15 +326,16 @@ class _TranslationSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _SlideShell(
+    final l = AppLocalizations.of(context)!;
+    return _SlideShell(
       icon: '🌐',
-      title: '실시간 번역',
-      description: '9개 언어로 바로 번역!\n외국 친구와도 자유롭게 소통해요',
+      title: l.onboarding4TranslateTitle,
+      description: l.onboarding4TranslateDesc,
       preview: _PreviewCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 _LangPill('한국어'),
                 SizedBox(width: 6),
@@ -340,32 +344,32 @@ class _TranslationSlide extends StatelessWidget {
                 _LangPill('English'),
               ],
             ),
-            SizedBox(height: 12),
-            _TranslateBox(
+            const SizedBox(height: 12),
+            const _TranslateBox(
               text: '오늘 저녁에 시간 있어?',
               background: _innerBg,
               textColor: Colors.black,
             ),
-            SizedBox(height: 8),
-            Center(
+            const SizedBox(height: 8),
+            const Center(
               child: Icon(Icons.arrow_downward, color: _accent, size: 20),
             ),
-            SizedBox(height: 8),
-            _TranslateBox(
+            const SizedBox(height: 8),
+            const _TranslateBox(
               text: 'Are you free tonight?',
               background: _accentSoft,
               textColor: _accentInkDark,
               bold: true,
             ),
-            SizedBox(height: 14),
+            const SizedBox(height: 14),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
-                _Tag('🇺🇸 영어'),
-                _Tag('🇯🇵 일본어'),
-                _Tag('🇨🇳 중국어'),
-                _Tag('+6'),
+                _Tag(l.onboarding4TagEnglish),
+                _Tag(l.onboarding4TagJapanese),
+                _Tag(l.onboarding4TagChinese),
+                const _Tag('+6'),
               ],
             ),
           ],
@@ -458,11 +462,12 @@ class _ReplacementSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _SlideShell(
+    final l = AppLocalizations.of(context)!;
+    return _SlideShell(
       icon: '📱',
-      title: '인스타에서도 써봐요! 📸',
-      description: 'Fonkii 폰트로 인스타 스토리, 게시물을 더 특별하게!',
-      preview: _InstagramProfileCard(),
+      title: l.onboarding4InstaTitle,
+      description: l.onboarding4InstaDesc,
+      preview: const _InstagramProfileCard(),
     );
   }
 }
@@ -523,9 +528,9 @@ class _InstagramProfileCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 2),
-              const Text(
-                '키보드 앱',
-                style: TextStyle(fontSize: 12, color: Color(0xFF777777)),
+              Text(
+                AppLocalizations.of(context)!.onboarding4InstaCategory,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF777777)),
               ),
               const SizedBox(height: 6),
               const Text(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:adapty_flutter/adapty_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_localizations.dart';
 import '../services/subscription_service.dart';
 
 const _pink = Color(0xFF5BC8F5);
@@ -219,9 +220,10 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
       }
     } catch (_) {
       if (!mounted) return;
+      final l = AppLocalizations.of(context)!;
       setState(() {
         _loading = false;
-        _error = '구매 처리 중 오류가 발생했습니다';
+        _error = l.paywallErrorPurchase;
       });
     }
   }
@@ -237,22 +239,25 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
       if (success) {
         Navigator.pop(context, true);
       } else {
+        final l = AppLocalizations.of(context)!;
         setState(() {
           _loading = false;
-          _error = '복원할 구독이 없습니다';
+          _error = l.paywallErrorNoSub;
         });
       }
     } catch (_) {
       if (!mounted) return;
+      final l = AppLocalizations.of(context)!;
       setState(() {
         _loading = false;
-        _error = '복원 중 오류가 발생했습니다';
+        _error = l.paywallErrorRestore;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Padding(
       padding: EdgeInsets.fromLTRB(
           24, 8, 24, MediaQuery.of(context).viewPadding.bottom + 24),
@@ -283,30 +288,30 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
                   duration: 400.ms,
                   curve: Curves.elasticOut),
           const SizedBox(height: 16),
-          const Text('프리미엄으로 업그레이드',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(l.paywallUpgradeTitle,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text('모든 기능을 제한 없이 사용하세요',
+          Text(l.paywallUpgradeSubtitle,
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           const SizedBox(height: 20),
-          const _FeatureRow(icon: Icons.text_fields, text: '모든 폰트 스타일'),
+          _FeatureRow(icon: Icons.text_fields, text: l.paywallFeatureFonts),
           const SizedBox(height: 8),
-          const _FeatureRow(icon: Icons.translate, text: '번역 무제한'),
+          _FeatureRow(icon: Icons.translate, text: l.paywallFeatureTranslate),
           const SizedBox(height: 8),
-          const _FeatureRow(icon: Icons.emoji_emotions, text: '이모티콘/특수문자 전체'),
+          _FeatureRow(icon: Icons.emoji_emotions, text: l.paywallFeatureEmoticon),
           const SizedBox(height: 8),
-          const _FeatureRow(icon: Icons.gif_box, text: 'GIF 무제한'),
+          _FeatureRow(icon: Icons.gif_box, text: l.paywallFeatureGif),
           const SizedBox(height: 8),
-          const _FeatureRow(icon: Icons.favorite, text: '즐겨찾기'),
+          _FeatureRow(icon: Icons.favorite, text: l.paywallFeatureFavorite),
           const SizedBox(height: 24),
           Row(
             children: [
               Expanded(
                 child: _PlanCard(
-                  title: '주간',
+                  title: l.paywallPlanWeekly,
                   price: '₩4,900/주',
                   originalPrice: '₩6,900',
-                  badge: '출시 이벤트',
+                  badge: l.paywallLaunchBadge,
                   selected: _selectedPlan == 0,
                   onTap: () => setState(() => _selectedPlan = 0),
                 ),
@@ -314,7 +319,7 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
               const SizedBox(width: 12),
               Expanded(
                 child: _PlanCard(
-                  title: '연간',
+                  title: l.paywallPlanYearly,
                   price: '₩59,900/년',
                   selected: _selectedPlan == 1,
                   onTap: () => setState(() => _selectedPlan = 1),
@@ -327,7 +332,7 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
             onPressed: _loading
                 ? null
                 : () => PaywallScreen.showLifetimePopup(context),
-            child: Text('평생 이용권 보기',
+            child: Text(l.paywallViewLifetime,
                 style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
           ),
           const SizedBox(height: 8),
@@ -350,13 +355,13 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5),
                     )
-                  : const Text('1주 무료체험 시작',
-                      style: TextStyle(
+                  : Text(l.paywallStartTrial,
+                      style: const TextStyle(
                           fontSize: 17, fontWeight: FontWeight.w700)),
             ),
           ),
           const SizedBox(height: 6),
-          Text('무료체험 후 자동 결제 · 언제든 해지 가능',
+          Text(l.paywallTrialNote,
               style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
           if (_error != null) ...[
             const SizedBox(height: 8),
@@ -369,14 +374,14 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
             children: [
               TextButton(
                 onPressed: _loading ? null : _restore,
-                child: Text('구매 복원',
+                child: Text(l.paywallRestore,
                     style:
                         TextStyle(color: Colors.grey.shade500, fontSize: 14)),
               ),
               Text('·', style: TextStyle(color: Colors.grey.shade400)),
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: Text('나중에',
+                child: Text(l.paywallLater,
                     style:
                         TextStyle(color: Colors.grey.shade500, fontSize: 14)),
               ),
@@ -425,15 +430,17 @@ class _LifetimePlanSheetState extends State<_LifetimePlanSheet> {
       }
     } catch (_) {
       if (!mounted) return;
+      final l = AppLocalizations.of(context)!;
       setState(() {
         _loading = false;
-        _error = '구매 처리 중 오류가 발생했습니다';
+        _error = l.paywallErrorPurchase;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Padding(
       padding: EdgeInsets.fromLTRB(
           24, 8, 24, MediaQuery.of(context).viewPadding.bottom + 24),
@@ -457,10 +464,10 @@ class _LifetimePlanSheetState extends State<_LifetimePlanSheet> {
             child: const Icon(Icons.all_inclusive, size: 36, color: _pink),
           ),
           const SizedBox(height: 16),
-          const Text('평생 이용권',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(l.paywallLifetimeTitle,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text('한 번 결제하고 평생 사용하세요',
+          Text(l.paywallLifetimeSubtitle,
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           const SizedBox(height: 20),
           Container(
@@ -475,7 +482,7 @@ class _LifetimePlanSheetState extends State<_LifetimePlanSheet> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '평생 이용권은 번역 기능을 제외한 모든 기능을 제공합니다.',
+                    l.paywallLifetimeNote,
                     style: TextStyle(
                         fontSize: 12, color: Colors.grey.shade700),
                   ),
@@ -484,13 +491,13 @@ class _LifetimePlanSheetState extends State<_LifetimePlanSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          const _FeatureRow(icon: Icons.text_fields, text: '모든 폰트 스타일'),
+          _FeatureRow(icon: Icons.text_fields, text: l.paywallFeatureFonts),
           const SizedBox(height: 8),
-          const _FeatureRow(icon: Icons.emoji_emotions, text: '이모티콘/특수문자 전체'),
+          _FeatureRow(icon: Icons.emoji_emotions, text: l.paywallFeatureEmoticon),
           const SizedBox(height: 8),
-          const _FeatureRow(icon: Icons.gif_box, text: 'GIF 무제한'),
+          _FeatureRow(icon: Icons.gif_box, text: l.paywallFeatureGif),
           const SizedBox(height: 8),
-          const _FeatureRow(icon: Icons.favorite, text: '즐겨찾기'),
+          _FeatureRow(icon: Icons.favorite, text: l.paywallFeatureFavorite),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -511,8 +518,8 @@ class _LifetimePlanSheetState extends State<_LifetimePlanSheet> {
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5),
                     )
-                  : const Text('평생 이용권 구매',
-                      style: TextStyle(
+                  : Text(l.paywallLifetimeBuy,
+                      style: const TextStyle(
                           fontSize: 17, fontWeight: FontWeight.w700)),
             ),
           ),
@@ -524,7 +531,7 @@ class _LifetimePlanSheetState extends State<_LifetimePlanSheet> {
           const SizedBox(height: 8),
           TextButton(
             onPressed: _loading ? null : () => Navigator.pop(context),
-            child: Text('닫기',
+            child: Text(l.paywallClose,
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
           ),
         ],

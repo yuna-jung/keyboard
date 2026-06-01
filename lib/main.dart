@@ -4,6 +4,8 @@ import 'dart:io' show Platform;
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/add_phrase_screen.dart';
 import 'screens/home_screen.dart';
@@ -53,6 +55,16 @@ class FontKeyboardApp extends StatelessWidget {
     return MaterialApp(
       title: 'Fonkii',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ko'),
+        Locale('en'),
+      ],
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: _pink,
@@ -111,22 +123,72 @@ class _LaunchRouter extends StatefulWidget {
   State<_LaunchRouter> createState() => _LaunchRouterState();
 }
 
-enum _LaunchTarget { page1, page2, home }
+enum _LaunchTarget { page1, page2, home, myList }
 
-class _LaunchRouterState extends State<_LaunchRouter> {
+class _LaunchRouterState extends State<_LaunchRouter>
+    with WidgetsBindingObserver {
   late final Future<_LaunchTarget> _target = _resolveTarget();
   StreamSubscription<Uri>? _linkSub;
+  // Guard: prevent duplicate push when FutureBuilder rebuilds.
+  bool _myListPushed = false;
+
+  static const _channel = MethodChannel('com.yunajung.fonki/appgroup');
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _channel.setMethodCallHandler(_onChannelCall);
     _initDeepLinks();
+  }
+
+  Future<dynamic> _onChannelCall(MethodCall call) async {
+    if (call.method == 'openAddPhrase') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AddPhraseScreen()),
+          (route) => route.isFirst,
+        );
+      });
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _linkSub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkOpenMyList();
+  }
+
+  Future<void> _checkOpenMyList() async {
+    if (!Platform.isIOS) return;
+    try {
+      final should =
+          await _channel.invokeMethod<bool>('checkAndClearOpenMyList');
+      if (should != true) return;
+
+      // Poll until the navigator is mounted (typically 1-2 frames, ~50 ms).
+      for (var i = 0; i < 20; i++) {
+        if (_navigatorKey.currentState != null) break;
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      final nav = _navigatorKey.currentState;
+      if (nav == null) return;
+
+      nav.pushAndRemoveUntil(
+        PageRouteBuilder(
+          pageBuilder: (_, a, b) => const AddPhraseScreen(),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+        (route) => route.isFirst,
+      );
+    } catch (_) {}
   }
 
   Future<void> _initDeepLinks() async {
@@ -143,24 +205,56 @@ class _LaunchRouterState extends State<_LaunchRouter> {
   }
 
   void _handleLink(Uri uri) {
-    if (uri.scheme == 'fonkii' && uri.host == 'addphrase') {
+    if (uri.scheme != 'fonkii') return;
+    final host = uri.host.toLowerCase();
+    if (host == 'addphrase' || host == 'mylist') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navigatorKey.currentState?.push(
+        _navigatorKey.currentState?.pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const AddPhraseScreen()),
+          (route) => route.isFirst,
         );
       });
     }
   }
 
   Future<_LaunchTarget> _resolveTarget() async {
+    debugPrint('🔥 [resolveTarget] 시작');
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(onboardingCompletedKey) ?? false) {
-      return _LaunchTarget.home;
+    final onboardingDone = prefs.getBool(onboardingCompletedKey) ?? false;
+    debugPrint('🔥 [resolveTarget] 온보딩 완료: $onboardingDone');
+
+    if (!onboardingDone) {
+      if (prefs.getBool(onboardingPage2VisitedKey) ?? false) return _LaunchTarget.page2;
+      return _LaunchTarget.page1;
     }
-    if (prefs.getBool(onboardingPage2VisitedKey) ?? false) {
-      return _LaunchTarget.page2;
+
+    if (Platform.isIOS) {
+      try {
+        // Primary: in-memory flag set by AppDelegate when fonkii://myList URL received.
+        // More reliable than App Group on cold start (no inter-process sync delay).
+        final pending = await _channel.invokeMethod<bool>('consumePendingAddPhrase');
+        debugPrint('🔥 [resolveTarget] consumePendingAddPhrase 결과: $pending');
+        if (pending == true) {
+          debugPrint('🔥 [resolveTarget] 최종 target: myList (consumePendingAddPhrase)');
+          return _LaunchTarget.myList;
+        }
+
+        // Fallback: App Group UserDefaults flag written by keyboard before opening app.
+        // Covers the LSApplicationWorkspace bundle-ID-only path where URL callback
+        // doesn't fire. May have slight inter-process sync delay on cold start.
+        final openMyList = await _channel.invokeMethod<bool>('checkAndClearOpenMyList');
+        debugPrint('🔥 [resolveTarget] checkAndClearOpenMyList 결과: $openMyList');
+        if (openMyList == true) {
+          debugPrint('🔥 [resolveTarget] 최종 target: myList (checkAndClearOpenMyList)');
+          return _LaunchTarget.myList;
+        }
+      } catch (e) {
+        debugPrint('🔥 [resolveTarget] 채널 오류: $e');
+      }
     }
-    return _LaunchTarget.page1;
+
+    debugPrint('🔥 [resolveTarget] 최종 target: home');
+    return _LaunchTarget.home;
   }
 
   @override
@@ -173,6 +267,25 @@ class _LaunchRouterState extends State<_LaunchRouter> {
         }
         switch (snapshot.data!) {
           case _LaunchTarget.home:
+            return const HomeScreen();
+          case _LaunchTarget.myList:
+            debugPrint('🔥 [FutureBuilder] myList 케이스 진입');
+            if (!_myListPushed) {
+              _myListPushed = true;
+              debugPrint('🔥 [FutureBuilder] postFrameCallback 등록');
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                debugPrint('🔥 [FutureBuilder] AddPhraseScreen push 시도');
+                debugPrint('🔥 [FutureBuilder] navigatorKey.currentState: ${_navigatorKey.currentState == null ? "NULL ❌" : "OK ✅"}');
+                _navigatorKey.currentState?.push(
+                  PageRouteBuilder(
+                    pageBuilder: (_, a, b) => const AddPhraseScreen(),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                  ),
+                );
+                debugPrint('🔥 [FutureBuilder] push 완료');
+              });
+            }
             return const HomeScreen();
           case _LaunchTarget.page2:
             return const OnboardingPage2();

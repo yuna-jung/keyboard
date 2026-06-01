@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_localizations.dart';
 import '../services/subscription_service.dart';
 import 'add_phrase_screen.dart';
 import 'guide_screen.dart';
@@ -47,14 +48,10 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     if (!_isIOS) return;
     SubscriptionService.instance.tierListenable.addListener(_onTier);
-    // Live `openPaywall` events from native `fonkii://paywall` deep links.
+    // Live `openPaywall` / `openAddPhrase` events from native deep links.
     _appGroupChannel.setMethodCallHandler(_handleNativeCall);
-    // Cold-start drain — if AppDelegate received the URL before this handler
-    // was wired up, the pending flag is still set on the native side.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _drainPendingPaywall();
-      _drainPendingAddPhrase();
-    });
+    // Cold-start drain for paywall.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _drainPendingPaywall());
   }
 
   @override
@@ -90,14 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _drainPendingAddPhrase() async {
-    try {
-      final pending =
-          await _appGroupChannel.invokeMethod<bool>('consumePendingAddPhrase');
-      if (pending == true) _showAddPhrase();
-    } catch (_) {}
-  }
-
   void _showPaywall() {
     if (!_isIOS || !mounted) return;
     if (_paywallShowing) return;
@@ -131,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final logoAsset =
         isDark ? 'assets/images/logo_white.png' : 'assets/images/logo_black.png';
+    final l = AppLocalizations.of(context)!;
 
     // Tab list. The 구독 tab item is added to `navItems` on iOS but NOT
     // backed by a screen here — its tap handler (below) opens the Adapty
@@ -144,21 +134,21 @@ class _HomeScreenState extends State<HomeScreen> {
       const GuideScreen(),
     ];
     final navItems = <BottomNavigationBarItem>[
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.chat_bubble_outline),
-        activeIcon: Icon(Icons.chat_bubble),
-        label: '체험하기',
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.chat_bubble_outline),
+        activeIcon: const Icon(Icons.chat_bubble),
+        label: l.homeTabTrial,
       ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.help_outline),
-        activeIcon: Icon(Icons.help),
-        label: '가이드',
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.help_outline),
+        activeIcon: const Icon(Icons.help),
+        label: l.homeTabGuide,
       ),
       if (_isIOS)
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.workspace_premium_outlined),
-          activeIcon: Icon(Icons.workspace_premium),
-          label: '구독',
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.workspace_premium_outlined),
+          activeIcon: const Icon(Icons.workspace_premium),
+          label: l.homeTabSubscription,
         ),
     ];
 
@@ -173,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: Icon(Icons.format_list_bulleted,
                 color: isDark ? Colors.white : Colors.black87),
-            tooltip: '내 목록 관리',
+            tooltip: l.homeMyListTooltip,
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const AddPhraseScreen()),
@@ -243,11 +233,8 @@ class _ChatTabState extends State<_ChatTab> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
   final _focus = FocusNode();
-  final _messages = <_ChatMessage>[
-    _ChatMessage(text: '안녕! 새로운 키보드 써봤어? 😊', fromMe: false),
-    _ChatMessage(text: '응! Fonkii 키보드인데 폰트도 바꿀 수 있어', fromMe: true),
-    _ChatMessage(text: '진짜? 어떻게 생겼어? 보여줘!', fromMe: false),
-  ];
+  late final List<_ChatMessage> _messages;
+  bool _messagesInitialized = false;
 
   /// Mirrors `_HomeScreenState._isIOS` — Android skips the CTA wiring
   /// entirely (no listener, no button render, no paywall import use).
@@ -370,6 +357,16 @@ class _ChatTabState extends State<_ChatTab> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgChat = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF5F5F5);
+    final l = AppLocalizations.of(context)!;
+
+    if (!_messagesInitialized) {
+      _messages = [
+        _ChatMessage(text: l.homeChatMsg1, fromMe: false),
+        _ChatMessage(text: l.homeChatMsg2, fromMe: true),
+        _ChatMessage(text: l.homeChatMsg3, fromMe: false),
+      ];
+      _messagesInitialized = true;
+    }
 
     // Show CTA only on iOS *and* only while the user is non-premium.
     // Reading from `SubscriptionService` is cheap (it just returns a cached
@@ -400,7 +397,7 @@ class _ChatTabState extends State<_ChatTab> {
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            'Fonkii 키보드 체험하기',
+                            l.homeChatSectionTitle,
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -447,9 +444,9 @@ class _ChatTabState extends State<_ChatTab> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      '✨ 프리미엄 시작하기',
-                      style: TextStyle(
+                    child: Text(
+                      l.homePremiumCta,
+                      style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -478,9 +475,9 @@ class _ChatTabState extends State<_ChatTab> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      '✓ 프리미엄 이용 중',
-                      style: TextStyle(
+                    child: Text(
+                      l.homePremiumActive,
+                      style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -681,7 +678,7 @@ class _ChatInput extends StatelessWidget {
                 );
               },
               decoration: InputDecoration(
-                hintText: '메시지 입력...',
+                hintText: AppLocalizations.of(context)!.homeChatHint,
                 hintStyle: TextStyle(
                   color: isDark ? Colors.white38 : Colors.grey.shade500,
                   fontSize: 14,

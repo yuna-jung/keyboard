@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'onboarding_page2.dart';
 
 /// Persisted flag read by `main.dart` on cold launch. Written only by the
@@ -50,19 +51,19 @@ class OnboardingPage1 extends StatelessWidget {
                       fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 32),
-                    const Text(
-                      '환영해요!',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context)!.onboardingWelcomeTitle,
+                      style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      '당신만의 특별한 키보드를 만나보세요',
+                    Text(
+                      AppLocalizations.of(context)!.onboardingWelcomeSubtitle,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 20, color: Colors.black),
+                      style: const TextStyle(fontSize: 20, color: Colors.black),
                     ),
                   ],
                 ),
@@ -83,9 +84,9 @@ class OnboardingPage1 extends StatelessWidget {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text(
-                    '시작하기',
-                    style: TextStyle(
+                  child: Text(
+                    AppLocalizations.of(context)!.onboardingStart,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -115,19 +116,20 @@ class _TermsText extends StatefulWidget {
 }
 
 class _TermsTextState extends State<_TermsText> {
-  static const _termsUrl =
-      'https://fonkii-keyboard.github.io/Fonkii/terms-of-service-ko.html';
-  static const _privacyUrl =
-      'https://fonkii-keyboard.github.io/Fonkii/privacy-policy-ko.html';
-
   late final TapGestureRecognizer _termsTap;
   late final TapGestureRecognizer _privacyTap;
 
   @override
   void initState() {
     super.initState();
-    _termsTap = TapGestureRecognizer()..onTap = () => _open(_termsUrl);
-    _privacyTap = TapGestureRecognizer()..onTap = () => _open(_privacyUrl);
+    _termsTap = TapGestureRecognizer()..onTap = () {
+      if (!mounted) return;
+      _open(AppLocalizations.of(context)!.onboardingTermsUrl);
+    };
+    _privacyTap = TapGestureRecognizer()..onTap = () {
+      if (!mounted) return;
+      _open(AppLocalizations.of(context)!.onboardingPrivacyUrl);
+    };
   }
 
   @override
@@ -153,17 +155,15 @@ class _TermsTextState extends State<_TermsText> {
       fontWeight: FontWeight.bold,
     );
 
+    final l = AppLocalizations.of(context)!;
     return Text.rich(
       TextSpan(
         children: [
-          const TextSpan(text: '당사의 ', style: grayStyle),
-          TextSpan(text: '이용 약관', style: linkStyle, recognizer: _termsTap),
-          const TextSpan(text: '을 수락하고 ', style: grayStyle),
-          TextSpan(text: '개인정보 보호정책', style: linkStyle, recognizer: _privacyTap),
-          const TextSpan(
-            text: '에 대해\n고지받으신 것으로 간주됩니다.',
-            style: grayStyle,
-          ),
+          TextSpan(text: l.onboardingTermsPre, style: grayStyle),
+          TextSpan(text: l.onboardingTermsLink, style: linkStyle, recognizer: _termsTap),
+          TextSpan(text: l.onboardingTermsMid, style: grayStyle),
+          TextSpan(text: l.onboardingPrivacyLink, style: linkStyle, recognizer: _privacyTap),
+          TextSpan(text: l.onboardingTermsPost, style: grayStyle),
         ],
       ),
       textAlign: TextAlign.center,

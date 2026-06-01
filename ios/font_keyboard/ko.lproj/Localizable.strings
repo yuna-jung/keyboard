@@ -95,12 +95,51 @@
 "text_replace_delete_confirm" = "삭제하시겠어요?";
 "text_replace_delete_yes"     = "삭제";
 "text_replace_delete_no"      = "취소";
+"text_replace_slang"    = "슬랭";
+"text_replace_chaotic"  = "시끄러운 문구 / KO";
 "text_replace_cheer" = "응원";
 "text_replace_react" = "반응";
 "text_replace_daily" = "일상";
 "text_replace_quick" = "빠른 메시지";
 "text_replace_en"    = "EN";
 "text_replace_ko"    = "KO";
+
+/* 시끄러운 문구 카테고리 */
+"chaotic_01" = "푸항항 ꉂꉂ(ᵔᗜᵔ*)";
+"chaotic_02" = "🎷빠빠빠빠 굿모닝";
+"chaotic_03" = "🌈아니 뭔 개소리냐고";
+"chaotic_04" = "🏢회사가기 시러요";
+"chaotic_05" = "예~ 죄송하게 됐습니다";
+"chaotic_06" = "어떡해 너무 귀여워";
+"chaotic_07" = "𝙒𝙝𝙮𝙧𝙖𝙣𝙤...";
+"chaotic_08" = "👥수군수군 마이크테스트";
+"chaotic_09" = "ヲヲヲヲヲ...";
+"chaotic_10" = "🎺삘릴리 개굴개굴";
+"chaotic_11" = "힘들 때 빗속에서 힙합";
+"chaotic_12" = "🚨긴급상황 발생";
+"chaotic_13" = "끟ㅂ,,끄릅흡ㅁ😭";
+"chaotic_14" = "아 귀엽다 너무 귀여운데";
+"chaotic_15" = "🌸나는 귀여우니깐 다괜찮아";
+"chaotic_16" = "냬~알걨섑니댸~";
+"chaotic_17" = "🐜개미는 오늘도 열심히";
+"chaotic_18" = "이얏호! 신난다💃";
+"chaotic_19" = "👄말하기 전에 생각했나요";
+"chaotic_20" = "1. 왜 그런 말을 했는지";
+"chaotic_21" = "ヽ｀비가 와ヽ｀ヽ｀";
+"chaotic_22" = "엉엉 꺼이꺼이";
+"chaotic_23" = "오잉⍤⃝오잉⍤⃝";
+"chaotic_24" = "죄송한 마음을 담아 ❤️";
+"chaotic_25" = "㉪㉻ 반복";
+"chaotic_26" = "𐌅𐨛 𐌅𐨛";
+"chaotic_27" = "으이구 인간아";
+"chaotic_28" = "수류탄이다!!!";
+"chaotic_29" = "🐌...잠시....만요";
+"chaotic_30" = "도데체 어쩌라는거지";
+"chaotic_31" = "우리오파(于里烏播)";
+"chaotic_32" = "하...당신...오타쿠";
+"chaotic_33" = "너무해!";
+"chaotic_34" = "👊주먹";
+"chaotic_section_header" = "시끄러운 문구 / KO";
 
 /* 텍스트 대치 - Daily KO 섹션 */
 "daily_good_morning"  = "좋은 아침! ☀️";
@@ -146,6 +185,15 @@
 "quick_take_care" = "건강 챙겨 🌸";
 "quick_good_luck" = "파이팅! 🍀";
 "quick_text_later"= "나중에 연락할게 💬";
+"quick_omg"       = "헐 😭";
+"quick_same"      = "나도";
+"quick_no_way"    = "말도 안돼!!";
+"quick_for_real"  = "진짜로?";
+"quick_later"     = "이따 봐! 👋";
+"quick_thank_you" = "고마워 진짜 🙏";
+"quick_sorry"     = "늦게 봤어 미안 😅";
+"quick_congrats"  = "축하해!! 🎉";
+"quick_love_that" = "너무 좋다 ✨";
 
 /* 텍스트 대치 - 응원 KO 섹션 (신규) */
 "cheer_ko_1"  = "존재 자체가 감동임 진짜로";
@@ -173,6 +221,36 @@
 "cheer_miss_you"       = "사랑해 보고싶다 ㅠㅠ 💕";
 "cheer_hard_work"      = "열심히 해줘서 고마워 🙏";
 "cheer_take_easy"      = "쉬엄쉬엄 해도 돼 🫶";
+
+/* 기능 설명 팝업 (첫 진입 시 1회) */
+"tip_fonts_title"     = "폰트 변경 방법";
+"tip_fonts_body"      = "텍스트를 선택한 후\n다른 폰트를 탭하면\n해당 폰트로 변경돼요!";
+"tip_translate_title" = "번역 기능 사용법";
+"tip_translate_body"  = "① 왼쪽 칸에 번역할 내용 입력\n② 번역 버튼 탭\n③ 삽입 버튼으로 채팅창에 바로 입력!\n\n💡 왼쪽 칸의 ✓ 버튼을 눌러야\n채팅창 내용을 수정할 수 있어요.";
+"tip_gif_title"       = "GIF 사용법";
+"tip_gif_body"        = "원하는 GIF를 검색하고\n탭하면 자동으로 복사돼요.\n채팅창에 붙여넣기로 전송하세요!";
+
+/* 즐겨찾기 액션 팝업 */
+"fav_add"    = "♥ 즐겨찾기 추가";
+"fav_copy"   = "📋 복사";
+"fav_delete" = "🗑 즐겨찾기 삭제";
+
+/* 토스트 메시지 */
+"toast_copied"             = "복사됨";
+"toast_translate_monthly"  = "번역 기능은 월간/연간 구독에서 이용 가능해요 ✨";
+"toast_translate_sub"      = "번역 기능은 구독자 전용이에요 ✨";
+"toast_gif_downloading"    = "GIF 다운로드 중...";
+"toast_gif_failed"         = "다운로드 실패";
+"toast_gif_copied"         = "GIF가 복사되었습니다";
+"toast_clipboard_empty"    = "클립보드가 비어있어요";
+"toast_paste_done"         = "붙여넣기 완료";
+"toast_translate_first"    = "먼저 번역해주세요";
+"toast_inserted"           = "삽입됨";
+"toast_fav_exists"         = "이미 즐겨찾기에 있어요";
+
+/* 프리미엄 잠금 화면 */
+"premium_lock_message" = "Fonkii 프리미엄을 구독하고\n모든 기능을 사용해보세요!";
+"premium_lock_button"  = "1주 무료 체험 시작하기";
 
 /* 공통 */
 "ok_button"     = "확인";

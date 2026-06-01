@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_localizations.dart';
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -38,13 +40,14 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: AppBar(
         backgroundColor: isDark ? Colors.black : Colors.white,
         elevation: 0,
-        title: const Text('설정',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Text(l.settingsTitle,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -57,30 +60,26 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          _SectionHeader(title: '소셜', isDark: isDark),
+          _SectionHeader(title: l.settingsSectionSocial, isDark: isDark),
           _SettingTile(
             icon: Icons.ios_share,
-            label: '앱 공유',
+            label: l.settingsShareApp,
             isDark: isDark,
             onTap: () {
-              const appStoreUrl =
-                  'https://apps.apple.com/app/fonkii/id6762085484';
-              const message =
-                  'Fonkii 키보드로 더 재밌게 소통해요! 🎨\n$appStoreUrl';
-              SharePlus.instance.share(ShareParams(text: message));
+              SharePlus.instance.share(ShareParams(text: l.settingsShareMessage));
             },
           ),
-          _SectionHeader(title: '도움말', isDark: isDark),
+          _SectionHeader(title: l.settingsSectionHelp, isDark: isDark),
           _SettingTile(
             icon: Icons.support_agent,
-            label: '고객 지원',
+            label: l.settingsSupport,
             isDark: isDark,
             onTap: () => _open('mailto:contact.rowan.00@gmail.com'),
           ),
-          _SectionHeader(title: '법적 고지', isDark: isDark),
+          _SectionHeader(title: l.settingsSectionLegal, isDark: isDark),
           _SettingTile(
             icon: Icons.description_outlined,
-            label: '서비스 약관',
+            label: l.settingsTerms,
             isDark: isDark,
             onTap: () => _openUrl(
               context,
@@ -90,7 +89,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           _SettingTile(
             icon: Icons.shield_outlined,
-            label: '개인정보처리방침',
+            label: l.settingsPrivacy,
             isDark: isDark,
             onTap: () => _openUrl(
               context,
@@ -100,7 +99,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           _SettingTile(
             icon: Icons.lock_outline,
-            label: '개인정보 보호 설정',
+            label: l.settingsPrivacySettings,
             isDark: isDark,
             onTap: _openAppSettings,
           ),

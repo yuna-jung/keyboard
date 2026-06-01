@@ -146,6 +146,26 @@ import UIKit
         defaults?.synchronize()
         result(nil)
 
+      case "checkAndClearOpenMyList":
+        print("🔥 [AppDelegate] checkAndClearOpenMyList called")
+        let defaults = UserDefaults(suiteName: self.appGroupID)
+        let val = defaults?.bool(forKey: "open_my_list")
+        print("🔥 [AppDelegate] open_my_list = \(String(describing: val))")
+        let flag = val ?? false
+        if flag {
+          defaults?.set(false, forKey: "open_my_list")
+          defaults?.synchronize()
+        }
+        result(flag)
+
+      case "getDebugInfo":
+        let d = UserDefaults(suiteName: self.appGroupID)
+        result([
+          "full_access":       d?.bool(forKey: "debug_full_access") ?? false,
+          "extension_context": d?.bool(forKey: "debug_extension_context") ?? false,
+          "open_result":       d?.bool(forKey: "debug_open_result") ?? false,
+        ] as [String: Bool])
+
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -161,14 +181,28 @@ import UIKit
   override func application(_ application: UIApplication,
                             open url: URL,
                             options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-    if url.scheme?.lowercased() == "fonkii",
-       url.host?.lowercased() == "paywall" {
-      pendingPaywall = true
-      appGroupChannel?.invokeMethod("openPaywall", arguments: nil)
-      return true
+    if url.scheme?.lowercased() == "fonkii" {
+      switch url.host?.lowercased() {
+      case "paywall":
+        pendingPaywall = true
+        appGroupChannel?.invokeMethod("openPaywall", arguments: nil)
+        return true
+      case "addphrase", "mylist":
+        pendingAddPhrase = true
+        // Immediate invoke covers warm starts (Flutter already running).
+        appGroupChannel?.invokeMethod("openAddPhrase", arguments: nil)
+        // Delayed retry covers cold starts where Flutter engine isn't ready yet.
+        // Guard checks the flag so this is a no-op if Flutter already consumed it
+        // via consumePendingAddPhrase in _resolveTarget().
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+          guard let self, self.pendingAddPhrase else { return }
+          self.appGroupChannel?.invokeMethod("openAddPhrase", arguments: nil)
+        }
+        return true
+      default:
+        break
+      }
     }
-    // All other fonkii:// URLs (e.g. addPhrase) are forwarded to the Flutter
-    // plugin chain so app_links can handle them in Dart.
     return super.application(application, open: url, options: options)
   }
 }

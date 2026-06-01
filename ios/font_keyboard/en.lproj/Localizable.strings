@@ -95,12 +95,51 @@
 "text_replace_delete_confirm" = "Delete this phrase?";
 "text_replace_delete_yes"     = "Delete";
 "text_replace_delete_no"      = "Cancel";
+"text_replace_slang"    = "Slang";
+"text_replace_chaotic"  = "Loud & Chaotic / KO";
 "text_replace_cheer" = "Cheer";
 "text_replace_react" = "React";
 "text_replace_daily" = "Daily";
 "text_replace_quick" = "Quick";
 "text_replace_en"    = "EN";
 "text_replace_ko"    = "KO";
+
+/* Loud & Chaotic category */
+"chaotic_01" = "Puhahang ꉂꉂ(ᵔᗜᵔ*)";
+"chaotic_02" = "🎷 Good Morning";
+"chaotic_03" = "🌈 What Nonsense";
+"chaotic_04" = "🏢 Don't Wanna Work";
+"chaotic_05" = "Sorry Song";
+"chaotic_06" = "Too Cute 🥰";
+"chaotic_07" = "𝙒𝙝𝙮𝙧𝙖𝙣𝙤...";
+"chaotic_08" = "👥 Mic Check";
+"chaotic_09" = "ヲヲヲヲヲ...";
+"chaotic_10" = "🎺🐸 Ribbit";
+"chaotic_11" = "Hip Hop in the Rain";
+"chaotic_12" = "🚨 Emergency";
+"chaotic_13" = "Sobbing Noises 😭";
+"chaotic_14" = "So Cute 😭";
+"chaotic_15" = "🌸 Cute So It's Fine";
+"chaotic_16" = "Yes, I Understand~";
+"chaotic_17" = "🐜 The Ant Song";
+"chaotic_18" = "Yeehaw! 💃";
+"chaotic_19" = "👄 Think Before You Speak";
+"chaotic_20" = "1. Why Did You Say That";
+"chaotic_21" = "ヽ｀ It's Raining ヽ｀";
+"chaotic_22" = "엉엉 Crying";
+"chaotic_23" = "Huh?⍤⃝ Huh?⍤⃝";
+"chaotic_24" = "Sorry Song ❤️";
+"chaotic_25" = "㉪㉻ Repeat";
+"chaotic_26" = "𐌅𐨛 𐌅𐨛";
+"chaotic_27" = "으이구 Humans";
+"chaotic_28" = "Grenade!!!";
+"chaotic_29" = "🐌...Excuse me...";
+"chaotic_30" = "What do you want from me";
+"chaotic_31" = "My Oppa(于里烏播)";
+"chaotic_32" = "Otaku Rights";
+"chaotic_33" = "Too Much!";
+"chaotic_34" = "👊Punch";
+"chaotic_section_header" = "Loud & Chaotic / KO";
 
 /* Text template - Daily KO section */
 "daily_good_morning"  = "Good Morning ☀️";
@@ -146,6 +185,15 @@
 "quick_take_care" = "Take Care 🌸";
 "quick_good_luck" = "Good Luck 🍀";
 "quick_text_later"= "Text You Later 💬";
+"quick_omg"       = "OMG 😭";
+"quick_same"      = "Same";
+"quick_no_way"    = "No way!!";
+"quick_for_real"  = "For real tho";
+"quick_later"     = "Talk later! 👋";
+"quick_thank_you" = "Thank you so much 🙏";
+"quick_sorry"     = "Sorry for the late reply 😅";
+"quick_congrats"  = "Congrats!! 🎉";
+"quick_love_that" = "Love that for you ✨";
 
 /* Text template - Cheer KO section (new) */
 "cheer_ko_1"  = "You're Everything";
@@ -173,6 +221,36 @@
 "cheer_miss_you"       = "Miss You 💕";
 "cheer_hard_work"      = "Hard Work 🙏";
 "cheer_take_easy"      = "Take It Easy 🫶";
+
+/* Feature tip popups (shown once on first tab entry) */
+"tip_fonts_title"     = "How to Change Fonts";
+"tip_fonts_body"      = "Select text, then tap\na different font to\nchange it instantly!";
+"tip_translate_title" = "How to Use Translation";
+"tip_translate_body"  = "① Enter text in the left field\n② Tap the translate button\n③ Insert directly into chat!\n\n💡 Tap ✓ in the left field\nto edit the chat content.";
+"tip_gif_title"       = "How to Use GIFs";
+"tip_gif_body"        = "Search for a GIF and\ntap to copy it automatically.\nPaste it in your chat!";
+
+/* Favorites action popup */
+"fav_add"    = "♥ Add to Favorites";
+"fav_copy"   = "📋 Copy";
+"fav_delete" = "🗑 Remove from Favorites";
+
+/* Toast messages */
+"toast_copied"             = "Copied";
+"toast_translate_monthly"  = "Translation is available with monthly/yearly plans ✨";
+"toast_translate_sub"      = "Translation is for subscribers only ✨";
+"toast_gif_downloading"    = "Downloading GIF...";
+"toast_gif_failed"         = "Download failed";
+"toast_gif_copied"         = "GIF copied!";
+"toast_clipboard_empty"    = "Clipboard is empty";
+"toast_paste_done"         = "Pasted";
+"toast_translate_first"    = "Please translate first";
+"toast_inserted"           = "Inserted";
+"toast_fav_exists"         = "Already in favorites";
+
+/* Premium lock screen */
+"premium_lock_message" = "Subscribe to Fonkii Premium\nto unlock all features!";
+"premium_lock_button"  = "Start 1-Week Free Trial";
 
 /* Common */
 "ok_button"     = "OK";

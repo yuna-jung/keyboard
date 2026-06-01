@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'onboarding_page3.dart';
 
 /// Matches the channel registered in `ios/Runner/AppDelegate.swift`.
@@ -110,14 +111,13 @@ class _OnboardingPage2State extends State<OnboardingPage2>
       if (!mounted) return;
       _goToPage3();
     } else {
+      final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(
-            content: Text(
-              '아직 설정이 완료되지 않았어요 😢\n키보드를 추가하고 전체 접근을 허용해주세요',
-            ),
-            duration: Duration(seconds: 4),
+          SnackBar(
+            content: Text(l.onboarding2SnackError),
+            duration: const Duration(seconds: 4),
           ),
         );
     }
@@ -137,21 +137,21 @@ class _OnboardingPage2State extends State<OnboardingPage2>
         child: Column(
           children: [
             const SizedBox(height: 60),
-            const Text(
-              'Fonkii 키보드 켜볼까요? 🎉',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.onboarding2Title,
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
             const SizedBox(height: 8),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
-                '딱 30초면 설정 끝!',
+                AppLocalizations.of(context)!.onboarding2Subtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Color(0xFF444444)),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF444444)),
               ),
             ),
             Expanded(
@@ -184,9 +184,9 @@ class _OnboardingPage2State extends State<OnboardingPage2>
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text(
-                    '설정하러 가기',
-                    style: TextStyle(
+                  child: Text(
+                    AppLocalizations.of(context)!.onboarding2GoSettings,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -221,6 +221,7 @@ class _IPhoneMockup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Container(
       width: 260,
       decoration: BoxDecoration(
@@ -241,13 +242,13 @@ class _IPhoneMockup extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          const Opacity(
+          Opacity(
             opacity: 0.4,
             child: Column(
               children: [
-                _SettingsRow(icon: 'Aa', label: '서체'),
-                _SettingsRow(icon: '🌐', label: '언어 및 지역'),
-                _SettingsRow(icon: '🔑', label: '자동 완성 및 암호'),
+                _SettingsRow(icon: 'Aa', label: l.onboarding2MockFont),
+                _SettingsRow(icon: '🌐', label: l.onboarding2MockLanguage),
+                _SettingsRow(icon: '🔑', label: l.onboarding2MockPassword),
               ],
             ),
           ),
@@ -256,9 +257,9 @@ class _IPhoneMockup extends StatelessWidget {
             children: [
               const _StepBadge('1'),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: _StepCard(
-                  child: _SettingsRow(icon: '⌨️', label: '키보드'),
+                  child: _SettingsRow(icon: '⌨️', label: l.onboarding2MockKeyboard),
                 ),
               ),
             ],
@@ -268,20 +269,20 @@ class _IPhoneMockup extends StatelessWidget {
           const SizedBox(height: 2),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Padding(
+            children: [
+              const Padding(
                 padding: EdgeInsets.only(top: 6),
                 child: _StepBadge('2'),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: _StepCard(
                   child: Column(
                     children: [
-                      _ToggleRow(label: 'Fonkii'),
-                      _ToggleRow(label: '전체 접근 허용', leadingIcon: '⌨️'),
-                      SizedBox(height: 4),
-                      Text('👆', style: TextStyle(fontSize: 18)),
+                      const _ToggleRow(label: 'Fonkii'),
+                      _ToggleRow(label: l.onboarding2MockFullAccess, leadingIcon: '⌨️'),
+                      const SizedBox(height: 4),
+                      const Text('👆', style: TextStyle(fontSize: 18)),
                     ],
                   ),
                 ),

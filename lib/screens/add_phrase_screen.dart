@@ -34,7 +34,7 @@ class _AddPhraseScreenState extends State<AddPhraseScreen> {
     final phrases = await AppGroupService.getCustomPhrases();
     if (!mounted) return;
     setState(() {
-      _phrases = phrases;
+      _phrases = List<String>.from(phrases); // ensure mutable
       _loading = false;
     });
   }
@@ -51,21 +51,83 @@ class _AddPhraseScreenState extends State<AddPhraseScreen> {
   }
 
   Future<void> _delete(String phrase) async {
+    final updated = List<String>.from(_phrases)..remove(phrase);
+    setState(() => _phrases = updated);
     await AppGroupService.deleteCustomPhrase(phrase);
-    if (!mounted) return;
-    setState(() => _phrases.remove(phrase));
   }
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(_isKo ? '내 목록 관리' : 'My List'),
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // ── Input area ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: SizedBox(
+              height: 120,
+              child: TextField(
+                controller: _controller,
+                maxLines: null,
+                expands: true,
+                textAlignVertical: TextAlignVertical.top,
+                decoration: InputDecoration(
+                  hintText:
+                      _isKo ? '문장을 입력하세요...' : 'Add your phrase...',
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: _pointColor, width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: _pointColor, width: 1),
+                  ),
+                  contentPadding: const EdgeInsets.all(14),
+                ),
+              ),
+            ),
+          ),
+          // ── Add button ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _adding ? null : _add,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _pointColor,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: _pointColor.withValues(alpha: 0.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: _adding
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(
+                        _isKo ? '추가' : 'Add',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          // ── Phrase list ─────────────────────────────────────────────────
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -95,62 +157,6 @@ class _AddPhraseScreenState extends State<AddPhraseScreen> {
                           ),
                         ),
                       ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + bottomInset),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: _isKo ? '문장을 입력하세요...' : 'Add your phrase...',
-                      hintStyle: TextStyle(color: Colors.grey.shade400),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: _pointColor, width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      isDense: true,
-                    ),
-                    onSubmitted: (_) => _add(),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: _adding ? null : _add,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _pointColor,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                        _pointColor.withValues(alpha: 0.5),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 11),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: _adding
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : Text(
-                          _isKo ? '추가' : 'Add',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import 'onboarding_page4.dart';
 
 const _accent = Color(0xFF7FC7FF);
@@ -22,12 +23,12 @@ class OnboardingPage3 extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 60),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                '이제 Fonkii 키보드를 사용해봐요! ⌨️',
+                AppLocalizations.of(context)!.onboarding3Title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
@@ -35,12 +36,12 @@ class OnboardingPage3 extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
-                '지구본 버튼을 꾹 누르면 Fonkii를 선택할 수 있어요',
+                AppLocalizations.of(context)!.onboarding3Subtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Color(0xFF444444)),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF444444)),
               ),
             ),
             const SizedBox(height: 24),
@@ -72,9 +73,9 @@ class OnboardingPage3 extends StatelessWidget {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text(
-                    '다음',
-                    style: TextStyle(
+                  child: Text(
+                    AppLocalizations.of(context)!.onboardingNext,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -155,23 +156,25 @@ class _KeyboardMockup extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        _KeyRow(count: 10),
-        SizedBox(height: 4),
-        _KeyRow(count: 9),
-        SizedBox(height: 4),
-        _KeyRow(count: 8),
-        SizedBox(height: 4),
-        _KeyboardBottomRow(),
-        SizedBox(height: 6),
+      children: [
+        const _KeyRow(count: 10),
+        const SizedBox(height: 4),
+        const _KeyRow(count: 9),
+        const SizedBox(height: 4),
+        const _KeyRow(count: 8),
+        const SizedBox(height: 4),
+        const _KeyboardBottomRow(),
+        const SizedBox(height: 6),
         Padding(
-          padding: EdgeInsets.only(left: 2),
-          child: Text(
-            '꾹 누르기 →',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: _accent,
+          padding: const EdgeInsets.only(left: 2),
+          child: Builder(
+            builder: (ctx) => Text(
+              AppLocalizations.of(ctx)!.onboarding3LongPress,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _accent,
+              ),
             ),
           ),
         ),

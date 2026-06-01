@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 const _pink = Color(0xFF5BC8F5);
 
 class GuideScreen extends StatelessWidget {
@@ -7,56 +9,57 @@ class GuideScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: const [
+      children: [
         _GuideSection(
           number: 1,
-          title: '키보드 추가하는 방법',
+          title: l.guideSection1Title,
           steps: [
-            '설정 → 일반 → 키보드 → 키보드 추가',
-            'Fonkii 선택',
-            '전체 접근 허용 (GIF / 즐겨찾기 동기화에 필요해요)',
+            l.guideSection1Step1,
+            l.guideSection1Step2,
+            l.guideSection1Step3,
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         _GuideSection(
           number: 2,
-          title: '폰트 변경하는 방법',
+          title: l.guideSection2Title,
           steps: [
-            'Fonkii 키보드로 전환 후 Aa 탭 선택',
-            '원하는 폰트 카테고리를 고르고 폰트 알약을 탭',
-            '선택한 폰트로 그대로 타이핑됩니다',
-            '이미 입력한 텍스트 위에 커서를 놓고 폰트를 선택하면\n해당 텍스트가 선택한 폰트로 변환됩니다',
+            l.guideSection2Step1,
+            l.guideSection2Step2,
+            l.guideSection2Step3,
+            l.guideSection2Step4,
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         _GuideSection(
           number: 3,
-          title: '폰트 즐겨찾기',
+          title: l.guideSection3Title,
           steps: [
-            'Aa 탭에서 원하는 폰트 알약을 꾹 누르면 즐겨찾기에 추가',
-            '즐겨찾기 탭(♥)에서 모아 볼 수 있어요',
+            l.guideSection3Step1,
+            l.guideSection3Step2,
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         _GuideSection(
           number: 4,
-          title: '번역 기능 사용하기',
+          title: l.guideSection4Title,
           steps: [
-            '번역 탭 선택',
-            '원본 / 도착 언어를 고르고 텍스트 입력',
-            '번역 버튼을 탭하면 결과가 나타납니다',
-            '"삽입" 버튼으로 호스트 앱에 결과를 바로 붙여넣을 수 있어요',
+            l.guideSection4Step1,
+            l.guideSection4Step2,
+            l.guideSection4Step3,
+            l.guideSection4Step4,
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         _GuideSection(
           number: 5,
-          title: '키보드 컬러 변경',
+          title: l.guideSection5Title,
           steps: [
-            '팔레트 탭(🎨) 선택',
-            '6가지 프리셋 색상을 고르거나, RGB 슬라이더로 직접 만드세요',
+            l.guideSection5Step1,
+            l.guideSection5Step2,
           ],
         ),
       ],
