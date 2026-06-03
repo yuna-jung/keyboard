@@ -6,35 +6,31 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:adapty_flutter/adapty_flutter.dart';
 
-const _premiumAccess = 'premium';   // weekly/yearly (unlocks everything incl. translation)
-const _lifetimeAccess = 'lifetime'; // one-time (unlocks everything except translation)
+const _premiumAccess = 'premium';
 // Product identifiers used for matching within the Adapty paywall.
 // Matching is case-insensitive and substring-based, so both vendor product IDs
-// and Adapty reference names (e.g., "WEEKLY", "ANNUAL", "LIFETIME") work.
+// and Adapty reference names (e.g., "WEEKLY", "ANNUAL") work.
 const _weeklyMatchKeys = ['weekly', 'WEEKLY'];
 const _yearlyMatchKeys = ['yearly', 'annual', 'ANNUAL'];
-const _lifetimeMatchKeys = ['lifetime', 'LIFETIME'];
 const _paywallPlacementId = 'fonkii_premium';
 
-enum SubscriptionTier { free, premium, lifetime }
+enum SubscriptionTier { free, premium }
 
 class SubscriptionService with WidgetsBindingObserver {
   SubscriptionService._();
   static final instance = SubscriptionService._();
 
+  // Flip to false before shipping to TestFlight / App Store.
+  static const bool debugForceFree = kDebugMode ? true : false;
+
   final _tierNotifier = ValueNotifier<SubscriptionTier>(SubscriptionTier.free);
   ValueListenable<SubscriptionTier> get tierListenable => _tierNotifier;
 
-  /// Effective tier used for gating. In DEBUG builds we force `premium` to
-  /// unlock all features for development/testing; release builds honor the
-  /// real Adapty profile.
-  SubscriptionTier get currentTier {
-    if (kDebugMode) return SubscriptionTier.premium;
-    return _tierNotifier.value;
-  }
+  SubscriptionTier get currentTier => _tierNotifier.value;
 
   // Back-compat getters
-  bool get isPremiumNow => currentTier != SubscriptionTier.free;
+  bool get isPremiumNow =>
+      !debugForceFree && currentTier != SubscriptionTier.free;
   ValueListenable<bool> get premiumStatus {
     final n = ValueNotifier<bool>(isPremiumNow);
     _tierNotifier.addListener(() {
@@ -44,10 +40,10 @@ class SubscriptionService with WidgetsBindingObserver {
   }
 
   // Translation gating: only paid weekly/yearly subscribers translate
-  // unlimited. Free tier is blocked at the keyboard level, lifetime is
-  // blocked, and free-trial premium users are throttled to 10/day.
+  // unlimited. Free tier is blocked at the keyboard level, and
+  // free-trial premium users are throttled to 5/day.
   bool get canTranslateUnlimited =>
-      currentTier == SubscriptionTier.premium && !_isInTrialNow;
+      !debugForceFree && currentTier == SubscriptionTier.premium && !_isInTrialNow;
 
   /// Cached view of `_isInFreeTrial(lastProfile)` for synchronous getters.
   /// Updated on every `_applyProfile` call. DEBUG forces it to false to keep
@@ -96,9 +92,6 @@ class SubscriptionService with WidgetsBindingObserver {
     if (profile.accessLevels[_premiumAccess]?.isActive == true) {
       return SubscriptionTier.premium;
     }
-    if (profile.accessLevels[_lifetimeAccess]?.isActive == true) {
-      return SubscriptionTier.lifetime;
-    }
     return SubscriptionTier.free;
   }
 
@@ -125,13 +118,8 @@ class SubscriptionService with WidgetsBindingObserver {
     final realTier = _computeTier(profile);
     _tierNotifier.value = realTier;
     final inTrial = _isInFreeTrial(profile);
-    // In DEBUG, sync as premium to keyboard extension so it unlocks too.
-    // DEBUG also force-clears the trial flag so testers get unlimited
-    // translation without touching their real Adapty profile.
-    final effective = kDebugMode ? SubscriptionTier.premium : realTier;
-    final effectiveTrial = kDebugMode ? false : inTrial;
-    _isInTrialNow = effectiveTrial;
-    _syncTierToAppGroup(effective, isInTrial: effectiveTrial);
+    _isInTrialNow = inTrial;
+    _syncTierToAppGroup(realTier, isInTrial: inTrial);
   }
 
   Future<void> refreshStatus() async {
@@ -194,29 +182,11 @@ class SubscriptionService with WidgetsBindingObserver {
   AdaptyPaywallProduct? get yearlyProduct =>
       _findProduct(_yearlyMatchKeys) ??
       (_products != null && _products!.length >= 2 ? _products![1] : null);
-  AdaptyPaywallProduct? get lifetimeProduct =>
-      _findProduct(_lifetimeMatchKeys) ?? _products?.last;
 
   // ── 주간 구독 구매 ────────────────────────────────────────────────────
   Future<bool> purchaseWeekly() async {
     try {
       final product = weeklyProduct;
-      if (product == null) return false;
-      await Adapty().makePurchase(product: product);
-      await refreshStatus();
-      return isPremiumNow;
-    } catch (e) {
-      if (e is AdaptyError && e.code == AdaptyErrorCode.paymentCancelled) {
-        return false;
-      }
-      rethrow;
-    }
-  }
-
-  // ── 평생 구매 ─────────────────────────────────────────────────────────
-  Future<bool> purchaseLifetime() async {
-    try {
-      final product = lifetimeProduct;
       if (product == null) return false;
       await Adapty().makePurchase(product: product);
       await refreshStatus();

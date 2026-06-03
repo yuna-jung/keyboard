@@ -9,8 +9,7 @@ import '../services/subscription_service.dart';
 const _pink = Color(0xFF5BC8F5);
 
 /// PaywallScreen: Adapty UI paywall (placementId: `fonkii_premium`) with a
-/// native Dart fallback. Handles the `show_lifetime_plan` custom action by
-/// opening the "View more plans" popup.
+/// native Dart fallback (monthly / yearly only).
 class PaywallScreen {
   /// Show the Adapty paywall. Returns `true` if the user became premium during
   /// the session (purchase or restore succeeded).
@@ -22,12 +21,13 @@ class PaywallScreen {
   /// rather than triggering a second sheet on top.
   static Future<bool> show(BuildContext context) async {
     final sub = SubscriptionService.instance;
-    // Force Korean locale for the Adapty paywall presentation.
+    final langCode = Localizations.localeOf(context).languageCode;
+    final paywallLocale = langCode == 'ko' ? 'ko' : 'en';
     AdaptyPaywall? paywall;
     try {
       paywall = await Adapty().getPaywall(
         placementId: 'fonkii_premium',
-        locale: 'ko',
+        locale: paywallLocale,
       );
     } catch (e) {
       debugPrint('getPaywall error: $e');
@@ -75,18 +75,6 @@ class PaywallScreen {
     return result ?? false;
   }
 
-  /// Show the "View more plans" lifetime popup directly (triggered by the
-  /// `show_lifetime_plan` custom action, or manually).
-  static Future<void> showLifetimePopup(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => const _LifetimePlanSheet(),
-    );
-  }
 }
 
 class _PaywallObserver extends AdaptyUIPaywallsEventsObserver {
@@ -109,10 +97,6 @@ class _PaywallObserver extends AdaptyUIPaywallsEventsObserver {
   @override
   Future<void> paywallViewDidPerformAction(
       AdaptyUIPaywallView view, AdaptyUIAction action) async {
-    if (action is CustomAction && action.action == 'show_lifetime_plan') {
-      PaywallScreen.showLifetimePopup(context);
-      return;
-    }
     // Terms / Privacy / external link buttons
     if (action is OpenUrlAction) {
       final uri = Uri.tryParse(action.url);
@@ -200,7 +184,9 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
   @override
   void initState() {
     super.initState();
-    _sub.loadProducts();
+    _sub.loadProducts().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _purchase() async {
@@ -309,8 +295,7 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
               Expanded(
                 child: _PlanCard(
                   title: l.paywallPlanWeekly,
-                  price: '₩4,900/주',
-                  originalPrice: '₩6,900',
+                  price: '${_sub.weeklyProduct?.price.localizedString ?? '–'}${l.paywallPerWeek}',
                   badge: l.paywallLaunchBadge,
                   selected: _selectedPlan == 0,
                   onTap: () => setState(() => _selectedPlan = 0),
@@ -320,7 +305,7 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
               Expanded(
                 child: _PlanCard(
                   title: l.paywallPlanYearly,
-                  price: '₩59,900/년',
+                  price: '${_sub.yearlyProduct?.price.localizedString ?? '–'}${l.paywallPerYear}',
                   selected: _selectedPlan == 1,
                   onTap: () => setState(() => _selectedPlan = 1),
                 ),
@@ -328,14 +313,6 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
             ],
           ),
           const SizedBox(height: 12),
-          TextButton(
-            onPressed: _loading
-                ? null
-                : () => PaywallScreen.showLifetimePopup(context),
-            child: Text(l.paywallViewLifetime,
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
-          ),
-          const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
             height: 54,
@@ -394,153 +371,6 @@ class _NativePaywallSheetState extends State<_NativePaywallSheet> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// Lifetime plan popup (from custom action "show_lifetime_plan")
-// ══════════════════════════════════════════════════════════════════════════
-
-class _LifetimePlanSheet extends StatefulWidget {
-  const _LifetimePlanSheet();
-
-  @override
-  State<_LifetimePlanSheet> createState() => _LifetimePlanSheetState();
-}
-
-class _LifetimePlanSheetState extends State<_LifetimePlanSheet> {
-  final _sub = SubscriptionService.instance;
-  bool _loading = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _sub.loadProducts();
-  }
-
-  Future<void> _purchase() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final success = await _sub.purchaseLifetime();
-      if (!mounted) return;
-      if (success) {
-        Navigator.pop(context);
-      } else {
-        setState(() => _loading = false);
-      }
-    } catch (_) {
-      if (!mounted) return;
-      final l = AppLocalizations.of(context)!;
-      setState(() {
-        _loading = false;
-        _error = l.paywallErrorPurchase;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          24, 8, 24, MediaQuery.of(context).viewPadding.bottom + 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40, height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Container(
-            width: 72, height: 72,
-            decoration: BoxDecoration(
-              color: _pink.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.all_inclusive, size: 36, color: _pink),
-          ),
-          const SizedBox(height: 16),
-          Text(l.paywallLifetimeTitle,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text(l.paywallLifetimeSubtitle,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, size: 16, color: Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l.paywallLifetimeNote,
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade700),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          _FeatureRow(icon: Icons.text_fields, text: l.paywallFeatureFonts),
-          const SizedBox(height: 8),
-          _FeatureRow(icon: Icons.emoji_emotions, text: l.paywallFeatureEmoticon),
-          const SizedBox(height: 8),
-          _FeatureRow(icon: Icons.gif_box, text: l.paywallFeatureGif),
-          const SizedBox(height: 8),
-          _FeatureRow(icon: Icons.favorite, text: l.paywallFeatureFavorite),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _loading ? null : _purchase,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _pink,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: _pink.withValues(alpha: 0.5),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
-              ),
-              child: _loading
-                  ? const SizedBox(
-                      width: 24, height: 24,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2.5),
-                    )
-                  : Text(l.paywallLifetimeBuy,
-                      style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w700)),
-            ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!,
-                style: TextStyle(fontSize: 13, color: Colors.red.shade400)),
-          ],
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: _loading ? null : () => Navigator.pop(context),
-            child: Text(l.paywallClose,
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════
 // Shared widgets
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -577,7 +407,6 @@ class _PlanCard extends StatelessWidget {
   const _PlanCard({
     required this.title,
     required this.price,
-    this.originalPrice,
     this.badge,
     required this.selected,
     required this.onTap,
@@ -585,7 +414,6 @@ class _PlanCard extends StatelessWidget {
 
   final String title;
   final String price;
-  final String? originalPrice;
   final String? badge;
   final bool selected;
   final VoidCallback onTap;
@@ -626,12 +454,6 @@ class _PlanCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: selected ? _pink : Colors.black87)),
             const SizedBox(height: 4),
-            if (originalPrice != null)
-              Text(originalPrice!,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade500,
-                      decoration: TextDecoration.lineThrough)),
             Text(price,
                 style: TextStyle(
                     fontSize: 14,

@@ -23,6 +23,13 @@
 "settings_title"          = "설정";
 "settings_korean_input"   = "한글 입력 방식";
 "settings_point_color"    = "포인트 컬러";
+"settings_theme"          = "테마";
+"theme_default"           = "기본";
+"theme_cotton_candy"      = "코튼캔디";
+"theme_lavender"          = "라벤더";
+"theme_pastel_rainbow"    = "파스텔 레인보우";
+"theme_soft"              = "소프트";
+"theme_bubble_mint"       = "버블 민트";
 
 /* 폰트 탭 */
 "font_normal" = "일반";
@@ -31,8 +38,9 @@
 "gif_search_placeholder" = "GIF 검색...";
 "gif_trending"           = "인기";
 "gif_search_empty"       = "검색 결과가 없습니다";
-"gif_no_access"          = "GIF를 사용하려면\n전체 접근 허용이 필요해요\n\n설정 → 일반 → 키보드 → Fonkii\n→ 전체 접근 허용 켜기";
+"gif_no_access"          = "GIF를 사용하려면 전체 접근 허용이 필요해요\n설정 → 일반 → 키보드 → Fonkii → 전체 접근 허용 켜기";
 "gif_settings_button"    = "설정으로 가기";
+"translate_no_access"    = "번역 기능을 사용하려면 전체 접근을 허용해주세요\n설정 → 일반 → 키보드 → Fonkii → 전체 접근 허용 켜기";
 
 /* 특수문자 카테고리 */
 "special_heart"       = "하트";

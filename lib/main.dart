@@ -62,9 +62,12 @@ class FontKeyboardApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('ko'),
         Locale('en'),
+        Locale('ko'),
       ],
+      localeResolutionCallback: (deviceLocale, supportedLocales) {
+        return deviceLocale?.languageCode == 'ko' ? const Locale('ko') : const Locale('en');
+      },
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: _pink,
@@ -218,10 +221,8 @@ class _LaunchRouterState extends State<_LaunchRouter>
   }
 
   Future<_LaunchTarget> _resolveTarget() async {
-    debugPrint('🔥 [resolveTarget] 시작');
     final prefs = await SharedPreferences.getInstance();
     final onboardingDone = prefs.getBool(onboardingCompletedKey) ?? false;
-    debugPrint('🔥 [resolveTarget] 온보딩 완료: $onboardingDone');
 
     if (!onboardingDone) {
       if (prefs.getBool(onboardingPage2VisitedKey) ?? false) return _LaunchTarget.page2;
@@ -233,27 +234,16 @@ class _LaunchRouterState extends State<_LaunchRouter>
         // Primary: in-memory flag set by AppDelegate when fonkii://myList URL received.
         // More reliable than App Group on cold start (no inter-process sync delay).
         final pending = await _channel.invokeMethod<bool>('consumePendingAddPhrase');
-        debugPrint('🔥 [resolveTarget] consumePendingAddPhrase 결과: $pending');
-        if (pending == true) {
-          debugPrint('🔥 [resolveTarget] 최종 target: myList (consumePendingAddPhrase)');
-          return _LaunchTarget.myList;
-        }
+        if (pending == true) return _LaunchTarget.myList;
 
         // Fallback: App Group UserDefaults flag written by keyboard before opening app.
         // Covers the LSApplicationWorkspace bundle-ID-only path where URL callback
         // doesn't fire. May have slight inter-process sync delay on cold start.
         final openMyList = await _channel.invokeMethod<bool>('checkAndClearOpenMyList');
-        debugPrint('🔥 [resolveTarget] checkAndClearOpenMyList 결과: $openMyList');
-        if (openMyList == true) {
-          debugPrint('🔥 [resolveTarget] 최종 target: myList (checkAndClearOpenMyList)');
-          return _LaunchTarget.myList;
-        }
-      } catch (e) {
-        debugPrint('🔥 [resolveTarget] 채널 오류: $e');
-      }
+        if (openMyList == true) return _LaunchTarget.myList;
+      } catch (_) {}
     }
 
-    debugPrint('🔥 [resolveTarget] 최종 target: home');
     return _LaunchTarget.home;
   }
 
@@ -269,13 +259,9 @@ class _LaunchRouterState extends State<_LaunchRouter>
           case _LaunchTarget.home:
             return const HomeScreen();
           case _LaunchTarget.myList:
-            debugPrint('🔥 [FutureBuilder] myList 케이스 진입');
             if (!_myListPushed) {
               _myListPushed = true;
-              debugPrint('🔥 [FutureBuilder] postFrameCallback 등록');
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                debugPrint('🔥 [FutureBuilder] AddPhraseScreen push 시도');
-                debugPrint('🔥 [FutureBuilder] navigatorKey.currentState: ${_navigatorKey.currentState == null ? "NULL ❌" : "OK ✅"}');
                 _navigatorKey.currentState?.push(
                   PageRouteBuilder(
                     pageBuilder: (_, a, b) => const AddPhraseScreen(),
@@ -283,7 +269,6 @@ class _LaunchRouterState extends State<_LaunchRouter>
                     reverseTransitionDuration: Duration.zero,
                   ),
                 );
-                debugPrint('🔥 [FutureBuilder] push 완료');
               });
             }
             return const HomeScreen();

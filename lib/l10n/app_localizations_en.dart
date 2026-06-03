@@ -39,9 +39,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywallLaunchBadge => 'Launch Event';
 
   @override
-  String get paywallViewLifetime => 'View Lifetime Plan';
-
-  @override
   String get paywallStartTrial => 'Start Free Trial';
 
   @override
@@ -63,20 +60,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywallErrorNoSub => 'No subscription to restore';
 
   @override
-  String get paywallLifetimeTitle => 'Lifetime Plan';
+  String get paywallPerWeek => '/wk';
 
   @override
-  String get paywallLifetimeSubtitle => 'Pay once, use forever';
-
-  @override
-  String get paywallLifetimeNote =>
-      'Lifetime plan includes all features except translation.';
-
-  @override
-  String get paywallLifetimeBuy => 'Buy Lifetime Plan';
-
-  @override
-  String get paywallClose => 'Close';
+  String get paywallPerYear => '/yr';
 
   @override
   String get onboardingWelcomeTitle => 'Welcome!';

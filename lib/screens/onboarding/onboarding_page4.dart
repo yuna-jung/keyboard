@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/subscription_service.dart';
 import '../home_screen.dart';
+import '../paywall_screen.dart';
 import 'onboarding_page1.dart' show onboardingCompletedKey;
 
 const _accent = Color(0xFF7FC7FF);
@@ -36,6 +38,12 @@ class _OnboardingPage4State extends State<OnboardingPage4> {
   Future<void> _finish() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(onboardingCompletedKey, true);
+    if (!mounted) return;
+
+    if (!SubscriptionService.instance.isPremiumNow) {
+      await PaywallScreen.show(context);
+    }
+
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeScreen()),

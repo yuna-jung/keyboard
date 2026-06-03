@@ -5,8 +5,6 @@ import os
 // MARK: - Constants
 
 private let mainPink = UIColor(red: 1, green: 0.42, blue: 0.62, alpha: 1)
-private let keyBG = UIColor.white
-private let specialKeyBG = UIColor(white: 0.78, alpha: 1)
 
 // MARK: - GIPHY
 
@@ -559,9 +557,86 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     private var currentMode: Mode = .fonts
 
+    // MARK: - Theme
+
+    enum KeyboardTheme: String, CaseIterable {
+        case `default`
+        case cottonCandy
+        case lavender
+        case pastelRainbow
+        case soft
+        case bubbleMint
+    }
+
+    private var currentTheme: KeyboardTheme {
+        get {
+            let raw = UserDefaults.standard.string(forKey: "fonkii_theme") ?? "default"
+            return KeyboardTheme(rawValue: raw) ?? .default
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: "fonkii_theme")
+            // Write the theme's default accent color directly to UserDefaults so
+            // applyTheme() (called below) picks it up without triggering a second rebuild.
+            let defaultColor = Self.defaultAccentColor(for: newValue)
+            if let data = try? NSKeyedArchiver.archivedData(
+                withRootObject: defaultColor, requiringSecureCoding: false) {
+                UserDefaults.standard.set(data, forKey: "fonkii_accent_color")
+            }
+            applyTheme()
+        }
+    }
+
+    private static func defaultAccentColor(for theme: KeyboardTheme) -> UIColor {
+        switch theme {
+        case .default:       return UIColor(red: 1.0, green: 0.42, blue: 0.62, alpha: 1)
+        case .cottonCandy:   return UIColor(red: 1.0, green: 0.85, blue: 0.90, alpha: 1)
+        case .lavender:      return UIColor(red: 0.80, green: 0.70, blue: 0.95, alpha: 1)
+        case .pastelRainbow: return UIColor(red: 1.0, green: 0.61, blue: 0.71, alpha: 1)
+        case .soft:          return UIColor(red: 1.0, green: 0.70, blue: 0.78, alpha: 1)
+        case .bubbleMint:    return UIColor(red: 0.35, green: 0.75, blue: 0.45, alpha: 1)
+        }
+    }
+
+    /// Normal key background — varies by theme.
+    private var keyBG: UIColor {
+        switch currentTheme {
+        case .default:       return .white
+        case .cottonCandy:   return UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1)
+        case .lavender:      return UIColor(red: 0.98, green: 0.96, blue: 1.0, alpha: 1)
+        case .pastelRainbow: return .clear
+        case .soft:          return UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1)
+        case .bubbleMint:    return .clear   // gradient layer on BubbleMintKey handles fill
+        }
+    }
+
+    /// Space/backspace/shift key background — varies by theme.
+    private var specialKeyBG: UIColor {
+        switch currentTheme {
+        case .default:       return UIColor(white: 0.78, alpha: 1)
+        case .cottonCandy:   return UIColor(red: 1.0, green: 0.85, blue: 0.90, alpha: 1)
+        case .lavender:      return UIColor(red: 0.80, green: 0.70, blue: 0.95, alpha: 1)
+        case .pastelRainbow: return UIColor(white: 1.0, alpha: 0.3)
+        case .soft:          return UIColor(red: 0.97, green: 0.90, blue: 0.93, alpha: 1)
+        case .bubbleMint:    return UIColor(red: 0.95, green: 0.85, blue: 0.90, alpha: 1)
+        }
+    }
+
+    /// Overall keyboard background — solid color used by non-gradient themes.
+    /// `.pastelRainbow` returns `.clear` because a CAGradientLayer handles the fill.
+    private var keyboardBg: UIColor {
+        switch currentTheme {
+        case .default:       return .white
+        case .cottonCandy:   return UIColor(red: 0.80, green: 0.95, blue: 0.95, alpha: 1)
+        case .lavender:      return UIColor(red: 0.92, green: 0.88, blue: 0.98, alpha: 1)
+        case .pastelRainbow: return .clear
+        case .soft:          return UIColor(red: 0.92, green: 0.92, blue: 0.94, alpha: 1)
+        case .bubbleMint:    return UIColor(red: 0.82, green: 0.95, blue: 0.85, alpha: 1)
+        }
+    }
+
     /// User-customizable accent color (default = mainPink). Persisted in
     /// UserDefaults under "fonkii_accent_color". Setter triggers a UI refresh
-    /// via `applyAccentColor()`.
+    /// via `applyTheme()`.
     private var accentColor: UIColor {
         get {
             if let data = UserDefaults.standard.data(forKey: "fonkii_accent_color"),
@@ -575,15 +650,38 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 withRootObject: newValue, requiringSecureCoding: false) {
                 UserDefaults.standard.set(data, forKey: "fonkii_accent_color")
             }
-            applyAccentColor()
+            applyTheme()
         }
     }
 
-    /// Re-render the current mode so that all `accentColor` consumers pick up
-    /// the new color value.
-    private func applyAccentColor() {
+    private var gradientLayer: CAGradientLayer?
+
+    /// Re-render the keyboard with the current theme + accent color.
+    private func applyTheme() {
+        applyGradientBackground()
+        view.backgroundColor = keyboardBg
         showMode(currentMode)
     }
+
+    private func applyGradientBackground() {
+        gradientLayer?.removeFromSuperlayer()
+        gradientLayer = nil
+        guard currentTheme == .pastelRainbow else { return }
+        let gl = CAGradientLayer()
+        gl.colors = [
+            UIColor(red: 1.0, green: 0.95, blue: 0.80, alpha: 1).cgColor, // 연노랑
+            UIColor(red: 1.0, green: 0.85, blue: 0.90, alpha: 1).cgColor, // 연핑크
+            UIColor(red: 0.80, green: 0.95, blue: 0.95, alpha: 1).cgColor, // 민트
+        ]
+        gl.locations = [0.0, 0.5, 1.0]
+        gl.startPoint = CGPoint(x: 0.5, y: 0)
+        gl.endPoint   = CGPoint(x: 0.5, y: 1)
+        gl.frame = view.bounds
+        view.layer.insertSublayer(gl, at: 0)
+        gradientLayer = gl
+    }
+
+    private func applyAccentColor() { applyTheme() }
     private var fontCatIndex = 0
     private var fontStyleIndex = 0
     private var fontPickerExpanded = false
@@ -616,6 +714,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     /// Categories actually shown in the UI — prepends a "즐겨찾기" category
     /// holding the user's favorited fonts (if any) in the order saved.
+    private let freeFontNames: Set<String> = ["Normal", "Bold", "Italic", "Sans", "Typewriter"]
+
     private func displayFontName(_ style: FontStyleDef) -> String {
         // 특수 변환(closure 기반, 시각적으로 이상해지는 것)은 이름 그대로 표시
         let special: Set<String> = ["Flip", "Cloudy", "Box", "Candy"]
@@ -662,6 +762,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private let modeBar = UIStackView()
     private let contentView = UIView()
     private var letterKeys: [UIButton] = []
+    private var softKeys: [UIButton] = []
+    private var bubbleMintKeys: [UIButton] = []
 
     // MARK: - QWERTY Layout
 
@@ -1767,7 +1869,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var isPremiumUser = false
     private var userTier = "free" // "free" | "premium" | "lifetime"
     private var canTranslateUnlimited = false
-    /// Throttle gate for the `textDidChange` subscription re-check. `viewWillAppear`
+    // Flip to false before shipping to TestFlight / App Store.
+    #if DEBUG
+    static var debugForceFree = true
+    #endif
+/// Throttle gate for the `textDidChange` subscription re-check. `viewWillAppear`
     /// can be skipped when iOS caches/reuses this VC across text fields, but
     /// `textDidChange` always fires on (re)connection — so we re-verify there
     /// too, at most once per 30s to avoid a per-keystroke UserDefaults read.
@@ -1782,10 +1888,34 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var savedFontCatIndex: Int?
     private var savedFontStyleIndex: Int?
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        gradientLayer?.frame = view.bounds
+
+        if currentTheme == .soft {
+            for btn in softKeys {
+                btn.layer.sublayers?.filter { $0.name == "softHighlight" }.forEach { $0.removeFromSuperlayer() }
+                let highlight = CAGradientLayer()
+                highlight.name = "softHighlight"
+                highlight.colors = [
+                    UIColor(white: 1.0, alpha: 0.8).cgColor,
+                    UIColor(white: 1.0, alpha: 0.0).cgColor,
+                ]
+                highlight.frame = CGRect(x: 0, y: 0, width: btn.bounds.width, height: btn.bounds.height / 2)
+                highlight.cornerRadius = btn.layer.cornerRadius
+                btn.layer.addSublayer(highlight)
+            }
+        }
+
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = .white
+        // Apply gradient first so it sits at layer index 0 before any
+        // subviews are added; viewDidLayoutSubviews() corrects the frame.
+        applyGradientBackground()
+        view.backgroundColor = keyboardBg
 
         // 프리미엄 체크 (App Group UserDefaults 통해 메인 앱에서 동기화)
         checkPremiumStatus()
@@ -1827,9 +1957,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         checkPremiumStatus()
-        #if DEBUG
-        print("🔍 [viewWillAppear] calling applyPlainTextFieldGate()")
-        #endif
         applyPlainTextFieldGate()
     }
 
@@ -1841,12 +1968,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// surface that pipes styled output to the host text field, so re-rendering
     /// is gated to that mode.
     private func applyPlainTextFieldGate() {
-        if currentMode == .translate {
-            #if DEBUG
-            print("🔍 [gate] skipped — currentMode=.translate")
-            #endif
-            return
-        }
+        if currentMode == .translate { return }
 
         let kbType = textDocumentProxy.keyboardType
         let returnType = textDocumentProxy.returnKeyType
@@ -1864,24 +1986,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             textDocumentProxy.documentContextBeforeInput?
                 .contains("\u{200B}") == true
 
-        #if DEBUG
-        print("🔍 [gate] kbType=\(kbType?.rawValue.description ?? "nil") returnType=\(returnType?.rawValue.description ?? "nil") shouldForce=\(shouldForce) isPlainTextField=\(isPlainTextField) currentMode=\(currentMode) cat=\(fontCatIndex) style=\(fontStyleIndex)")
-        #endif
-
         if shouldForce && !isPlainTextField {
             savedFontCatIndex = fontCatIndex
             savedFontStyleIndex = fontStyleIndex
             fontCatIndex = 0
             fontStyleIndex = 0
             isPlainTextField = true
-            #if DEBUG
-            print("🔍 [gate] FORCED → Normal. saved=(\(savedFontCatIndex ?? -1), \(savedFontStyleIndex ?? -1)) now=(0, 0). willRedraw=\(currentMode == .fonts)")
-            #endif
             if currentMode == .fonts { showMode(.fonts) }
         } else if !shouldForce && isPlainTextField {
-            #if DEBUG
-            print("🔍 [gate] RESTORING from saved=(\(savedFontCatIndex ?? -1), \(savedFontStyleIndex ?? -1))")
-            #endif
             if let cat = savedFontCatIndex { fontCatIndex = cat }
             if let style = savedFontStyleIndex { fontStyleIndex = style }
             savedFontCatIndex = nil
@@ -1921,9 +2033,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
         // Catch field-type changes when iOS reuses this VC across text fields
         // and skips `viewWillAppear`. The gate is cheap when state matches.
-        #if DEBUG
-        print("🔍 [textDidChange] calling applyPlainTextFieldGate()")
-        #endif
         applyPlainTextFieldGate()
     }
 
@@ -1976,7 +2085,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Mode Switching
 
     private func showMode(_ mode: Mode) {
-        os_log("🔥 [KeyboardVC] showMode: %{public}@, isPremiumUser: %{public}d", log: .default, type: .debug, mode.rawValue.description, isPremiumUser)
         // Leaving the Aa tab while the Korean composer has buffered jamos
         // would strand that state — the next time the user comes back, the
         // first tap would unexpectedly extend the old syllable. Flush at the
@@ -2020,18 +2128,20 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // Subscriber gate: any non-translate tab renders the in-keyboard lock
         // view for free-tier users. Translate has its own toast at modeTapped
         // (it distinguishes lifetime from free with a more specific message),
-        // and DEBUG builds bypass for development. Both premium and
-        // premium_lifetime have `isPremiumUser == true` and pass through.
+        // Both premium and premium_lifetime have `isPremiumUser == true` and pass through.
         // Exception: textTemplate at My List category (index 0) is free for all users.
-        #if !DEBUG
         if mode != .translate && !isPremiumUser {
-            let isFreeMyList = (mode == .textTemplate && fandomCatIndex == 0)
-            if !isFreeMyList {
+            let isTextTemplate = (mode == .textTemplate)  // per-item gating inside the list
+            let isFontsMode = (mode == .fonts)            // per-font gating in styleTapped/fontPanelStyleTapped
+            let isGifMode = (mode == .gif)                // per-tap 5/day free quota in gifCellTapped
+            let isPartialFree = (mode == .emoticon || mode == .special || mode == .dotArt)  // first N items free per category
+            let isFavorites = (mode == .favorites)        // fully free
+            let isPalette = (mode == .palette)            // settings popup — fully free
+            if !isTextTemplate && !isFontsMode && !isGifMode && !isPartialFree && !isFavorites && !isPalette {
                 buildLockedMode()
                 return
             }
         }
-        #endif
 
         switch mode {
         case .fonts:     buildFontsMode()
@@ -2043,7 +2153,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                                            self?.showMode(.emoticon)
                                        },
                                        scrollTag: 100,
-                                       fullBottomBar: true)
+                                       fullBottomBar: true,
+                                       freeCount: 4)
         case .special:   buildGridMode(categories: specialCategories,
                                        selected: selectedSpecialCat,
                                        cols: 4, fontSize: 22,
@@ -2051,7 +2162,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                                            self?.selectedSpecialCat = i
                                            self?.showMode(.special)
                                        },
-                                       scrollTag: 200)
+                                       scrollTag: 200,
+                                       freeCount: 6)
         case .dotArt:    buildDotArtMode()
         case .gif:       buildGifMode()
         case .translate: buildTranslateMode()
@@ -2065,6 +2177,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private func clearContent() {
         contentView.subviews.forEach { $0.removeFromSuperview() }
         letterKeys.removeAll()
+        softKeys.removeAll()
+        bubbleMintKeys.removeAll()
         translationFieldView?.removeFromSuperview()
         translationFieldView = nil
     }
@@ -2073,52 +2187,109 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// non-subscriber lands on a gated mode. Tapping the CTA bounces to the
     /// host app's paywall via the `fonkii://paywall` URL scheme registered in
     /// Runner/Info.plist.
-    private func buildLockedMode() {
-        let container = UIView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(container)
-        pinToEdges(container, in: contentView)
-        container.heightAnchor.constraint(equalToConstant: tabContainerHeight).isActive = true
+    private static let lockedOverlayTag = 9901
+    private static let translateSettingsBtnTag = 9902
 
+    private func buildLockedMode() {
+        // Prevent duplicate overlays
+        guard self.view.viewWithTag(Self.lockedOverlayTag) == nil else { return }
+
+        // Semi-transparent full-keyboard backdrop
+        let overlay = UIView()
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        overlay.backgroundColor = UIColor.black.withAlphaComponent(0.45)
+        overlay.tag = Self.lockedOverlayTag
+        self.view.addSubview(overlay)
+        NSLayoutConstraint.activate([
+            overlay.topAnchor.constraint(equalTo: self.view.topAnchor),
+            overlay.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
+            overlay.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
+            overlay.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
+        ])
+
+        // Tap outside card → dismiss
+        let tapDismiss = UITapGestureRecognizer(target: self, action: #selector(dismissLockedOverlay))
+        overlay.addGestureRecognizer(tapDismiss)
+
+        // Card
+        let card = UIView()
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = UIColor.systemBackground
+        card.layer.cornerRadius = 18
+        card.layer.shadowColor = UIColor.black.cgColor
+        card.layer.shadowOpacity = 0.18
+        card.layer.shadowRadius = 14
+        card.layer.shadowOffset = CGSize(width: 0, height: 4)
+        overlay.addSubview(card)
+        NSLayoutConstraint.activate([
+            card.centerXAnchor.constraint(equalTo: overlay.centerXAnchor),
+            card.centerYAnchor.constraint(equalTo: overlay.centerYAnchor),
+            card.leadingAnchor.constraint(greaterThanOrEqualTo: overlay.leadingAnchor, constant: 28),
+            card.trailingAnchor.constraint(lessThanOrEqualTo: overlay.trailingAnchor, constant: -28),
+        ])
+        // Stop tap propagation so tapping the card doesn't dismiss
+        card.addGestureRecognizer(UITapGestureRecognizer())
+
+        // X close button
+        let closeBtn = UIButton(type: .system)
+        closeBtn.translatesAutoresizingMaskIntoConstraints = false
+        closeBtn.setImage(UIImage(systemName: "xmark"), for: .normal)
+        closeBtn.tintColor = .secondaryLabel
+        closeBtn.addTarget(self, action: #selector(dismissLockedOverlay), for: .touchUpInside)
+        card.addSubview(closeBtn)
+        NSLayoutConstraint.activate([
+            closeBtn.topAnchor.constraint(equalTo: card.topAnchor, constant: 10),
+            closeBtn.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
+            closeBtn.widthAnchor.constraint(equalToConstant: 28),
+            closeBtn.heightAnchor.constraint(equalToConstant: 28),
+        ])
+
+        // Content stack
         let stack = UIStackView()
         stack.axis = .vertical
         stack.alignment = .center
-        stack.spacing = 14
+        stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(stack)
+        card.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            stack.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -24),
+            stack.topAnchor.constraint(equalTo: closeBtn.bottomAnchor, constant: 2),
+            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -22),
+            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 22),
+            stack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -22),
         ])
 
-        let icon = UIImageView(image: UIImage(systemName: "lock.fill"))
-        icon.tintColor = accentColor
-        icon.contentMode = .scaleAspectFit
+        let icon = UILabel()
+        icon.text = "👑"
+        icon.font = .systemFont(ofSize: 30)
+        icon.textAlignment = .center
         icon.translatesAutoresizingMaskIntoConstraints = false
-        icon.heightAnchor.constraint(equalToConstant: 38).isActive = true
-        icon.widthAnchor.constraint(equalToConstant: 38).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 34).isActive = true
 
         let title = UILabel()
         title.text = loc("premium_lock_message")
         title.numberOfLines = 0
         title.textAlignment = .center
-        title.font = .systemFont(ofSize: 14, weight: .medium)
-        title.textColor = .darkText
+        title.font = .systemFont(ofSize: 13, weight: .medium)
+        title.textColor = .label
 
-        let button = UIButton(type: .custom)
-        button.setTitle(loc("premium_lock_button"), for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
-        button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = accentColor
-        button.layer.cornerRadius = 20
-        button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 22, bottom: 10, right: 22)
-        button.addTarget(self, action: #selector(openPaywallApp), for: .touchUpInside)
+        let ctaBtn = UIButton(type: .custom)
+        ctaBtn.setTitle(loc("premium_lock_button"), for: .normal)
+        ctaBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
+        ctaBtn.setTitleColor(.white, for: .normal)
+        ctaBtn.backgroundColor = accentColor
+        ctaBtn.layer.cornerRadius = 20
+        ctaBtn.contentEdgeInsets = UIEdgeInsets(top: 10, left: 22, bottom: 10, right: 22)
+        ctaBtn.addTarget(self, action: #selector(openPaywallApp), for: .touchUpInside)
 
         stack.addArrangedSubview(icon)
         stack.addArrangedSubview(title)
-        stack.addArrangedSubview(button)
+        stack.addArrangedSubview(ctaBtn)
+    }
+
+    @objc private func dismissLockedOverlay() {
+        self.view.subviews
+            .filter { $0.tag == Self.lockedOverlayTag }
+            .forEach { $0.removeFromSuperview() }
     }
 
     /// Walk the responder chain to find the host `UIApplication` and open the
@@ -2191,20 +2362,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // Translate keeps its own messaging (distinguishes lifetime from free).
         // Trial users have isPremiumUser=true but canTranslateUnlimited=false
-        // — they must reach `translateTriggered` so the 10/day counter applies,
+        // — they must reach `translateTriggered` so the 5/day counter applies,
         // so we gate on tier/membership here, not on the unlimited flag.
         if mode == .translate {
             checkPremiumStatus()
-            #if DEBUG
-            print("🔍 DEBUG - isPremiumUser: \(isPremiumUser), canTranslateUnlimited: \(canTranslateUnlimited), userTier: \(userTier)")
-            print("🔍 DEBUG - App Group: group.com.yunajung.fonki")
-            #endif
             if userTier == "lifetime" {
                 showToast(loc("toast_translate_monthly"))
-                return
-            }
-            guard isPremiumUser else {
-                showToast(loc("toast_translate_sub"))
                 return
             }
             showMode(mode)
@@ -2215,15 +2378,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
 
         if mode == .palette {
-            // Non-subscribers see the in-keyboard lock view (showMode renders
-            // it). Subscribers get the popup picker.
-            #if !DEBUG
             checkPremiumStatus()
-            if !isPremiumUser {
-                showMode(.palette)
-                return
-            }
-            #endif
             showPalettePicker()
             return
         }
@@ -2288,24 +2443,50 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         popup.layer.masksToBounds = false
         popup.translatesAutoresizingMaskIntoConstraints = false
         overlay.addSubview(popup)
+        // 70% of the device screen height; overlay constraints cap it further
+        // to keyboard view bounds when the keyboard is shorter.
+        let maxPopupH = (view.window?.bounds.height ?? UIScreen.main.bounds.height) * 0.70
         NSLayoutConstraint.activate([
             popup.centerXAnchor.constraint(equalTo: overlay.centerXAnchor),
             popup.centerYAnchor.constraint(equalTo: overlay.centerYAnchor),
             popup.widthAnchor.constraint(equalToConstant: 340),
+            popup.heightAnchor.constraint(lessThanOrEqualToConstant: maxPopupH),
             popup.topAnchor.constraint(greaterThanOrEqualTo: overlay.topAnchor, constant: 8),
             popup.bottomAnchor.constraint(lessThanOrEqualTo: overlay.bottomAnchor, constant: -8),
+        ])
+
+        // ScrollView fills the popup; cornerRadius clips scrolled content.
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.alwaysBounceVertical = false
+        scrollView.layer.cornerRadius = 14
+        scrollView.layer.masksToBounds = true
+        popup.addSubview(scrollView)
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: popup.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: popup.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: popup.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: popup.bottomAnchor),
         ])
 
         let outer = UIStackView()
         outer.axis = .vertical
         outer.spacing = 8
         outer.translatesAutoresizingMaskIntoConstraints = false
-        popup.addSubview(outer)
+        scrollView.addSubview(outer)
+        // Soft: popup grows to fit content. Yields to the required lessThanOrEqual /
+        // greaterThanOrEqual overlay constraints when content exceeds keyboard height.
+        let fitHeight = popup.heightAnchor.constraint(equalTo: outer.heightAnchor, constant: 24)
+        fitHeight.priority = UILayoutPriority(749)
         NSLayoutConstraint.activate([
-            outer.topAnchor.constraint(equalTo: popup.topAnchor, constant: 12),
-            outer.leadingAnchor.constraint(equalTo: popup.leadingAnchor, constant: 14),
-            outer.trailingAnchor.constraint(equalTo: popup.trailingAnchor, constant: -14),
-            outer.bottomAnchor.constraint(equalTo: popup.bottomAnchor, constant: -12),
+            outer.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 12),
+            outer.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 14),
+            outer.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -14),
+            outer.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -12),
+            // Prevents horizontal scroll — outer fills the scroll view's visible width.
+            outer.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -28),
+            fitHeight,
         ])
 
         // ── Top: 한글 입력 방식 (full width) ────────────────────────────
@@ -2348,6 +2529,64 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             inputRow.addArrangedSubview(btn)
         }
         outer.addArrangedSubview(inputRow)
+
+        let divider1 = UIView()
+        divider1.backgroundColor = UIColor(white: 0.9, alpha: 1)
+        divider1.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        outer.addArrangedSubview(divider1)
+
+        // ── Theme picker (2×2 grid) ─────────────────────────────────────
+        let themeHeader = UILabel()
+        themeHeader.text = loc("settings_theme")
+        themeHeader.font = .systemFont(ofSize: 13, weight: .semibold)
+        themeHeader.textColor = .darkGray
+        themeHeader.heightAnchor.constraint(equalToConstant: 18).isActive = true
+        outer.addArrangedSubview(themeHeader)
+
+        let themes: [(label: String, theme: KeyboardTheme)] = [
+            (loc("theme_default"),        .default),
+            (loc("theme_cotton_candy"),   .cottonCandy),
+            (loc("theme_lavender"),       .lavender),
+            (loc("theme_pastel_rainbow"), .pastelRainbow),
+            (loc("theme_soft"),           .soft),
+            (loc("theme_bubble_mint"),    .bubbleMint),
+        ]
+        func makeThemeButton(_ label: String, _ theme: KeyboardTheme) -> UIButton {
+            let btn = UIButton(type: .system)
+            btn.setTitle(label, for: .normal)
+            btn.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
+            btn.titleLabel?.adjustsFontSizeToFitWidth = true
+            btn.titleLabel?.minimumScaleFactor = 0.7
+            btn.layer.cornerRadius = 12
+            btn.layer.borderWidth = 1
+            let isSel = currentTheme == theme
+            btn.backgroundColor = isSel ? accentColor : UIColor(white: 0.96, alpha: 1)
+            btn.setTitleColor(isSel ? .white : .darkGray, for: .normal)
+            btn.layer.borderColor = (isSel ? accentColor : UIColor(white: 0.85, alpha: 1)).cgColor
+            btn.addAction(UIAction { [weak self, weak overlay] _ in
+                guard let self = self else { return }
+                if self.currentTheme == theme { return }
+                self.currentTheme = theme
+                overlay?.removeFromSuperview()
+                self.showPalettePicker()
+            }, for: .touchUpInside)
+            return btn
+        }
+        let themeGrid = UIStackView()
+        themeGrid.axis = .vertical
+        themeGrid.spacing = 6
+        for row in stride(from: 0, to: themes.count, by: 2) {
+            let rowStack = UIStackView()
+            rowStack.axis = .horizontal
+            rowStack.spacing = 8
+            rowStack.distribution = .fillEqually
+            rowStack.heightAnchor.constraint(equalToConstant: 32).isActive = true
+            for i in row..<min(row + 2, themes.count) {
+                rowStack.addArrangedSubview(makeThemeButton(themes[i].label, themes[i].theme))
+            }
+            themeGrid.addArrangedSubview(rowStack)
+        }
+        outer.addArrangedSubview(themeGrid)
 
         let divider = UIView()
         divider.backgroundColor = UIColor(white: 0.9, alpha: 1)
@@ -2558,8 +2797,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         ])
         let styles = visibleCats.isEmpty ? [] : visibleCats[safeCatIndex].1
         for (i, style) in styles.enumerated() {
+            let isLocked = !isPremiumUser && !freeFontNames.contains(style.name)
             let btn = UIButton(type: .system)
-            btn.setTitle(displayFontName(style), for: .normal)
+            btn.setTitle(displayFontName(style) + (isLocked ? " 👑" : ""), for: .normal)
             btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
             btn.titleLabel?.adjustsFontSizeToFitWidth = true
             btn.titleLabel?.minimumScaleFactor = 0.6
@@ -2568,7 +2808,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
             let sel = i == fontStyleIndex
             btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
-            btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
+            btn.setTitleColor(sel ? .white : (isLocked ? UIColor.systemGray3 : .darkGray), for: .normal)
             if isFavoriteFont(style.name) {
                 btn.layer.borderWidth = 1.5
                 btn.layer.borderColor = accentColor.cgColor
@@ -2863,10 +3103,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         done.setTitle("", for: .normal)
         let returnImage = UIImage(systemName: "return", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .medium))
         done.setImage(returnImage, for: .normal)
-        // Accent (user point color) fill with a white return arrow + title.
-        done.backgroundColor = accentColor
-        done.tintColor = .white
-        done.setTitleColor(.white, for: .normal)
+        done.backgroundColor = specialKeyBG
+        done.tintColor = .black
+        done.setTitleColor(.black, for: .normal)
         done.addTarget(self, action: #selector(returnTapped), for: .touchDown)
         done.setWidth(50)
         bottom.addArrangedSubview(done)
@@ -2898,7 +3137,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                                selected: Int, cols: Int, fontSize: CGFloat,
                                onCatChange: @escaping (Int) -> Void,
                                scrollTag: Int = 0,
-                               fullBottomBar: Bool = false) {
+                               fullBottomBar: Bool = false,
+                               freeCount: Int = Int.max) {
         contentView.subviews.forEach { $0.removeFromSuperview() }
 
         // Use manual layout instead of outer stack to avoid scrollView collapsing
@@ -3004,7 +3244,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             Array(items[$0..<min($0 + actualCols, items.count)])
         }
 
-        for row in chunked {
+        for (rowIdx, row) in chunked.enumerated() {
             let rowStack = UIStackView()
             rowStack.axis = .horizontal
             rowStack.distribution = .fillEqually
@@ -3013,9 +3253,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 rowStack.isLayoutMarginsRelativeArrangement = true
                 rowStack.layoutMargins = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
             }
-            for item in row {
+            for (colIdx, item) in row.enumerated() {
+                let itemIdx = rowIdx * actualCols + colIdx
+                let isLocked = !isPremiumUser && itemIdx >= freeCount
                 let btn = UIButton(type: .system)
                 btn.setTitle(item, for: .normal)
+                btn.tag = itemIdx
                 if isDotArt {
                     btn.titleLabel?.font = .monospacedSystemFont(ofSize: 9, weight: .regular)
                     btn.titleLabel?.numberOfLines = 0
@@ -3038,7 +3281,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 btn.layer.cornerRadius = 8
                 btn.layer.borderWidth = 0.5
                 btn.layer.borderColor = UIColor(white: 0.85, alpha: 1).cgColor
-                btn.setTitleColor(.darkGray, for: .normal)
+                btn.setTitleColor(isLocked ? UIColor.systemGray3 : .darkGray, for: .normal)
+                btn.alpha = isLocked ? 0.45 : 1.0
                 if !isBigEmoticon {
                     btn.setHeight(cellHeight)
                 }
@@ -3104,6 +3348,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             rowStack.spacing = 4
             for (colIdx, text) in row.enumerated() {
                 let globalIdx = rowIdx * cols + colIdx
+                let isLocked = !isPremiumUser && globalIdx >= 5
                 let btn = UIButton(type: .custom)
                 btn.tag = globalIdx
                 btn.backgroundColor = .white
@@ -3117,12 +3362,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 lp.minimumPressDuration = 0.5
                 btn.addGestureRecognizer(lp)
 
+                // Dot art content (always shown — locked items are dimmed but visible)
                 let cardPadding: CGFloat = 8
                 let labelFont = UIFont(name: "Menlo", size: 4) ?? UIFont.monospacedSystemFont(ofSize: 4, weight: .regular)
                 let label = UILabel()
                 label.text = text
                 label.font = labelFont
-                label.textColor = .black
+                label.textColor = isLocked ? .systemGray3 : .black
                 label.numberOfLines = 0
                 label.adjustsFontSizeToFitWidth = true
                 label.minimumScaleFactor = 0.5
@@ -3130,7 +3376,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 label.contentMode = .scaleAspectFit
                 label.textAlignment = .center
                 label.isUserInteractionEnabled = false
-
                 label.translatesAutoresizingMaskIntoConstraints = false
                 btn.addSubview(label)
                 NSLayoutConstraint.activate([
@@ -3139,6 +3384,20 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     label.trailingAnchor.constraint(equalTo: btn.trailingAnchor, constant: -cardPadding),
                     label.bottomAnchor.constraint(equalTo: btn.bottomAnchor, constant: -cardPadding),
                 ])
+
+                if isLocked {
+                    let crownLabel = UILabel()
+                    crownLabel.text = "👑"
+                    crownLabel.font = .systemFont(ofSize: 14)
+                    crownLabel.textAlignment = .center
+                    crownLabel.isUserInteractionEnabled = false
+                    crownLabel.translatesAutoresizingMaskIntoConstraints = false
+                    btn.addSubview(crownLabel)
+                    NSLayoutConstraint.activate([
+                        crownLabel.topAnchor.constraint(equalTo: btn.topAnchor, constant: 4),
+                        crownLabel.trailingAnchor.constraint(equalTo: btn.trailingAnchor, constant: -4),
+                    ])
+                }
 
                 rowStack.addArrangedSubview(btn)
             }
@@ -3154,7 +3413,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Text Template Mode
 
     private func buildTextTemplateMode() {
-        os_log("🔥 [KeyboardVC] buildTextTemplateMode 진입!", log: .default, type: .debug)
         fandomItemOutputs.removeAll()
         let safeCat = min(fandomCatIndex, max(fandomCategories.count - 1, 0))
         let extBundle = Bundle(for: type(of: self))
@@ -3187,7 +3445,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         for (i, cat) in fandomCategories.enumerated() {
             let btn = UIButton(type: .system)
             let catTitleKey = "text_replace_\(cat.title.lowercased())"
-            btn.setTitle(NSLocalizedString(catTitleKey, bundle: extBundle, comment: ""), for: .normal)
+            let catTitle = NSLocalizedString(catTitleKey, bundle: extBundle, comment: "")
+            btn.setTitle(catTitle, for: .normal)
             btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
             btn.tag = i
             btn.layer.cornerRadius = 14
@@ -3215,7 +3474,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // ── My List branch ──────────────────────────────────────────────────
         if selectedCat.sections.isEmpty {
-            os_log("🔥 [KeyboardVC] My List 버튼 생성 — addTarget: myListAddTapped", log: .default, type: .debug)
             let addBtn = UIButton(type: .system)
             addBtn.setTitle(NSLocalizedString("text_replace_add", bundle: extBundle, comment: ""), for: .normal)
             addBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
@@ -3226,7 +3484,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             addBtn.isUserInteractionEnabled = true
             container.addSubview(addBtn)
             addBtn.addTarget(self, action: #selector(myListAddTapped), for: .touchUpInside)
-            os_log("🔥 [KeyboardVC] addBtn.isEnabled: %{public}d, isUserInteractionEnabled: %{public}d", log: .default, type: .debug, addBtn.isEnabled, addBtn.isUserInteractionEnabled)
 
             let listScroll = UIScrollView()
             listScroll.alwaysBounceVertical = true
@@ -3358,6 +3615,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let items = safeSection >= 0 ? cat.sections[safeSection].items : []
 
         for (idx, item) in items.enumerated() {
+            let isLocked = !isPremiumUser && idx >= 3
             let btn = UIButton(type: .system)
             btn.tag = idx
             fandomItemOutputs[idx] = item.output
@@ -3367,13 +3625,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             } else {
                 displayText = item.output
             }
-            btn.setTitle(displayText, for: .normal)
+            btn.setTitle(displayText + (isLocked ? " 👑" : ""), for: .normal)
             btn.titleLabel?.font = .systemFont(ofSize: 14)
             btn.titleLabel?.lineBreakMode = .byTruncatingTail
             btn.contentHorizontalAlignment = .left
             btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
             btn.backgroundColor = .white
-            btn.setTitleColor(.darkGray, for: .normal)
+            btn.setTitleColor(isLocked ? UIColor.systemGray3 : .darkGray, for: .normal)
+            btn.alpha = isLocked ? 0.6 : 1.0
             btn.layer.cornerRadius = 8
             btn.layer.borderWidth = 0.5
             btn.layer.borderColor = UIColor(white: 0.85, alpha: 1).cgColor
@@ -3397,6 +3656,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func fandomItemTapped(_ s: UIButton) {
+        if !isPremiumUser && s.tag >= 3 {
+            buildLockedMode()
+            return
+        }
         guard let output = fandomItemOutputs[s.tag] else { return }
         textDocumentProxy.insertText(output)
         UIView.animate(withDuration: 0.06, animations: {
@@ -3411,28 +3674,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func myListAddTapped() {
-        os_log("🔥 [KeyboardVC] myListAddTapped 진입!", log: .default, type: .debug)
         // Persist flag so the host app can navigate on next resume.
         let defaults = UserDefaults(suiteName: Self.favAppGroup)
         defaults?.set(true, forKey: "open_my_list")
-        defaults?.synchronize()
-        let readback = defaults?.bool(forKey: "open_my_list")
-        os_log("🔥 [KeyboardVC] open_my_list saved, readback: %{public}@", log: .default, type: .debug, String(describing: readback))
-
-        defaults?.set(hasFullAccess, forKey: "debug_full_access")
-        defaults?.set(extensionContext != nil, forKey: "debug_extension_context")
         defaults?.synchronize()
 
         let isKo = Locale.current.language.languageCode?.identifier == "ko"
 
         // Method 1: extensionContext.open() — requires Full Access.
         if let ctx = extensionContext, let url = URL(string: "fonkii://myList") {
-            os_log("🔥 [KeyboardVC] extensionContext.open() 호출 시작", log: .default, type: .debug)
             ctx.open(url) { [weak self] success in
                 DispatchQueue.main.async {
-                    os_log("🔥 [KeyboardVC] extensionContext.open() result: %{public}@", log: .default, type: .debug, String(success))
-                    defaults?.set(success, forKey: "debug_open_result")
-                    defaults?.synchronize()
                     if !success {
                         // Method 2: LSApplicationWorkspace private API fallback.
                         self?.openViaWorkspace()
@@ -3441,9 +3693,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 }
             }
         } else {
-            os_log("🔥 [KeyboardVC] extensionContext nil — workspace fallback", log: .default, type: .debug)
-            defaults?.set(false, forKey: "debug_open_result")
-            defaults?.synchronize()
             openViaWorkspace()
             showToast(isKo ? "Fonkii 앱을 열어주세요" : "Open Fonkii app")
         }
@@ -3456,20 +3705,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private func openViaWorkspace() {
         guard let wsClass = NSClassFromString("LSApplicationWorkspace") as? NSObject.Type,
               let workspace = wsClass.perform(NSSelectorFromString("defaultWorkspace"))?.takeUnretainedValue() as? NSObject
-        else {
-            os_log("🔥 [KeyboardVC] LSApplicationWorkspace not available", log: .default, type: .debug)
-            return
-        }
+        else { return }
         // Prefer URL-based open so AppDelegate.application(_:open:url:options:) fires
         // and sets pendingAddPhrase — avoids App Group UserDefaults sync timing issues.
         if let url = URL(string: "fonkii://myList") {
             let urlResult = workspace.perform(NSSelectorFromString("openURL:"), with: url as NSURL)
-            os_log("🔥 [KeyboardVC] LSApplicationWorkspace openURL result: %{public}@", log: .default, type: .debug, String(describing: urlResult))
             if urlResult != nil { return }
         }
         // Fallback: open by bundle ID (AppDelegate URL callback won't fire).
-        let result = workspace.perform(NSSelectorFromString("openApplicationWithBundleID:"), with: "com.yunajung.fonki")
-        os_log("🔥 [KeyboardVC] LSApplicationWorkspace openBundleID result: %{public}@", log: .default, type: .debug, String(describing: result))
+        workspace.perform(NSSelectorFromString("openApplicationWithBundleID:"), with: "com.yunajung.fonki")
     }
 
     @objc private func myListItemTapped(_ s: UIButton) {
@@ -3936,7 +4180,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             if !append { showGifFullAccessNotice() }
             return
         }
-        print("🔍 GIF DEBUG - Starting fetch, apiKey length: \(giphyApiKey.count)")
         isLoadingGifs = true
         if !append {
             gifLoadingLabel?.text = "불러오는 중..."
@@ -3949,27 +4192,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         } else {
             urlString = "https://api.giphy.com/v1/gifs/trending?api_key=\(giphyApiKey)&limit=50&offset=\(gifOffset)&lang=ko"
         }
-        print("🔍 GIF DEBUG - URL: \(urlString)")
-        print("🔍 GIF DEBUG - API Key: \(giphyApiKey)")
         guard let url = URL(string: urlString) else { isLoadingGifs = false; return }
 
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             guard let self = self else { return }
-
-            if let httpResponse = response as? HTTPURLResponse {
-                print("🔍 GIF DEBUG - HTTP Status: \(httpResponse.statusCode)")
-            } else {
-                print("🔍 GIF DEBUG - HTTP Status: <no response>")
-            }
-            if let error = error {
-                print("🔍 GIF DEBUG - Network error: \(error.localizedDescription)")
-            }
-            if let data = data {
-                let bodyPreview = String(data: data, encoding: .utf8) ?? "<binary>"
-                print("🔍 GIF DEBUG - Body: \(bodyPreview.prefix(500))")
-            } else {
-                print("🔍 GIF DEBUG - Body: nil")
-            }
 
             guard let data = data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -4062,15 +4288,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// iOS Keyboard settings — the same trick `openPaywallApp()` uses, since
     /// `UIApplication.shared` is off-limits in extensions.
     @objc private func openKeyboardSettings() {
-        guard let url = URL(string: "App-Prefs:root=General&path=Keyboard") else { return }
-        var responder: UIResponder? = self
-        while let r = responder {
-            if let app = r as? UIApplication {
-                app.open(url, options: [:], completionHandler: nil)
-                return
-            }
-            responder = r.next
-        }
+        guard let url = URL(string: "app-settings:root=General&path=Keyboard"),
+              let ctx = extensionContext else { return }
+        ctx.open(url, completionHandler: nil)
     }
 
     private func renderGifGrid() {
@@ -4185,6 +4405,24 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         guard let gifID = sender.accessibilityIdentifier,
               let gif = gifImages.first(where: { $0.id == gifID })
         else { return }
+
+        if !isPremiumUser {
+            let defaults = UserDefaults(suiteName: Self.favAppGroup)
+            let df = DateFormatter()
+            df.dateFormat = "yyyy-MM-dd"
+            df.locale = Locale(identifier: "en_US_POSIX")
+            df.timeZone = TimeZone.current
+            let today = df.string(from: Date())
+            let storedDate = defaults?.string(forKey: "free_gif_date")
+            var count = (storedDate == today) ? (defaults?.integer(forKey: "free_gif_count") ?? 0) : 0
+            if count >= 5 {
+                buildLockedMode()
+                return
+            }
+            count += 1
+            defaults?.set(count, forKey: "free_gif_count")
+            defaults?.set(today, forKey: "free_gif_date")
+        }
 
         showToast(loc("toast_gif_downloading"))
         URLSession.shared.dataTask(with: gif.originalURL) { [weak self] data, _, _ in
@@ -5647,7 +5885,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let returnImg = UIImage(systemName: "return",
                                     withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium))
             returnBtn.setImage(returnImg, for: .normal)
-            returnBtn.tintColor = .darkText
+            returnBtn.backgroundColor = specialKeyBG
+            returnBtn.tintColor = .black
+            returnBtn.setTitleColor(.black, for: .normal)
             returnBtn.addTarget(self, action: #selector(returnTapped), for: .touchDown)
             row4.addArrangedSubview(returnBtn)
 
@@ -6004,6 +6244,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func translateTriggered() {
         guard !translationInput.isEmpty else { return }
+        // Clean up any lingering Full Access settings button from a prior error.
+        translateResultLabel?.superview?
+            .viewWithTag(Self.translateSettingsBtnTag)?.removeFromSuperview()
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
@@ -6024,21 +6267,20 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         ) {
             lastTranslation = sanitizeTranslationOutput(cached)
             translateResultLabel?.text = lastTranslation
+            translateResultLabel?.textColor = .darkText
             return
         }
 
         // Full Access check — keyboard extensions cannot make network
         // requests without Full Access in Settings.
         if !hasFullAccess {
-            showTranslateError("'전체 접근 허용'이 꺼져 있어요\n설정 → 일반 → 키보드 → 키보드 → Fonkii Keyboard\n→ 전체 접근 허용 ON")
-            print("[Translate] hasFullAccess = false — aborting network request")
+            showTranslateFullAccessError()
             return
         }
 
         // Refresh tier from App Group (main app may have updated it)
         checkPremiumStatus()
 
-        #if !DEBUG
         // Lifetime: translation not included in lifetime plan
         if userTier == "lifetime" {
             showTranslateError("번역은 주/연간 구독에서만 가능합니다")
@@ -6046,8 +6288,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
 
         // Daily translation limit. Both tiers are now capped:
-        //   • free                    → 10/day
-        //   • premium (weekly/yearly) → 500/day
+        //   • free                    → 5/day
+        //   • premium (weekly/yearly) → 300/day
         // (Lifetime is blocked outright above; trial users land on the
         // free quota since `canTranslateUnlimited == false` for them.)
         // `canTranslateUnlimited` is the premium-tier gate flag — kept
@@ -6070,29 +6312,25 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             ? (defaults?.integer(forKey: "translateDailyCount") ?? 0)
             : 0
 
-        let maxCount = canTranslateUnlimited ? 300 : 20
+        let maxCount = canTranslateUnlimited ? 300 : 5
         if count >= maxCount {
-            translateResultLabel?.text = canTranslateUnlimited
-                ? "오늘 번역 한도를 모두 사용했어요.\n내일 다시 이용해주세요."
-                : "오늘 무료 번역 횟수를 모두 사용했어요.\n구독하면 더 많이 이용할 수 있어요."
-            translateResultLabel?.textColor = .systemOrange
-            translateResultLabel?.numberOfLines = 0
+            if canTranslateUnlimited {
+                translateResultLabel?.text = "오늘 번역 한도를 모두 사용했어요.\n내일 다시 이용해주세요."
+                translateResultLabel?.textColor = .systemOrange
+                translateResultLabel?.numberOfLines = 0
+            } else {
+                buildLockedMode()
+            }
             return
         }
 
         count += 1
         defaults?.set(count, forKey: "translateDailyCount")
         defaults?.set(today, forKey: "translateDailyDate")
-        #endif
 
         // Premium (weekly/yearly) — unlimited translation
-        // DEBUG: all checks above are bypassed for development/testing
         translateResultLabel?.text = "번역 중..."
         translateResultLabel?.textColor = .darkGray
-
-        // ── Debug log: key prefix + source/target ──
-        let keyPrefix = String(openAIKey.prefix(10))
-        print("[Translate] Starting request. keyPrefix=\(keyPrefix)... len=\(openAIKey.count), src=\(translateLangs[sourceLangIndex].1), tgt=\(translateLangs[targetLangIndex].1), inputLen=\(translationInput.count)")
 
         let srcLang = translateLangs[sourceLangIndex].1
         let tgtLang = translateLangs[targetLangIndex].1
@@ -6153,13 +6391,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
                 let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
                 let bodyText = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
-                print("[Translate] HTTP \(statusCode)  error=\(error?.localizedDescription ?? "nil")")
-                print("[Translate] Response body (first 500 chars):\n\(bodyText.prefix(500))")
 
                 // 1) Network transport error (offline, timeout, DNS 등)
                 if let error = error {
                     let ns = error as NSError
-                    print("[Translate] NSError domain=\(ns.domain) code=\(ns.code) userInfo=\(ns.userInfo)")
                     if ns.domain == NSURLErrorDomain && ns.code == NSURLErrorNotConnectedToInternet {
                         self.showTranslateError("인터넷 연결 없음\n키보드 '전체 접근 허용'을 확인하세요")
                     } else {
@@ -6213,9 +6448,28 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     private func showTranslateError(_ message: String) {
+        translateResultLabel?.superview?
+            .viewWithTag(Self.translateSettingsBtnTag)?.removeFromSuperview()
         translateResultLabel?.text = message
         translateResultLabel?.textColor = .systemRed
         translateResultLabel?.numberOfLines = 0
+    }
+
+    private func showTranslateFullAccessError() {
+        showTranslateError(loc("translate_no_access"))
+        guard let resultBox = translateResultLabel?.superview else { return }
+        let btn = UIButton(type: .system)
+        btn.tag = Self.translateSettingsBtnTag
+        btn.setTitle("⚙️ 설정 열기", for: .normal)
+        btn.setTitleColor(accentColor, for: .normal)
+        btn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        btn.addTarget(self, action: #selector(openKeyboardSettings), for: .touchUpInside)
+        resultBox.addSubview(btn)
+        NSLayoutConstraint.activate([
+            btn.trailingAnchor.constraint(equalTo: resultBox.trailingAnchor, constant: -6),
+            btn.bottomAnchor.constraint(equalTo: resultBox.bottomAnchor, constant: -4),
+        ])
     }
 
     /// Strip a leading language-label prefix the model sometimes prepends
@@ -6905,15 +7159,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func styleTapped(_ s: UIButton) {
+        if !isPremiumUser {
+            let cats = visibleFontCategories()
+            let safeCat = min(fontCatIndex, max(cats.count - 1, 0))
+            let styles = cats.isEmpty ? [] : cats[safeCat].1
+            if s.tag < styles.count && !freeFontNames.contains(styles[s.tag].name) {
+                buildLockedMode()
+                return
+            }
+        }
+
         fontStyleIndex = s.tag
-
-        #if DEBUG
-        print("[styleTapped] translateInputField: \(String(describing: translateInputField))")
-        print("[styleTapped] isFirstResponder: \(translateInputField?.isFirstResponder ?? false)")
-        print("[styleTapped] currentMode: \(currentMode)")
-        print("[styleTapped] selectedText: \(String(describing: textDocumentProxy.selectedText))")
-        #endif
-
         applyCurrentFontConversion()
     }
 
@@ -7212,8 +7468,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let startIdx = rowIdx * cols
             for (colIdx, style) in rowStyles.enumerated() {
                 let styleIdx = startIdx + colIdx
+                let isLocked = !isPremiumUser && !freeFontNames.contains(style.name)
                 let btn = UIButton(type: .system)
-                btn.setTitle(displayFontName(style), for: .normal)
+                btn.setTitle(displayFontName(style) + (isLocked ? " 👑" : ""), for: .normal)
                 btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
                 btn.titleLabel?.adjustsFontSizeToFitWidth = true
                 btn.titleLabel?.minimumScaleFactor = 0.6
@@ -7223,7 +7480,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 btn.heightAnchor.constraint(equalToConstant: 40).isActive = true
                 let sel = styleIdx == fontStyleIndex
                 btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
-                btn.setTitleColor(sel ? .white : .darkGray, for: .normal)
+                btn.setTitleColor(sel ? .white : (isLocked ? UIColor.systemGray3 : .darkGray), for: .normal)
                 if isFavoriteFont(style.name) {
                     btn.layer.borderWidth = 1.5
                     btn.layer.borderColor = accentColor.cgColor
@@ -7248,6 +7505,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func fontPanelStyleTapped(_ s: UIButton) {
+        if !isPremiumUser {
+            let cats = visibleFontCategories()
+            let safeCat = min(fontCatIndex, max(cats.count - 1, 0))
+            let styles = cats.isEmpty ? [] : cats[safeCat].1
+            if s.tag < styles.count && !freeFontNames.contains(styles[s.tag].name) {
+                fontPickerExpanded = false
+                buildLockedMode()
+                return
+            }
+        }
+
         fontStyleIndex = s.tag
         applyCurrentFontConversion()
     }
@@ -7284,6 +7552,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func gridItemTapped(_ s: UIButton) {
+        if !isPremiumUser {
+            let limit: Int
+            if currentMode == .emoticon { limit = 4 }
+            else if currentMode == .special { limit = 6 }
+            else { limit = Int.max }
+            if s.tag >= limit {
+                buildLockedMode()
+                return
+            }
+        }
         guard let text = s.title(for: .normal) else { return }
         // 장식선: copy to clipboard instead of insert (long text)
         if currentMode == .special && selectedSpecialCat < specialCategories.count
@@ -7300,6 +7578,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func dotArtTapped(_ s: UIButton) {
+        if !isPremiumUser && s.tag >= 5 {
+            buildLockedMode()
+            return
+        }
         let items = dotArtCategories.first?.1 ?? []
         guard s.tag < items.count else { return }
         textDocumentProxy.insertText(items[s.tag])
@@ -7695,8 +7977,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         isPremiumUser = defaults.bool(forKey: "is_premium")
         userTier = defaults.string(forKey: "tier") ?? "free"
         canTranslateUnlimited = defaults.bool(forKey: "can_translate_unlimited")
-
-        print("🔍 Premium check - tier: \(userTier), premium: \(isPremiumUser), canTranslate: \(canTranslateUnlimited)")
+        #if DEBUG
+        if Self.debugForceFree {
+            isPremiumUser = false
+            userTier = "free"
+            canTranslateUnlimited = false
+        }
+        #endif
     }
 
     // MARK: - UIScrollViewDelegate
@@ -7792,6 +8079,23 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     private func makeLetterKey(_ title: String) -> UIButton {
+        if currentTheme == .bubbleMint {
+            let btn = BubbleMintKey()
+            btn.hitInset = 4
+            btn.setTitle(title, for: .normal)
+            btn.titleLabel?.font = .systemFont(ofSize: 22, weight: .regular)
+            btn.setTitleColor(.black, for: .normal)
+            btn.tintColor = .black
+            btn.layer.cornerRadius = 22
+            btn.layer.borderWidth = 1.5
+            btn.layer.borderColor = UIColor(red: 0.55, green: 0.80, blue: 0.62, alpha: 1).cgColor
+            btn.clipsToBounds = true
+            btn.layer.masksToBounds = true
+            btn.adjustsImageWhenHighlighted = false
+            btn.showsTouchWhenHighlighted = false
+            bubbleMintKeys.append(btn)
+            return btn
+        }
         // Use `HitExpandButton` (custom-type subclass) so we can override
         // `point(inside:with:)` to expand the touch target ~4pt past the
         // button's visual frame. `UIButton(type: .system)` would not
@@ -7807,27 +8111,68 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         btn.backgroundColor = keyBG
         btn.setTitleColor(.black, for: .normal)
         btn.tintColor = .black
-        btn.layer.cornerRadius = 5
-        btn.layer.borderWidth = 1.0
-        // Theme-aware border. `accentColor` returns the user's saved palette
-        // pick (UserDefaults `"fonkii_accent_color"`) or falls back to
-        // `mainPink` (≈ #FF6BA0). showMode() rebuilds the keys on every mode
-        // switch, so a fresh palette pick reaches new keys automatically.
-        btn.layer.borderColor = accentColor.withAlphaComponent(0.5).cgColor
+        if currentTheme == .soft {
+            btn.backgroundColor = UIColor(red: 0.98, green: 0.98, blue: 0.98, alpha: 1)
+            btn.layer.cornerRadius = 8
+            btn.layer.shadowColor = UIColor(white: 0.55, alpha: 1).cgColor
+            btn.layer.shadowOffset = CGSize(width: 0, height: 4)
+            btn.layer.shadowOpacity = 0.5
+            btn.layer.shadowRadius = 3
+            btn.layer.masksToBounds = false
+            btn.layer.borderWidth = 0.5
+            btn.layer.borderColor = UIColor(white: 0.88, alpha: 1).cgColor
+            softKeys.append(btn)
+        } else {
+            btn.layer.cornerRadius = 5
+            btn.layer.borderWidth = 1.0
+            btn.layer.borderColor = currentTheme == .pastelRainbow
+                ? UIColor(white: 1.0, alpha: 0.4).cgColor
+                : accentColor.withAlphaComponent(0.5).cgColor
+        }
         btn.adjustsImageWhenHighlighted = false
         btn.showsTouchWhenHighlighted = false
         return btn
     }
 
     private func makeSpecialKey(_ title: String) -> UIButton {
+        if currentTheme == .bubbleMint {
+            let btn = BubbleMintSpecialKey()
+            btn.setTitle(title, for: .normal)
+            btn.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
+            btn.backgroundColor = specialKeyBG
+            btn.setTitleColor(.black, for: .normal)
+            btn.layer.cornerRadius = 22
+            btn.layer.borderWidth = 1.5
+            btn.layer.borderColor = UIColor(red: 0.55, green: 0.80, blue: 0.62, alpha: 1).cgColor
+            btn.clipsToBounds = true
+            btn.layer.masksToBounds = true
+            btn.adjustsImageWhenHighlighted = false
+            btn.showsTouchWhenHighlighted = false
+            bubbleMintKeys.append(btn)
+            return btn
+        }
         let btn = UIButton(type: .system)
         btn.setTitle(title, for: .normal)
         btn.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
         btn.backgroundColor = specialKeyBG
         btn.setTitleColor(.black, for: .normal)
-        btn.layer.cornerRadius = 5
-        btn.layer.borderWidth = 1.0
-        btn.layer.borderColor = accentColor.withAlphaComponent(0.5).cgColor
+        if currentTheme == .soft {
+            btn.layer.cornerRadius = 8
+            btn.layer.shadowColor = UIColor(white: 0.55, alpha: 1).cgColor
+            btn.layer.shadowOffset = CGSize(width: 0, height: 4)
+            btn.layer.shadowOpacity = 0.5
+            btn.layer.shadowRadius = 3
+            btn.layer.masksToBounds = false
+            btn.layer.borderWidth = 0.5
+            btn.layer.borderColor = UIColor(white: 0.88, alpha: 1).cgColor
+            softKeys.append(btn)
+        } else {
+            btn.layer.cornerRadius = 5
+            btn.layer.borderWidth = 1.0
+            btn.layer.borderColor = currentTheme == .pastelRainbow
+                ? UIColor(white: 1.0, alpha: 0.4).cgColor
+                : accentColor.withAlphaComponent(0.5).cgColor
+        }
         btn.adjustsImageWhenHighlighted = false
         btn.showsTouchWhenHighlighted = false
         return btn
@@ -7872,7 +8217,7 @@ final class FontScrollView: UIScrollView {
 /// Korean QWERTY (10-column top row → ~33pt buttons on a 4.7" iPhone)
 /// where rapid-tap vowel inputs were dropping when the user's finger
 /// landed slightly off-center between adjacent keys.
-final class HitExpandButton: UIButton {
+class HitExpandButton: UIButton {
     /// Number of points to extend the hit area outward on all four sides.
     /// 0 disables the override (falls back to default frame-bounded hit).
     var hitInset: CGFloat = 0
@@ -7881,6 +8226,41 @@ final class HitExpandButton: UIButton {
         return bounds.insetBy(dx: -hitInset, dy: -hitInset).contains(point)
     }
 }
+
+// MARK: - Bubble Mint key buttons
+
+/// Letter key for the Bubble Mint theme. Hosts a top→bottom gradient layer
+/// and keeps cornerRadius = bounds.height/2 (pill shape) in sync via layoutSubviews.
+final class BubbleMintKey: HitExpandButton {
+    private let gradientLayer: CAGradientLayer = {
+        let gl = CAGradientLayer()
+        gl.colors = [
+            UIColor.white.cgColor,
+            UIColor(red: 0.75, green: 0.95, blue: 0.80, alpha: 1).cgColor,
+        ]
+        gl.locations = [0, 1]
+        gl.startPoint = CGPoint(x: 0.5, y: 0)
+        gl.endPoint   = CGPoint(x: 0.5, y: 1)
+        return gl
+    }()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        layer.masksToBounds = true
+        layer.insertSublayer(gradientLayer, at: 0)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        gradientLayer.frame = bounds
+        gradientLayer.cornerRadius = 22
+    }
+}
+
+/// Special key (shift, backspace, space, return) for the Bubble Mint theme.
+final class BubbleMintSpecialKey: UIButton {}
 
 extension KeyboardViewController: UITextViewDelegate {
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {

@@ -158,12 +158,6 @@ abstract class AppLocalizations {
   /// **'출시 이벤트'**
   String get paywallLaunchBadge;
 
-  /// No description provided for @paywallViewLifetime.
-  ///
-  /// In ko, this message translates to:
-  /// **'평생 이용권 보기'**
-  String get paywallViewLifetime;
-
   /// No description provided for @paywallStartTrial.
   ///
   /// In ko, this message translates to:
@@ -206,35 +200,17 @@ abstract class AppLocalizations {
   /// **'복원할 구독이 없습니다'**
   String get paywallErrorNoSub;
 
-  /// No description provided for @paywallLifetimeTitle.
+  /// No description provided for @paywallPerWeek.
   ///
   /// In ko, this message translates to:
-  /// **'평생 이용권'**
-  String get paywallLifetimeTitle;
+  /// **'/주'**
+  String get paywallPerWeek;
 
-  /// No description provided for @paywallLifetimeSubtitle.
+  /// No description provided for @paywallPerYear.
   ///
   /// In ko, this message translates to:
-  /// **'한 번 결제하고 평생 사용하세요'**
-  String get paywallLifetimeSubtitle;
-
-  /// No description provided for @paywallLifetimeNote.
-  ///
-  /// In ko, this message translates to:
-  /// **'평생 이용권은 번역 기능을 제외한 모든 기능을 제공합니다.'**
-  String get paywallLifetimeNote;
-
-  /// No description provided for @paywallLifetimeBuy.
-  ///
-  /// In ko, this message translates to:
-  /// **'평생 이용권 구매'**
-  String get paywallLifetimeBuy;
-
-  /// No description provided for @paywallClose.
-  ///
-  /// In ko, this message translates to:
-  /// **'닫기'**
-  String get paywallClose;
+  /// **'/년'**
+  String get paywallPerYear;
 
   /// No description provided for @onboardingWelcomeTitle.
   ///

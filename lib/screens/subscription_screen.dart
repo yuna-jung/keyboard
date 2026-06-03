@@ -11,7 +11,7 @@ class SubscriptionScreen extends StatefulWidget {
   State<SubscriptionScreen> createState() => _SubscriptionScreenState();
 }
 
-enum _Plan { monthly, yearly, lifetime }
+enum _Plan { monthly, yearly }
 
 class _PlanInfo {
   const _PlanInfo({
@@ -51,11 +51,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       price: '₩118,800/년',
       discountPrice: '₩59,000/년',
       discountNote: '런칭 할인 · 3개월 · 월 ₩4,916',
-    ),
-    _Plan.lifetime: _PlanInfo(
-      title: '평생',
-      price: '₩24,900',
-      discountNote: '한 번만 결제',
     ),
   };
 

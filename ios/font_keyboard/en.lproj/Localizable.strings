@@ -23,6 +23,13 @@
 "settings_title"          = "Settings";
 "settings_korean_input"   = "Korean Input";
 "settings_point_color"    = "Point Color";
+"settings_theme"          = "Theme";
+"theme_default"           = "Default";
+"theme_cotton_candy"      = "Cotton Candy";
+"theme_lavender"          = "Lavender";
+"theme_pastel_rainbow"    = "Pastel Rainbow";
+"theme_soft"              = "Soft";
+"theme_bubble_mint"       = "Bubble Mint";
 
 /* Font tab */
 "font_normal" = "Normal";
@@ -31,8 +38,9 @@
 "gif_search_placeholder" = "Search GIFs...";
 "gif_trending"           = "Trending";
 "gif_search_empty"       = "No results found";
-"gif_no_access"          = "Full Access is required\nto use GIFs\n\nSettings → General → Keyboard\n→ Fonkii → Allow Full Access";
+"gif_no_access"          = "Full Access is required to use GIFs\nSettings → General → Keyboard → Fonkii → Enable Full Access";
 "gif_settings_button"    = "Go to Settings";
+"translate_no_access"    = "Please enable Full Access to use translation\nSettings → General → Keyboard → Fonkii → Enable Full Access";
 
 /* Special character categories */
 "special_heart"       = "Heart";

@@ -39,9 +39,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get paywallLaunchBadge => '출시 이벤트';
 
   @override
-  String get paywallViewLifetime => '평생 이용권 보기';
-
-  @override
   String get paywallStartTrial => '1주 무료체험 시작';
 
   @override
@@ -63,19 +60,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get paywallErrorNoSub => '복원할 구독이 없습니다';
 
   @override
-  String get paywallLifetimeTitle => '평생 이용권';
+  String get paywallPerWeek => '/주';
 
   @override
-  String get paywallLifetimeSubtitle => '한 번 결제하고 평생 사용하세요';
-
-  @override
-  String get paywallLifetimeNote => '평생 이용권은 번역 기능을 제외한 모든 기능을 제공합니다.';
-
-  @override
-  String get paywallLifetimeBuy => '평생 이용권 구매';
-
-  @override
-  String get paywallClose => '닫기';
+  String get paywallPerYear => '/년';
 
   @override
   String get onboardingWelcomeTitle => '환영해요!';
