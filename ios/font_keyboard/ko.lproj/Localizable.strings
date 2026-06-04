@@ -30,6 +30,8 @@
 "theme_pastel_rainbow"    = "파스텔 레인보우";
 "theme_soft"              = "소프트";
 "theme_bubble_mint"       = "버블 민트";
+"theme_retro_cream"       = "레트로 크림";
+"theme_vintage_gray"      = "빈티지 그레이";
 
 /* 폰트 탭 */
 "font_normal" = "일반";

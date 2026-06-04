@@ -30,6 +30,8 @@
 "theme_pastel_rainbow"    = "Pastel Rainbow";
 "theme_soft"              = "Soft";
 "theme_bubble_mint"       = "Bubble Mint";
+"theme_retro_cream"       = "Retro Cream";
+"theme_vintage_gray"      = "Vintage Gray";
 
 /* Font tab */
 "font_normal" = "Normal";
