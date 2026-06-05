@@ -153,6 +153,16 @@ class _LaunchRouterState extends State<_LaunchRouter>
           (route) => route.isFirst,
         );
       });
+    } else if (call.method == 'openPaywall') {
+      // Safety net for the brief window before HomeScreen mounts and takes
+      // over the channel handler. Navigate to HomeScreen so its
+      // _drainPendingPaywall() picks up the consumePendingPaywall flag.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      });
     }
   }
 
@@ -215,6 +225,13 @@ class _LaunchRouterState extends State<_LaunchRouter>
         _navigatorKey.currentState?.pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const AddPhraseScreen()),
           (route) => route.isFirst,
+        );
+      });
+    } else if (host == 'paywall') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
         );
       });
     }

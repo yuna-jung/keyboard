@@ -597,7 +597,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         case .soft:          return UIColor(red: 1.0, green: 0.70, blue: 0.78, alpha: 1)
         case .bubbleMint:    return UIColor(red: 0.35, green: 0.75, blue: 0.45, alpha: 1)
         case .retroCream:    return UIColor(red: 0.55, green: 0.90, blue: 0.65, alpha: 1)
-        case .vintageGray:   return UIColor(red: 0.40, green: 0.40, blue: 0.40, alpha: 1)
+        case .vintageGray:   return UIColor(red: 0.35, green: 0.35, blue: 0.38, alpha: 1)
         }
     }
 
@@ -625,7 +625,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         case .soft:          return UIColor(red: 0.97, green: 0.90, blue: 0.93, alpha: 1)
         case .bubbleMint:    return UIColor(red: 0.95, green: 0.85, blue: 0.90, alpha: 1)
         case .retroCream:    return UIColor(red: 0.93, green: 0.88, blue: 0.82, alpha: 1)
-        case .vintageGray:   return UIColor(red: 0.82, green: 0.82, blue: 0.82, alpha: 1)
+        case .vintageGray:   return UIColor(red: 0.80, green: 0.80, blue: 0.80, alpha: 1)
         }
     }
 
@@ -640,7 +640,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         case .soft:          return UIColor(red: 0.92, green: 0.92, blue: 0.94, alpha: 1)
         case .bubbleMint:    return UIColor(red: 0.82, green: 0.95, blue: 0.85, alpha: 1)
         case .retroCream:    return .clear   // gradient layer handles the fill
-        case .vintageGray:   return UIColor(red: 0.75, green: 0.75, blue: 0.75, alpha: 1)
+        case .vintageGray:   return UIColor(white: 0.62, alpha: 1)
         }
     }
 
@@ -756,7 +756,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     /// Categories actually shown in the UI — prepends a "즐겨찾기" category
     /// holding the user's favorited fonts (if any) in the order saved.
-    private let freeFontNames: Set<String> = ["Normal", "Bold", "Italic", "Sans", "Typewriter"]
+    private let freeFontNames: Set<String> = ["Normal", "Bold", "Italic", "Sans", "Script"]
 
     private func displayFontName(_ style: FontStyleDef) -> String {
         // 특수 변환(closure 기반, 시각적으로 이상해지는 것)은 이름 그대로 표시
@@ -804,11 +804,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private let modeBar = UIStackView()
     private let contentView = UIView()
     private var letterKeys: [UIButton] = []
-
     private var vintageGrayKeys: [UIButton] = []
+
     private var bubbleMintKeys: [UIButton] = []
+    /// Translate-tab Bubble Mint keys — gradient applied in viewDidLayoutSubviews.
+    private var translateBubbleMintKeys: [UIButton] = []
     /// true while building translate-tab keyboard rows — makeLetterKey skips
-    /// bubbleMintKeys.append and applies simple styling instead.
+    /// bubbleMintKeys.append and routes to translateBubbleMintKeys instead.
     private var isBuildingTranslateLayout = false
 
     // MARK: - QWERTY Layout
@@ -1939,23 +1941,54 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         gradientLayer?.frame = view.bounds
 
         if currentTheme == .vintageGray {
-            for btn in vintageGrayKeys {
-                guard btn.bounds.width > 0, btn.bounds.height > 0 else { continue }
-                btn.layer.sublayers?.filter { $0.name == "vintageGradient" }.forEach { $0.removeFromSuperlayer() }
-                let gradient = CAGradientLayer()
-                gradient.name = "vintageGradient"
-                gradient.frame = btn.bounds
-                gradient.colors = [
-                    UIColor(white: 1.0, alpha: 0.9).cgColor,
-                    UIColor(white: 0.92, alpha: 1.0).cgColor,
-                    UIColor(white: 0.75, alpha: 1.0).cgColor,
-                ]
-                gradient.locations = [0.0, 0.5, 1.0]
-                gradient.startPoint = CGPoint(x: 0.5, y: 0)
-                gradient.endPoint   = CGPoint(x: 0.5, y: 1)
-                gradient.cornerRadius = btn.layer.cornerRadius
-                gradient.masksToBounds = true
-                btn.layer.insertSublayer(gradient, at: 0)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                for btn in self.vintageGrayKeys {
+                    guard btn.superview != nil else { continue }
+                    btn.layoutIfNeeded()
+                    btn.layer.sublayers?
+                        .filter { ["vtTop","vtLeft","vtBottom","vtRight"].contains($0.name ?? "") }
+                        .forEach { $0.removeFromSuperlayer() }
+                    btn.layer.cornerRadius = 6
+                    btn.layer.masksToBounds = false
+                    btn.contentEdgeInsets = .zero
+                    // Top border — white highlight
+                    let top = CALayer()
+                    top.name = "vtTop"
+                    top.frame = CGRect(x: 0, y: 0, width: btn.bounds.width, height: 1.5)
+                    top.backgroundColor = UIColor.white.cgColor
+                    btn.layer.insertSublayer(top, at: 0)
+                    // Left border — white highlight
+                    let left = CALayer()
+                    left.name = "vtLeft"
+                    left.frame = CGRect(x: 0, y: 0, width: 1.5, height: btn.bounds.height)
+                    left.backgroundColor = UIColor.white.cgColor
+                    btn.layer.insertSublayer(left, at: 0)
+                    // Bottom border — slightly lighter dark to reduce double-line effect
+                    let bottom = CALayer()
+                    bottom.name = "vtBottom"
+                    bottom.frame = CGRect(x: 0, y: btn.bounds.height - 1.5,
+                                          width: btn.bounds.width, height: 1.5)
+                    bottom.backgroundColor = UIColor(white: 0.55, alpha: 1).cgColor
+                    btn.layer.insertSublayer(bottom, at: 0)
+                    // Right border
+                    let right = CALayer()
+                    right.name = "vtRight"
+                    right.frame = CGRect(x: btn.bounds.width - 1.5, y: 0,
+                                         width: 1.5, height: btn.bounds.height)
+                    right.backgroundColor = UIColor(white: 0.55, alpha: 1).cgColor
+                    btn.layer.insertSublayer(right, at: 0)
+                    // Drop shadow — softened to avoid harsh line between rows
+                    btn.layer.shadowColor   = UIColor(white: 0.10, alpha: 1.0).cgColor
+                    btn.layer.shadowOffset  = CGSize(width: 0, height: 3)
+                    btn.layer.shadowOpacity = 0.5
+                    btn.layer.shadowRadius  = 1
+                    btn.layer.shadowPath    = UIBezierPath(
+                        roundedRect: CGRect(x: 0, y: 0,
+                                            width: btn.bounds.width,
+                                            height: btn.bounds.height),
+                        cornerRadius: 6).cgPath
+                }
             }
         }
 
@@ -2001,10 +2034,35 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             }
         }
 
+        if currentTheme == .bubbleMint {
+            for btn in translateBubbleMintKeys {
+                guard btn.bounds.width > 0, btn.bounds.height > 0 else { continue }
+                btn.layer.sublayers?.filter { $0 is CAGradientLayer }
+                    .forEach { $0.removeFromSuperlayer() }
+                let r = btn.bounds.height / 2
+                btn.layer.cornerRadius = r
+                let gradient = CAGradientLayer()
+                gradient.frame = btn.bounds
+                gradient.cornerRadius = r
+                gradient.masksToBounds = true
+                gradient.colors = [
+                    UIColor.white.cgColor,
+                    UIColor(red: 0.65, green: 0.92, blue: 0.70, alpha: 1).cgColor,
+                ]
+                gradient.locations = [0, 1]
+                gradient.startPoint = CGPoint(x: 0.5, y: 0)
+                gradient.endPoint   = CGPoint(x: 0.5, y: 1)
+                btn.layer.insertSublayer(gradient, at: 0)
+                btn.backgroundColor = .clear
+            }
+        }
+
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        print("🔥 [KeyboardVC] extensionContext: \(String(describing: extensionContext))")
+        print("🔥 [KeyboardVC] hasFullAccess: \(hasFullAccess)")
 
         // Apply gradient first so it sits at layer index 0 before any
         // subviews are added; viewDidLayoutSubviews() corrects the frame.
@@ -2232,7 +2290,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let isFavorites = (mode == .favorites)        // fully free
             let isPalette = (mode == .palette)            // settings popup — fully free
             if !isTextTemplate && !isFontsMode && !isGifMode && !isPartialFree && !isFavorites && !isPalette {
-                buildLockedMode()
+                showLockedOverlay()
                 return
             }
         }
@@ -2273,133 +2331,122 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         letterKeys.removeAll()
         vintageGrayKeys.removeAll()
         bubbleMintKeys.removeAll()
+        translateBubbleMintKeys.removeAll()
         translationFieldView?.removeFromSuperview()
         translationFieldView = nil
     }
 
     /// Full-bleed lock view shown in place of the requested tab when a
     /// non-subscriber lands on a gated mode. Tapping the CTA bounces to the
-    /// host app's paywall via the `fonkii://paywall` URL scheme registered in
-    /// Runner/Info.plist.
-    private static let lockedOverlayTag = 9901
     private static let translateSettingsBtnTag = 9902
 
-    private func buildLockedMode() {
-        // Prevent duplicate overlays
-        guard self.view.viewWithTag(Self.lockedOverlayTag) == nil else { return }
+    @objc private func showLockedOverlay() {
+        view.subviews.filter { $0.tag == 9999 }.forEach { $0.removeFromSuperview() }
 
-        // Semi-transparent full-keyboard backdrop
-        let overlay = UIView()
-        overlay.translatesAutoresizingMaskIntoConstraints = false
-        overlay.backgroundColor = UIColor.black.withAlphaComponent(0.45)
-        overlay.tag = Self.lockedOverlayTag
-        self.view.addSubview(overlay)
-        NSLayoutConstraint.activate([
-            overlay.topAnchor.constraint(equalTo: self.view.topAnchor),
-            overlay.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
-            overlay.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
-            overlay.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
-        ])
+        let overlay = UIView(frame: view.bounds)
+        overlay.tag = 9999
+        overlay.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        overlay.isUserInteractionEnabled = true
+        view.addSubview(overlay)
 
-        // Tap outside card → dismiss
-        let tapDismiss = UITapGestureRecognizer(target: self, action: #selector(dismissLockedOverlay))
-        overlay.addGestureRecognizer(tapDismiss)
-
-        // Card
         let card = UIView()
-        card.translatesAutoresizingMaskIntoConstraints = false
-        card.backgroundColor = UIColor.systemBackground
-        card.layer.cornerRadius = 18
+        card.backgroundColor = .white
+        card.layer.cornerRadius = 16
         card.layer.shadowColor = UIColor.black.cgColor
-        card.layer.shadowOpacity = 0.18
-        card.layer.shadowRadius = 14
+        card.layer.shadowOpacity = 0.15
+        card.layer.shadowRadius = 10
         card.layer.shadowOffset = CGSize(width: 0, height: 4)
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.isUserInteractionEnabled = true
         overlay.addSubview(card)
+
         NSLayoutConstraint.activate([
             card.centerXAnchor.constraint(equalTo: overlay.centerXAnchor),
             card.centerYAnchor.constraint(equalTo: overlay.centerYAnchor),
-            card.leadingAnchor.constraint(greaterThanOrEqualTo: overlay.leadingAnchor, constant: 28),
-            card.trailingAnchor.constraint(lessThanOrEqualTo: overlay.trailingAnchor, constant: -28),
+            card.widthAnchor.constraint(equalToConstant: 260),
+            card.heightAnchor.constraint(equalToConstant: 180),
         ])
-        // Stop tap propagation so tapping the card doesn't dismiss
-        card.addGestureRecognizer(UITapGestureRecognizer())
 
-        // X close button
-        let closeBtn = UIButton(type: .system)
+        let closeBtn = UIButton(type: .custom)
+        closeBtn.setTitle("✕", for: .normal)
+        closeBtn.setTitleColor(.darkGray, for: .normal)
+        closeBtn.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
         closeBtn.translatesAutoresizingMaskIntoConstraints = false
-        closeBtn.setImage(UIImage(systemName: "xmark"), for: .normal)
-        closeBtn.tintColor = .secondaryLabel
         closeBtn.addTarget(self, action: #selector(dismissLockedOverlay), for: .touchUpInside)
         card.addSubview(closeBtn)
+
+        let crownLabel = UILabel()
+        crownLabel.text = "👑"
+        crownLabel.font = .systemFont(ofSize: 36)
+        crownLabel.textAlignment = .center
+        crownLabel.textColor = .black
+        crownLabel.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(crownLabel)
+
+        let msgLabel = UILabel()
+        msgLabel.text = loc("premium_lock_message")
+        msgLabel.numberOfLines = 0
+        msgLabel.textAlignment = .center
+        msgLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        msgLabel.textColor = .black
+        msgLabel.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(msgLabel)
+
+        let subscribeBtn = UIButton(type: .custom)
+        subscribeBtn.setTitle(loc("premium_lock_button"), for: .normal)
+        subscribeBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
+        subscribeBtn.backgroundColor = UIColor(red: 0.40, green: 0.80, blue: 0.95, alpha: 1)
+        subscribeBtn.setTitleColor(.white, for: .normal)
+        subscribeBtn.layer.cornerRadius = 20
+        subscribeBtn.layer.masksToBounds = true
+        subscribeBtn.translatesAutoresizingMaskIntoConstraints = false
+        subscribeBtn.isUserInteractionEnabled = true
+        subscribeBtn.addTarget(self, action: #selector(openPaywallApp), for: .touchUpInside)
+        card.addSubview(subscribeBtn)
+
         NSLayoutConstraint.activate([
             closeBtn.topAnchor.constraint(equalTo: card.topAnchor, constant: 10),
             closeBtn.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
-            closeBtn.widthAnchor.constraint(equalToConstant: 28),
-            closeBtn.heightAnchor.constraint(equalToConstant: 28),
+
+            crownLabel.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            crownLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
+
+            msgLabel.topAnchor.constraint(equalTo: crownLabel.bottomAnchor, constant: 6),
+            msgLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
+            msgLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+
+            subscribeBtn.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
+            subscribeBtn.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 20),
+            subscribeBtn.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -20),
+            subscribeBtn.heightAnchor.constraint(equalToConstant: 40),
         ])
 
-        // Content stack
-        let stack = UIStackView()
-        stack.axis = .vertical
-        stack.alignment = .center
-        stack.spacing = 12
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: closeBtn.bottomAnchor, constant: 2),
-            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -22),
-            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 22),
-            stack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -22),
-        ])
-
-        let icon = UILabel()
-        icon.text = "👑"
-        icon.font = .systemFont(ofSize: 30)
-        icon.textAlignment = .center
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        icon.heightAnchor.constraint(equalToConstant: 34).isActive = true
-
-        let title = UILabel()
-        title.text = loc("premium_lock_message")
-        title.numberOfLines = 0
-        title.textAlignment = .center
-        title.font = .systemFont(ofSize: 13, weight: .medium)
-        title.textColor = .label
-
-        let ctaBtn = UIButton(type: .custom)
-        ctaBtn.setTitle(loc("premium_lock_button"), for: .normal)
-        ctaBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
-        ctaBtn.setTitleColor(.white, for: .normal)
-        ctaBtn.backgroundColor = accentColor
-        ctaBtn.layer.cornerRadius = 20
-        ctaBtn.contentEdgeInsets = UIEdgeInsets(top: 10, left: 22, bottom: 10, right: 22)
-        ctaBtn.addTarget(self, action: #selector(openPaywallApp), for: .touchUpInside)
-
-        stack.addArrangedSubview(icon)
-        stack.addArrangedSubview(title)
-        stack.addArrangedSubview(ctaBtn)
+        // overlayBtn을 card 뒤에 명시적으로 삽입하여 card/subscribeBtn 터치 보장
+        let overlayBtn = UIButton(frame: overlay.bounds)
+        overlayBtn.backgroundColor = .clear
+        overlayBtn.addTarget(self, action: #selector(dismissLockedOverlay), for: .touchUpInside)
+        overlay.insertSubview(overlayBtn, belowSubview: card)
     }
 
     @objc private func dismissLockedOverlay() {
-        self.view.subviews
-            .filter { $0.tag == Self.lockedOverlayTag }
-            .forEach { $0.removeFromSuperview() }
+        view.subviews.filter { $0.tag == 9999 }.forEach { $0.removeFromSuperview() }
+        showMode(currentMode)
     }
 
-    /// Walk the responder chain to find the host `UIApplication` and open the
-    /// `fonkii://paywall` deep link. Keyboard extensions can't reference
-    /// `UIApplication.shared` directly, so the responder-chain trick is the
-    /// portable way to launch the containing app.
-    @objc private func openPaywallApp() {
+    @objc func openPaywallApp() {
+        print("🔥 [KeyboardVC] openPaywallApp tapped!")
         guard let url = URL(string: "fonkii://paywall") else { return }
+        // 리스폰더 체인에서 openURL: 을 처리할 수 있는 객체 탐색 (UIApplication 포함)
         var responder: UIResponder? = self
         while let r = responder {
-            if let app = r as? UIApplication {
-                app.open(url, options: [:], completionHandler: nil)
+            if r.responds(to: NSSelectorFromString("openURL:")) {
+                r.perform(NSSelectorFromString("openURL:"), with: url)
                 return
             }
             responder = r.next
         }
+        // 폴백: extensionContext
+        extensionContext?.open(url, completionHandler: nil)
     }
 
     // MARK: - Mode Bar
@@ -2904,7 +2951,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
             let sel = selectedFontStyleName.map { $0 == style.name } ?? false
             btn.backgroundColor = sel ? accentColor : UIColor(white: 0.92, alpha: 1)
-            btn.setTitleColor(sel ? selectedCatTextColor : (isLocked ? UIColor.systemGray3 : .darkGray), for: .normal)
+            let styleTextColor: UIColor = sel ? selectedCatTextColor
+                : (isLocked ? UIColor(white: 0.75, alpha: 1) : .darkGray)
+            btn.setTitleColor(styleTextColor, for: .normal)
+            btn.tintColor = styleTextColor
             if isFavoriteFont(style.name) {
                 btn.layer.borderWidth = 1.5
                 btn.layer.borderColor = accentColor.cgColor
@@ -3176,7 +3226,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // at a glance which layout the keypad above is rendering.
         if isFontsKorean {
             langToggle.backgroundColor = accentColor
-            langToggle.setTitleColor(.white, for: .normal)
+            langToggle.setTitleColor(selectedCatTextColor, for: .normal)
         }
         bottom.addArrangedSubview(langToggle)
 
@@ -3755,7 +3805,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func fandomItemTapped(_ s: UIButton) {
         if !isPremiumUser && s.tag >= 3 {
-            buildLockedMode()
+            showLockedOverlay()
             return
         }
         guard let output = fandomItemOutputs[s.tag] else { return }
@@ -4514,7 +4564,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let storedDate = defaults?.string(forKey: "free_gif_date")
             var count = (storedDate == today) ? (defaults?.integer(forKey: "free_gif_count") ?? 0) : 0
             if count >= 5 {
-                buildLockedMode()
+                showLockedOverlay()
                 return
             }
             count += 1
@@ -4727,7 +4777,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // 표준 bottom bar 조건부 추가. 천지인 Korean 모드는 row 4
         // 자체에 한/영/ㅇㅁ/번역/삽입이 있어 bottom bar 중복 회피.
+        // isBuildingTranslateLayout = true so vintageGray keys in the
+        // bottom bar get the same light translate background as key rows.
+        isBuildingTranslateLayout = true
         addTranslateBottomBarIfNeeded(to: stack)
+        isBuildingTranslateLayout = false
         updateTranslateInputDisplay()
 
         // Reflect a restored translation result into the result label
@@ -4756,7 +4810,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottom.heightAnchor.constraint(equalToConstant: 52).isActive = true
 
         let langToggle = makeSpecialKey(isKoreanMode ? "En" : "Ko")
-        langToggle.backgroundColor = isKoreanMode ? UIColor.systemBlue.withAlphaComponent(0.15) : UIColor(white: 0.88, alpha: 1)
+        if currentTheme == .vintageGray {
+            langToggle.backgroundColor = UIColor(red: 0.82, green: 0.82, blue: 0.84, alpha: 1)
+        } else {
+            langToggle.backgroundColor = isKoreanMode ? UIColor.systemBlue.withAlphaComponent(0.15) : UIColor(white: 0.88, alpha: 1)
+        }
         langToggle.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
         langToggle.setWidth(48)
         langToggle.addTarget(self, action: #selector(translateToggleKorEng), for: .touchUpInside)
@@ -5236,7 +5294,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bottom.axis = .horizontal; bottom.spacing = 3
 
         let langToggle = makeSpecialKey(isKoreanMode ? "En" : "Ko")
-        langToggle.backgroundColor = isKoreanMode ? UIColor.systemBlue.withAlphaComponent(0.15) : UIColor(white: 0.88, alpha: 1)
+        if currentTheme == .vintageGray {
+            langToggle.backgroundColor = UIColor(red: 0.82, green: 0.82, blue: 0.84, alpha: 1)
+        } else {
+            langToggle.backgroundColor = isKoreanMode ? UIColor.systemBlue.withAlphaComponent(0.15) : UIColor(white: 0.88, alpha: 1)
+        }
         langToggle.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
         langToggle.setWidth(40)
         langToggle.addTarget(self, action: #selector(translateToggleKorEng), for: .touchUpInside)
@@ -5439,6 +5501,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             // swapping keypads no longer shifts mainStack's layout and the
             // fieldView height stays constant without any capture/re-pin hack.
             container.arrangedSubviews.forEach { $0.removeFromSuperview() }
+            translateBubbleMintKeys.removeAll()
+            vintageGrayKeys.removeAll()
             buildTranslateKeyboardRows(into: container)
             // Bottom bar lives as a sibling of kbArea inside outerStack —
             // drop and re-add it via the same helper buildTranslateMode uses,
@@ -5446,7 +5510,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             // (QWERTY / dubeolsik / number) stay symmetric.
             translateBottomBar?.removeFromSuperview()
             translateBottomBar = nil
+            isBuildingTranslateLayout = true
             addTranslateBottomBarIfNeeded(to: outerStack)
+            isBuildingTranslateLayout = false
 
             // fieldView guard — if anything has knocked it out of mainStack
             // index 0 (e.g. an implicit layout pass during the cheonjiin
@@ -5790,7 +5856,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         func makeJamoKey(_ label: String, digit: String) -> UIButton {
             let btn = makeLetterKey(label)
             btn.titleLabel?.font = .systemFont(ofSize: 17)
-            btn.backgroundColor = currentTheme == .pastelRainbow ? .clear : (currentTheme == .retroCream ? keyBG : .white)
+            if !(currentTheme == .bubbleMint && isBuildingTranslateLayout) && currentTheme != .vintageGray {
+                btn.backgroundColor = currentTheme == .pastelRainbow ? .clear : (currentTheme == .retroCream ? keyBG : .white)
+            }
             btn.addTarget(self, action: #selector(cheonjiinKeyTapped(_:)), for: .touchDown)
             // Top-right digit badge — `userInteractionEnabled = false` so
             // the badge doesn't intercept taps.
@@ -5814,7 +5882,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         func makeFnKey(title: String) -> UIButton {
             let btn = makeSpecialKey(title)
             btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
-            btn.backgroundColor = UIColor(white: 0.82, alpha: 1)
+            if !(currentTheme == .bubbleMint && isBuildingTranslateLayout) && currentTheme != .vintageGray {
+                btn.backgroundColor = UIColor(white: 0.82, alpha: 1)
+            }
             btn.setTitleColor(.darkText, for: .normal)
             return btn
         }
@@ -6423,7 +6493,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 translateResultLabel?.textColor = .systemOrange
                 translateResultLabel?.numberOfLines = 0
             } else {
-                buildLockedMode()
+                showLockedOverlay()
             }
             return
         }
@@ -7272,7 +7342,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let styles = cats.isEmpty ? [] : cats[safeCat].1
         if !isPremiumUser {
             if s.tag < styles.count && !freeFontNames.contains(styles[s.tag].name) {
-                buildLockedMode()
+                showLockedOverlay()
                 return
             }
         }
@@ -7401,7 +7471,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // Block favorites for locked fonts
         if !isPremiumUser && !freeFontNames.contains(styleName) {
-            buildLockedMode()
+            showLockedOverlay()
             return
         }
 
@@ -7630,7 +7700,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         if !isPremiumUser {
             if s.tag < styles.count && !freeFontNames.contains(styles[s.tag].name) {
                 fontPickerExpanded = false
-                buildLockedMode()
+                showLockedOverlay()
                 return
             }
         }
@@ -7678,7 +7748,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             else if currentMode == .special { limit = 6 }
             else { limit = Int.max }
             if s.tag >= limit {
-                buildLockedMode()
+                showLockedOverlay()
                 return
             }
         }
@@ -7692,7 +7762,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func dotArtTapped(_ s: UIButton) {
         if !isPremiumUser && s.tag >= 5 {
-            buildLockedMode()
+            showLockedOverlay()
             return
         }
         let items = dotArtCategories.first?.1 ?? []
@@ -8214,8 +8284,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 btn.layer.borderWidth = 1.5
                 btn.layer.borderColor = mintBorderColor
             } else if isBuildingTranslateLayout {
-                // 번역탭 키: CAShapeLayer 불필요, 단순 스타일만 적용
-                btn.backgroundColor = .clear
+                // 번역탭 키: 솔리드 민트 + cornerRadius 20
+                btn.backgroundColor = UIColor(red: 0.88, green: 0.97, blue: 0.90, alpha: 1)
                 btn.layer.cornerRadius = 20
                 btn.layer.masksToBounds = true
                 btn.clipsToBounds = true
@@ -8263,13 +8333,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.layer.borderColor = UIColor.black.cgColor
             btn.layer.masksToBounds = true
         } else if currentTheme == .vintageGray {
-            btn.layer.cornerRadius = 4
+            btn.setTitleColor(.black, for: .normal)
+            btn.layer.cornerRadius = 6
             btn.layer.borderWidth = 0
-            btn.layer.shadowColor = UIColor(white: 0.4, alpha: 1).cgColor
-            btn.layer.shadowOffset = CGSize(width: 1, height: 2)
-            btn.layer.shadowOpacity = 0.6
-            btn.layer.shadowRadius = 1
             btn.layer.masksToBounds = false
+            if isBuildingTranslateLayout {
+                btn.backgroundColor = UIColor(red: 0.96, green: 0.96, blue: 0.97, alpha: 1)
+            }
             vintageGrayKeys.append(btn)
         } else {
             btn.layer.cornerRadius = 5
@@ -8288,11 +8358,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let btn = UIButton(type: .custom)
             btn.setTitle(title, for: .normal)
             btn.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
-            btn.backgroundColor = specialKeyBG
             btn.setTitleColor(.black, for: .normal)
             btn.layer.cornerRadius = 20
             btn.layer.masksToBounds = true
             btn.clipsToBounds = true
+            if isBuildingTranslateLayout {
+                btn.backgroundColor = UIColor(red: 0.88, green: 0.97, blue: 0.90, alpha: 1)
+                btn.layer.borderWidth = 1.5
+                btn.layer.borderColor = UIColor(red: 0.55, green: 0.80, blue: 0.62, alpha: 1).cgColor
+            } else {
+                btn.backgroundColor = specialKeyBG
+            }
             btn.adjustsImageWhenHighlighted = false
             btn.showsTouchWhenHighlighted = false
             return btn
@@ -8324,14 +8400,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 btn.backgroundColor = UIColor(red: 0.98, green: 0.75, blue: 0.80, alpha: 1) // 핑크
             }
         } else if currentTheme == .vintageGray {
-            btn.layer.cornerRadius = 4
-            btn.layer.borderWidth = 0
-            btn.layer.shadowColor = UIColor(white: 0.4, alpha: 1).cgColor
-            btn.layer.shadowOffset = CGSize(width: 1, height: 2)
-            btn.layer.shadowOpacity = 0.6
-            btn.layer.shadowRadius = 1
-            btn.layer.masksToBounds = false
+            btn.setTitleColor(.black, for: .normal)
             btn.tintColor = .black
+            btn.layer.cornerRadius = 6
+            btn.layer.borderWidth = 0
+            btn.layer.masksToBounds = false
+            if isBuildingTranslateLayout {
+                btn.backgroundColor = UIColor(red: 0.96, green: 0.96, blue: 0.97, alpha: 1)
+            }
             vintageGrayKeys.append(btn)
         } else {
             btn.layer.cornerRadius = 5
