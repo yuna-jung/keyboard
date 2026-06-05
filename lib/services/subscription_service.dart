@@ -20,8 +20,8 @@ class SubscriptionService with WidgetsBindingObserver {
   SubscriptionService._();
   static final instance = SubscriptionService._();
 
-  // Flip to false before shipping to TestFlight / App Store.
-  static const bool debugForceFree = kDebugMode ? true : false;
+  static const bool debugForceFree = false; // TODO: REMOVE
+  static const bool debugForcePremium = false; // TODO: REMOVE - 테스트용 프리미엄 강제
 
   final _tierNotifier = ValueNotifier<SubscriptionTier>(SubscriptionTier.free);
   ValueListenable<SubscriptionTier> get tierListenable => _tierNotifier;
@@ -89,6 +89,7 @@ class SubscriptionService with WidgetsBindingObserver {
   }
 
   SubscriptionTier _computeTier(AdaptyProfile profile) {
+    if (debugForcePremium) return SubscriptionTier.premium; // TODO: REMOVE - 테스트용
     if (profile.accessLevels[_premiumAccess]?.isActive == true) {
       return SubscriptionTier.premium;
     }
@@ -133,7 +134,7 @@ class SubscriptionService with WidgetsBindingObserver {
     try {
       const channel = MethodChannel('com.yunajung.fonki/appgroup');
       channel.invokeMethod('syncPremium', {
-        'is_premium': tier != SubscriptionTier.free,
+        'is_premium': debugForcePremium || tier != SubscriptionTier.free, // TODO: REMOVE - 테스트용
         'tier': tier.name,
         // Trial users keep tier=premium (so the lock screen + translate tab
         // open up) but lose unlimited translation, which routes them through

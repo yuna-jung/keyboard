@@ -577,12 +577,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
         set {
             UserDefaults.standard.set(newValue.rawValue, forKey: "fonkii_theme")
-            // Write the theme's default accent color directly to UserDefaults so
-            // applyTheme() (called below) picks it up without triggering a second rebuild.
-            let defaultColor = Self.defaultAccentColor(for: newValue)
-            if let data = try? NSKeyedArchiver.archivedData(
-                withRootObject: defaultColor, requiringSecureCoding: false) {
-                UserDefaults.standard.set(data, forKey: "fonkii_accent_color")
+            // Default theme preserves the user's last-set accent color.
+            // All other themes reset the accent color to their own default.
+            if newValue != .default {
+                let defaultColor = Self.defaultAccentColor(for: newValue)
+                if let data = try? NSKeyedArchiver.archivedData(
+                    withRootObject: defaultColor, requiringSecureCoding: false) {
+                    UserDefaults.standard.set(data, forKey: "fonkii_accent_color")
+                }
             }
             applyTheme()
         }
@@ -666,20 +668,22 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     /// User-customizable accent color (default = mainPink). Persisted in
-    /// UserDefaults under "fonkii_accent_color". Setter triggers a UI refresh
-    /// via `applyTheme()`.
+    /// UserDefaults. Default theme uses its own key ("accentColor_default") so
+    /// switching between Default and other themes never clobbers each other's color.
     private var accentColor: UIColor {
         get {
-            if let data = UserDefaults.standard.data(forKey: "fonkii_accent_color"),
+            let key = currentTheme == .default ? "accentColor_default" : "fonkii_accent_color"
+            if let data = UserDefaults.standard.data(forKey: key),
                let color = try? NSKeyedUnarchiver.unarchivedObject(ofClass: UIColor.self, from: data) {
                 return color
             }
             return mainPink
         }
         set {
+            let key = currentTheme == .default ? "accentColor_default" : "fonkii_accent_color"
             if let data = try? NSKeyedArchiver.archivedData(
                 withRootObject: newValue, requiringSecureCoding: false) {
-                UserDefaults.standard.set(data, forKey: "fonkii_accent_color")
+                UserDefaults.standard.set(data, forKey: key)
             }
             applyTheme()
         }
@@ -1917,10 +1921,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var isPremiumUser = false
     private var userTier = "free" // "free" | "premium" | "lifetime"
     private var canTranslateUnlimited = false
-    // Flip to false before shipping to TestFlight / App Store.
-    #if DEBUG
-    static var debugForceFree = true
-    #endif
+    // TODO: REMOVE - 배포 전 false 유지
+    static var debugForceFree: Bool = false
 /// Throttle gate for the `textDidChange` subscription re-check. `viewWillAppear`
     /// can be skipped when iOS caches/reuses this VC across text fields, but
     /// `textDidChange` always fires on (re)connection — so we re-verify there
@@ -2282,6 +2284,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // (it distinguishes lifetime from free with a more specific message),
         // Both premium and premium_lifetime have `isPremiumUser == true` and pass through.
         // Exception: textTemplate at My List category (index 0) is free for all users.
+        print("🔥 [showMode] mode=\(mode) isPremiumUser=\(isPremiumUser)")
         if mode != .translate && !isPremiumUser {
             let isTextTemplate = (mode == .textTemplate)  // per-item gating inside the list
             let isFontsMode = (mode == .fonts)            // per-font gating in styleTapped/fontPanelStyleTapped
@@ -2349,83 +2352,93 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         overlay.isUserInteractionEnabled = true
         view.addSubview(overlay)
 
-        let card = UIView()
+        let dimTap = UITapGestureRecognizer(target: self, action: #selector(dismissLockedOverlay))
+        dimTap.cancelsTouchesInView = false
+        overlay.addGestureRecognizer(dimTap)
+
+        // ── 카드 크기 계산 ──────────────────────────────────────────────────
+        let cardWidth = view.bounds.width * 0.72
+        let hPad: CGFloat = 24
+        let textWidth = cardWidth - hPad * 2
+
+        let isKo = Locale.current.languageCode == "ko"
+        let bodyText = isKo
+            ? "Fonkii 프리미엄을 구독하고\n모든 기능을 사용해보세요!"
+            : "Subscribe to Fonkii Premium\nand unlock all features!"
+        let btnTitle = isKo ? "1주 무료 체험 시작하기" : "Start Free 1-Week Trial"
+
+        let bodyFont = UIFont.boldSystemFont(ofSize: 14)
+        let bodyH = ceil((bodyText as NSString).boundingRect(
+            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: bodyFont],
+            context: nil
+        ).height)
+
+        let crownY: CGFloat = 16
+        let crownH: CGFloat = 52
+        let bodyY  = crownY + crownH + 10
+        let btnY   = bodyY + bodyH + 16
+        let btnH: CGFloat = 44
+        let cardH  = btnY + btnH + 16
+
+        let cardX = (overlay.bounds.width  - cardWidth) / 2
+        let cardY = (overlay.bounds.height - cardH) / 2
+
+        // ── 카드 ────────────────────────────────────────────────────────────
+        let card = UIView(frame: CGRect(x: cardX, y: cardY, width: cardWidth, height: cardH))
         card.backgroundColor = .white
-        card.layer.cornerRadius = 16
+        card.layer.cornerRadius = 20
+        card.layer.masksToBounds = false
         card.layer.shadowColor = UIColor.black.cgColor
-        card.layer.shadowOpacity = 0.15
-        card.layer.shadowRadius = 10
+        card.layer.shadowOpacity = 0.12
+        card.layer.shadowRadius = 12
         card.layer.shadowOffset = CGSize(width: 0, height: 4)
-        card.translatesAutoresizingMaskIntoConstraints = false
         card.isUserInteractionEnabled = true
         overlay.addSubview(card)
 
-        NSLayoutConstraint.activate([
-            card.centerXAnchor.constraint(equalTo: overlay.centerXAnchor),
-            card.centerYAnchor.constraint(equalTo: overlay.centerYAnchor),
-            card.widthAnchor.constraint(equalToConstant: 260),
-            card.heightAnchor.constraint(equalToConstant: 180),
-        ])
+        // 카드 탭 제스처 (이벤트 소비용 — dimTap이 card 영역에서 닫히지 않도록)
+        let cardTap = UITapGestureRecognizer(target: nil, action: nil)
+        cardTap.cancelsTouchesInView = false
+        card.addGestureRecognizer(cardTap)
 
-        let closeBtn = UIButton(type: .custom)
+        // ── 닫기 버튼 ────────────────────────────────────────────────────────
+        let closeBtn = UIButton(type: .system)
+        closeBtn.frame = CGRect(x: cardWidth - 40, y: 8, width: 32, height: 32)
         closeBtn.setTitle("✕", for: .normal)
-        closeBtn.setTitleColor(.darkGray, for: .normal)
-        closeBtn.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        closeBtn.translatesAutoresizingMaskIntoConstraints = false
+        closeBtn.titleLabel?.font = .systemFont(ofSize: 18)
+        closeBtn.setTitleColor(UIColor(white: 0.5, alpha: 1), for: .normal)
         closeBtn.addTarget(self, action: #selector(dismissLockedOverlay), for: .touchUpInside)
         card.addSubview(closeBtn)
 
-        let crownLabel = UILabel()
+        // ── 왕관 ─────────────────────────────────────────────────────────────
+        let crownLabel = UILabel(frame: CGRect(x: hPad, y: crownY, width: textWidth, height: crownH))
         crownLabel.text = "👑"
-        crownLabel.font = .systemFont(ofSize: 36)
+        crownLabel.font = .systemFont(ofSize: 32)
         crownLabel.textAlignment = .center
-        crownLabel.textColor = .black
-        crownLabel.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(crownLabel)
 
-        let msgLabel = UILabel()
-        msgLabel.text = loc("premium_lock_message")
-        msgLabel.numberOfLines = 0
-        msgLabel.textAlignment = .center
-        msgLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        msgLabel.textColor = .black
-        msgLabel.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(msgLabel)
+        // ── 본문 ─────────────────────────────────────────────────────────────
+        let bodyLabel = UILabel(frame: CGRect(x: hPad, y: bodyY, width: textWidth, height: bodyH))
+        bodyLabel.text = bodyText
+        bodyLabel.font = bodyFont
+        bodyLabel.textAlignment = .center
+        bodyLabel.numberOfLines = 0
+        bodyLabel.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
+        card.addSubview(bodyLabel)
 
-        let subscribeBtn = UIButton(type: .custom)
-        subscribeBtn.setTitle(loc("premium_lock_button"), for: .normal)
-        subscribeBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
-        subscribeBtn.backgroundColor = UIColor(red: 0.40, green: 0.80, blue: 0.95, alpha: 1)
+        // ── 구독 버튼 ─────────────────────────────────────────────────────────
+        let subscribeBtn = UIButton(type: .system)
+        subscribeBtn.frame = CGRect(x: hPad, y: btnY, width: textWidth, height: btnH)
+        subscribeBtn.setTitle(btnTitle, for: .normal)
+        subscribeBtn.titleLabel?.font = .boldSystemFont(ofSize: 16)
+        subscribeBtn.backgroundColor = UIColor(red: 0.44, green: 0.78, blue: 0.96, alpha: 1.0)
         subscribeBtn.setTitleColor(.white, for: .normal)
-        subscribeBtn.layer.cornerRadius = 20
+        subscribeBtn.layer.cornerRadius = 14
         subscribeBtn.layer.masksToBounds = true
-        subscribeBtn.translatesAutoresizingMaskIntoConstraints = false
         subscribeBtn.isUserInteractionEnabled = true
         subscribeBtn.addTarget(self, action: #selector(openPaywallApp), for: .touchUpInside)
         card.addSubview(subscribeBtn)
-
-        NSLayoutConstraint.activate([
-            closeBtn.topAnchor.constraint(equalTo: card.topAnchor, constant: 10),
-            closeBtn.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
-
-            crownLabel.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
-            crownLabel.centerXAnchor.constraint(equalTo: card.centerXAnchor),
-
-            msgLabel.topAnchor.constraint(equalTo: crownLabel.bottomAnchor, constant: 6),
-            msgLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
-            msgLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
-
-            subscribeBtn.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
-            subscribeBtn.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 20),
-            subscribeBtn.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -20),
-            subscribeBtn.heightAnchor.constraint(equalToConstant: 40),
-        ])
-
-        // overlayBtn을 card 뒤에 명시적으로 삽입하여 card/subscribeBtn 터치 보장
-        let overlayBtn = UIButton(frame: overlay.bounds)
-        overlayBtn.backgroundColor = .clear
-        overlayBtn.addTarget(self, action: #selector(dismissLockedOverlay), for: .touchUpInside)
-        overlay.insertSubview(overlayBtn, belowSubview: card)
     }
 
     @objc private func dismissLockedOverlay() {
@@ -2434,19 +2447,33 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc func openPaywallApp() {
-        print("🔥 [KeyboardVC] openPaywallApp tapped!")
+        print("🔥 [Keyboard] openPaywallApp() called")
         guard let url = URL(string: "fonkii://paywall") else { return }
-        // 리스폰더 체인에서 openURL: 을 처리할 수 있는 객체 탐색 (UIApplication 포함)
-        var responder: UIResponder? = self
-        while let r = responder {
-            if r.responds(to: NSSelectorFromString("openURL:")) {
-                r.perform(NSSelectorFromString("openURL:"), with: url)
-                return
+
+        // Method 1: extensionContext.open() — requires Full Access.
+        if let ctx = extensionContext {
+            ctx.open(url) { [weak self] success in
+                print("🔥 [Keyboard] extensionContext.open result: \(success)")
+                if !success {
+                    // Method 2: LSApplicationWorkspace private API fallback.
+                    DispatchQueue.main.async { self?.openPaywallViaWorkspace() }
+                }
             }
-            responder = r.next
+        } else {
+            openPaywallViaWorkspace()
         }
-        // 폴백: extensionContext
-        extensionContext?.open(url, completionHandler: nil)
+    }
+
+    private func openPaywallViaWorkspace() {
+        print("🔥 [Keyboard] openPaywallViaWorkspace() called")
+        guard let wsClass = NSClassFromString("LSApplicationWorkspace") as? NSObject.Type,
+              let workspace = wsClass.perform(NSSelectorFromString("defaultWorkspace"))?.takeUnretainedValue() as? NSObject
+        else { return }
+        if let url = URL(string: "fonkii://paywall") {
+            let result = workspace.perform(NSSelectorFromString("openURL:"), with: url as NSURL)
+            if result != nil { return }
+        }
+        workspace.perform(NSSelectorFromString("openApplicationWithBundleID:"), with: "com.yunajung.fonki")
     }
 
     // MARK: - Mode Bar
@@ -2560,6 +2587,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func showPalettePicker() {
+        // Refresh premium status so 👑 badges reflect the latest subscription state.
+        checkPremiumStatus()
         // Custom (non-`makePopupStack`) popup so we can make it wider than the
         // default 220pt and lay out two columns side-by-side. Goal: fit
         // everything on one screen within the keypad area — no scrolling.
@@ -2694,9 +2723,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             (loc("theme_retro_cream"),    .retroCream),
             (loc("theme_vintage_gray"),   .vintageGray),
         ]
+        let freeThemes: Set<KeyboardTheme> = [.default, .cottonCandy]
         func makeThemeButton(_ label: String, _ theme: KeyboardTheme) -> UIButton {
+            let isPremiumTheme = !freeThemes.contains(theme)
             let btn = UIButton(type: .system)
-            btn.setTitle(label, for: .normal)
+            btn.setTitle(isPremiumTheme && !isPremiumUser ? "\(label) 👑" : label, for: .normal)
             btn.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
             btn.titleLabel?.adjustsFontSizeToFitWidth = true
             btn.titleLabel?.minimumScaleFactor = 0.7
@@ -2708,6 +2739,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             btn.layer.borderColor = (isSel ? accentColor : UIColor(white: 0.85, alpha: 1)).cgColor
             btn.addAction(UIAction { [weak self, weak overlay] _ in
                 guard let self = self else { return }
+                if isPremiumTheme && !self.isPremiumUser {
+                    overlay?.removeFromSuperview()
+                    self.showLockedOverlay()
+                    return
+                }
                 if self.currentTheme == theme { return }
                 self.currentTheme = theme
                 overlay?.removeFromSuperview()
@@ -3804,6 +3840,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func fandomItemTapped(_ s: UIButton) {
+        print("🔥 [fandomItemTapped] tag=\(s.tag) isPremiumUser=\(isPremiumUser)")
         if !isPremiumUser && s.tag >= 3 {
             showLockedOverlay()
             return
@@ -7340,6 +7377,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let cats = visibleFontCategories()
         let safeCat = min(fontCatIndex, max(cats.count - 1, 0))
         let styles = cats.isEmpty ? [] : cats[safeCat].1
+        print("🔥 [styleTapped] tag=\(s.tag) isPremiumUser=\(isPremiumUser) styleName=\(s.tag < styles.count ? styles[s.tag].name : "oob")")
         if !isPremiumUser {
             if s.tag < styles.count && !freeFontNames.contains(styles[s.tag].name) {
                 showLockedOverlay()
@@ -7538,7 +7576,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         fontPickerRowView?.isHidden = true
 
         let panel = UIView()
-        panel.backgroundColor = .systemBackground
+        panel.backgroundColor = .white
         panel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(panel)
         pinToEdges(panel, in: contentView)
@@ -7607,6 +7645,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // ── Font grid scroll ──
         let gridScroll = UIScrollView()
+        gridScroll.backgroundColor = .white
         gridScroll.translatesAutoresizingMaskIntoConstraints = false
         panel.addSubview(gridScroll)
         fontPanelGridScroll = gridScroll
@@ -7742,6 +7781,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func gridItemTapped(_ s: UIButton) {
+        print("🔥 [gridItemTapped] tag=\(s.tag) isPremiumUser=\(isPremiumUser) mode=\(currentMode)")
         if !isPremiumUser {
             let limit: Int
             if currentMode == .emoticon { limit = 4 }
@@ -8155,11 +8195,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             isPremiumUser = false
             userTier = "free"
             canTranslateUnlimited = false
+            print("🔥 [checkPremiumStatus] AppGroup unavailable → isPremiumUser=false")
             return
         }
         isPremiumUser = defaults.bool(forKey: "is_premium")
         userTier = defaults.string(forKey: "tier") ?? "free"
         canTranslateUnlimited = defaults.bool(forKey: "can_translate_unlimited")
+        print("🔥 [checkPremiumStatus] AppGroup raw: is_premium=\(defaults.bool(forKey: "is_premium")) tier=\(userTier)")
         #if DEBUG
         if Self.debugForceFree {
             isPremiumUser = false
@@ -8167,6 +8209,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             canTranslateUnlimited = false
         }
         #endif
+        print("🔥 [checkPremiumStatus] final: isPremiumUser=\(isPremiumUser) debugForceFree=\(Self.debugForceFree)")
     }
 
     // MARK: - UIScrollViewDelegate
@@ -8503,6 +8546,25 @@ extension KeyboardViewController: UITextViewDelegate {
     func textViewDidEndEditing(_ textView: UITextView) {
         translateCloseButton?.alpha = 0
         hgFlush()
+    }
+}
+
+// MARK: - Debug helpers (remove before release)
+private class DebugCard: UIView {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let result = super.hitTest(point, with: event)
+        print("🔥 [HitTest-Card] point:\(point) result:\(String(describing: result))")
+        return result
+    }
+}
+
+extension KeyboardViewController {
+    func printViewHierarchy(_ v: UIView, indent: String = "") {
+        let gestures = v.gestureRecognizers?.map { type(of: $0) } ?? []
+        print("🔥 \(indent)\(type(of: v)) frame:\(v.frame) ui:\(v.isUserInteractionEnabled) alpha:\(v.alpha) hidden:\(v.isHidden) gestures:\(gestures)")
+        for sub in v.subviews {
+            printViewHierarchy(sub, indent: indent + "  ")
+        }
     }
 }
 

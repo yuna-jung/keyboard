@@ -174,6 +174,32 @@ import UIKit
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
+  /// Scene lifecycle URL handler — called when app is active/warm and opened
+  /// via URL. Mirrors the application(_:open:options:) logic below.
+  func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+    guard let url = URLContexts.first?.url,
+          url.scheme?.lowercased() == "fonkii" else { return }
+    handleFonkiiURL(url)
+  }
+
+  private func handleFonkiiURL(_ url: URL) {
+    switch url.host?.lowercased() {
+    case "paywall":
+      print("🔥 [AppDelegate] paywall URL 수신됨")
+      pendingPaywall = true
+      appGroupChannel?.invokeMethod("openPaywall", arguments: nil)
+    case "addphrase", "mylist":
+      pendingAddPhrase = true
+      appGroupChannel?.invokeMethod("openAddPhrase", arguments: nil)
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+        guard let self, self.pendingAddPhrase else { return }
+        self.appGroupChannel?.invokeMethod("openAddPhrase", arguments: nil)
+      }
+    default:
+      break
+    }
+  }
+
   /// Handle `fonkii://paywall` deep links coming from the keyboard extension's
   /// "1주 무료 체험 시작하기" button. We both flip the cold-start flag *and*
   /// fire `openPaywall` immediately — warm starts catch the live event, cold
@@ -182,26 +208,8 @@ import UIKit
                             open url: URL,
                             options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
     if url.scheme?.lowercased() == "fonkii" {
-      switch url.host?.lowercased() {
-      case "paywall":
-        pendingPaywall = true
-        appGroupChannel?.invokeMethod("openPaywall", arguments: nil)
-        return true
-      case "addphrase", "mylist":
-        pendingAddPhrase = true
-        // Immediate invoke covers warm starts (Flutter already running).
-        appGroupChannel?.invokeMethod("openAddPhrase", arguments: nil)
-        // Delayed retry covers cold starts where Flutter engine isn't ready yet.
-        // Guard checks the flag so this is a no-op if Flutter already consumed it
-        // via consumePendingAddPhrase in _resolveTarget().
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-          guard let self, self.pendingAddPhrase else { return }
-          self.appGroupChannel?.invokeMethod("openAddPhrase", arguments: nil)
-        }
-        return true
-      default:
-        break
-      }
+      handleFonkiiURL(url)
+      return true
     }
     return super.application(application, open: url, options: options)
   }

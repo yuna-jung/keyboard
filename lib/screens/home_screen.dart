@@ -42,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
   /// single deep-link). The flag flips on entry and resets when the bottom
   /// sheet closes.
   bool _paywallShowing = false;
+  bool _addPhraseShowing = false;
 
   @override
   void initState() {
@@ -107,9 +108,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showAddPhrase() {
     if (!mounted) return;
+    if (_addPhraseShowing) return;
+    _addPhraseShowing = true;
+    // Consume both flags so racing paths are no-ops:
+    // - consumePendingAddPhrase: clears AppDelegate flag → stops 1.5s delayed retry
+    // - checkAndClearOpenMyList: clears App Group flag → _checkOpenMyList() in main.dart returns early
+    _appGroupChannel.invokeMethod<bool>('consumePendingAddPhrase');
+    _appGroupChannel.invokeMethod<bool>('checkAndClearOpenMyList');
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _addPhraseShowing = false;
       if (!mounted) return;
-      Navigator.of(context).push(
+      final nav = Navigator.of(context);
+      nav.popUntil((route) => route.isFirst);
+      nav.push(
         MaterialPageRoute(builder: (_) => const AddPhraseScreen()),
       );
     });
