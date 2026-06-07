@@ -1922,7 +1922,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var userTier = "free" // "free" | "premium" | "lifetime"
     private var canTranslateUnlimited = false
     // TODO: REMOVE - 배포 전 false 유지
-    static var debugForceFree: Bool = false
+    static var debugForceFree: Bool = false // TODO: REMOVE
 /// Throttle gate for the `textDidChange` subscription re-check. `viewWillAppear`
     /// can be skipped when iOS caches/reuses this VC across text fields, but
     /// `textDidChange` always fires on (re)connection — so we re-verify there
@@ -4458,15 +4458,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         label.numberOfLines = 0
         stack.addArrangedSubview(label)
 
-        let btn = UIButton(type: .system)
-        btn.setTitle(loc("gif_settings_button"), for: .normal)
-        btn.setTitleColor(.white, for: .normal)
-        btn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
-        btn.backgroundColor = UIColor(red: 0x7F / 255, green: 0xC7 / 255, blue: 0xFF / 255, alpha: 1)
-        btn.layer.cornerRadius = 10
-        btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 18, bottom: 8, right: 18)
-        btn.addTarget(self, action: #selector(openKeyboardSettings), for: .touchUpInside)
-        stack.addArrangedSubview(btn)
     }
 
     /// Walk the responder chain to find the host `UIApplication` and open the
@@ -6668,19 +6659,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     private func showTranslateFullAccessError() {
         showTranslateError(loc("translate_no_access"))
-        guard let resultBox = translateResultLabel?.superview else { return }
-        let btn = UIButton(type: .system)
-        btn.tag = Self.translateSettingsBtnTag
-        btn.setTitle("⚙️ 설정 열기", for: .normal)
-        btn.setTitleColor(accentColor, for: .normal)
-        btn.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
-        btn.translatesAutoresizingMaskIntoConstraints = false
-        btn.addTarget(self, action: #selector(openKeyboardSettings), for: .touchUpInside)
-        resultBox.addSubview(btn)
-        NSLayoutConstraint.activate([
-            btn.trailingAnchor.constraint(equalTo: resultBox.trailingAnchor, constant: -6),
-            btn.bottomAnchor.constraint(equalTo: resultBox.bottomAnchor, constant: -4),
-        ])
     }
 
     /// Strip a leading language-label prefix the model sometimes prepends
@@ -8209,6 +8187,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             canTranslateUnlimited = false
         }
         #endif
+        // If subscription lapsed, reset any premium theme back to Default.
+        if !isPremiumUser {
+            let premiumThemes: Set<KeyboardTheme> = [.lavender, .pastelRainbow, .soft, .bubbleMint, .retroCream, .vintageGray]
+            if premiumThemes.contains(currentTheme) {
+                currentTheme = .default
+            }
+        }
         print("🔥 [checkPremiumStatus] final: isPremiumUser=\(isPremiumUser) debugForceFree=\(Self.debugForceFree)")
     }
 
