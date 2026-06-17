@@ -1921,6 +1921,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var isPremiumUser = false
     private var userTier = "free" // "free" | "premium" | "lifetime"
     private var canTranslateUnlimited = false
+    private var premiumRefreshTimer: Timer?
     // TODO: REMOVE - 배포 전 false 유지
     static var debugForceFree: Bool = false // TODO: REMOVE
 /// Throttle gate for the `textDidChange` subscription re-check. `viewWillAppear`
@@ -2073,6 +2074,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // 프리미엄 체크 (App Group UserDefaults 통해 메인 앱에서 동기화)
         checkPremiumStatus()
+        premiumRefreshTimer = Timer.scheduledTimer(withTimeInterval: 300.0, repeats: true) { [weak self] _ in
+            self?.checkPremiumStatus()
+        }
 
         // Clean up stale translation-count keys from older versions (free tier
         // no longer uses per-day counting — subscription-gated instead).
@@ -2163,6 +2167,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         saveTranslateState()
+        premiumRefreshTimer?.invalidate()
+        premiumRefreshTimer = nil
     }
 
     /// Host-app text changes — including external clears we didn't cause.
