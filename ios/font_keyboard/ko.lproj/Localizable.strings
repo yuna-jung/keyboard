@@ -26,12 +26,13 @@
 "settings_theme"          = "테마";
 "theme_default"           = "기본";
 "theme_cotton_candy"      = "코튼캔디";
-"theme_lavender"          = "라벤더";
+"theme_lavender"          = "퍼플";
 "theme_pastel_rainbow"    = "파스텔 레인보우";
 "theme_soft"              = "소프트";
 "theme_bubble_mint"       = "버블 민트";
 "theme_retro_cream"       = "레트로 크림";
 "theme_vintage_gray"      = "빈티지 그레이";
+"theme_hot_pink"          = "미드나잇 핑크";
 
 /* 폰트 탭 */
 "font_normal" = "일반";

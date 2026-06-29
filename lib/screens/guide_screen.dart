@@ -1013,7 +1013,7 @@ class _TabPage5 extends StatelessWidget {
               childAspectRatio: 0.85,
               children: [
                 _themeCard(isKo ? '코튼캔디' : 'Cotton Candy', 'assets/guide/guide_5b.png'),
-                _themeCard(isKo ? '라벤더' : 'Lavender', 'assets/guide/guide_5c.png'),
+                _themeCard(isKo ? '퍼플' : 'Purple', 'assets/guide/guide_5c.png'),
                 _themeCard(isKo ? '파스텔 레인보우' : 'Pastel Rainbow', 'assets/guide/guide_5d.png'),
                 _themeCard(isKo ? '소프트' : 'Soft', 'assets/guide/guide_5e.png'),
                 _themeCard(isKo ? '버블 민트' : 'Bubble Mint', 'assets/guide/guide_5f.png'),

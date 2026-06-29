@@ -26,12 +26,13 @@
 "settings_theme"          = "Theme";
 "theme_default"           = "Default";
 "theme_cotton_candy"      = "Cotton Candy";
-"theme_lavender"          = "Lavender";
+"theme_lavender"          = "Purple";
 "theme_pastel_rainbow"    = "Pastel Rainbow";
 "theme_soft"              = "Soft";
 "theme_bubble_mint"       = "Bubble Mint";
 "theme_retro_cream"       = "Retro Cream";
 "theme_vintage_gray"      = "Vintage Gray";
+"theme_hot_pink"          = "Midnight Pink";
 
 /* Font tab */
 "font_normal" = "Normal";
