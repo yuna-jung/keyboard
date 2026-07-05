@@ -2444,10 +2444,32 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc func openPaywallApp() {
         print("🔥 [Keyboard] openPaywallApp() called")
-        guard let url = URL(string: "fonkii://paywall"), let ctx = extensionContext else { return }
-        ctx.open(url) { success in
-            print("🔥 [Keyboard] extensionContext.open result: \(success)")
+        guard let url = URL(string: "fonkii://paywall") else { return }
+
+        // Method 1: extensionContext.open() — requires Full Access.
+        if let ctx = extensionContext {
+            ctx.open(url) { [weak self] success in
+                print("🔥 [Keyboard] extensionContext.open result: \(success)")
+                if !success {
+                    // Method 2: LSApplicationWorkspace private API fallback.
+                    DispatchQueue.main.async { self?.openPaywallViaWorkspace() }
+                }
+            }
+        } else {
+            openPaywallViaWorkspace()
         }
+    }
+
+    private func openPaywallViaWorkspace() {
+        print("🔥 [Keyboard] openPaywallViaWorkspace() called")
+        guard let wsClass = NSClassFromString("LSApplicationWorkspace") as? NSObject.Type,
+              let workspace = wsClass.perform(NSSelectorFromString("defaultWorkspace"))?.takeUnretainedValue() as? NSObject
+        else { return }
+        if let url = URL(string: "fonkii://paywall") {
+            let result = workspace.perform(NSSelectorFromString("openURL:"), with: url as NSURL)
+            if result != nil { return }
+        }
+        workspace.perform(NSSelectorFromString("openApplicationWithBundleID:"), with: "com.yunajung.fonki")
     }
 
     // MARK: - Mode Bar
@@ -3873,12 +3895,39 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         let isKo = Locale.current.language.languageCode?.identifier == "ko"
 
-        guard let ctx = extensionContext, let url = URL(string: "fonkii://myList") else { return }
-        ctx.open(url) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.showToast(isKo ? "Fonkii 앱을 열어주세요" : "Open Fonkii app")
+        // Method 1: extensionContext.open() — requires Full Access.
+        if let ctx = extensionContext, let url = URL(string: "fonkii://myList") {
+            ctx.open(url) { [weak self] success in
+                DispatchQueue.main.async {
+                    if !success {
+                        // Method 2: LSApplicationWorkspace private API fallback.
+                        self?.openViaWorkspace()
+                    }
+                    self?.showToast(isKo ? "Fonkii 앱을 열어주세요" : "Open Fonkii app")
+                }
             }
+        } else {
+            openViaWorkspace()
+            showToast(isKo ? "Fonkii 앱을 열어주세요" : "Open Fonkii app")
         }
+    }
+
+    /// LSApplicationWorkspace private-API fallback for opening the containing
+    /// app when extensionContext.open() is unavailable (Full Access off) or
+    /// returns false. Works on physical devices; App Store review typically
+    /// allows this pattern in keyboard extensions.
+    private func openViaWorkspace() {
+        guard let wsClass = NSClassFromString("LSApplicationWorkspace") as? NSObject.Type,
+              let workspace = wsClass.perform(NSSelectorFromString("defaultWorkspace"))?.takeUnretainedValue() as? NSObject
+        else { return }
+        // Prefer URL-based open so AppDelegate.application(_:open:url:options:) fires
+        // and sets pendingAddPhrase — avoids App Group UserDefaults sync timing issues.
+        if let url = URL(string: "fonkii://myList") {
+            let urlResult = workspace.perform(NSSelectorFromString("openURL:"), with: url as NSURL)
+            if urlResult != nil { return }
+        }
+        // Fallback: open by bundle ID (AppDelegate URL callback won't fire).
+        workspace.perform(NSSelectorFromString("openApplicationWithBundleID:"), with: "com.yunajung.fonki")
     }
 
     @objc private func myListItemTapped(_ s: UIButton) {
