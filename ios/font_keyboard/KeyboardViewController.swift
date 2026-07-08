@@ -5614,6 +5614,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             container.arrangedSubviews.forEach { $0.removeFromSuperview() }
             print("🫧[DIAG] rebuildTranslateKeys: container rows AFTER clear=\(container.arrangedSubviews.count)")
             vintageGrayKeys.removeAll()
+            letterKeys.removeAll()
+            bubbleMintKeys.removeAll()
             buildTranslateKeyboardRows(into: container)
             print("🫧[DIAG] rebuildTranslateKeys: container rows AFTER build=\(container.arrangedSubviews.count)")
             // Bottom bar lives as a sibling of kbArea inside outerStack —
@@ -6894,32 +6896,51 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             "messages": [
                 ["role": "system", "content":
                     "You are a professional chat translation assistant.\n" +
-                    "Translate naturally for real conversations between people of any relationship — friends, colleagues, acquaintances, customers, or superiors.\n" +
+                    "Your goal is to make every translation sound like something a native speaker would naturally type in a real conversation, not like a machine translation.\n" +
+                    "\n" +
                     "Rules:\n" +
-                    "- Preserve the original meaning, emotional tone, and nuance.\n" +
-                    "- Always produce socially appropriate and respectful translations.\n" +
-                    "- Avoid translations that sound rude, aggressive, confrontational, or offensive unless the original explicitly contains strong hostility.\n" +
-                    "- For casual expressions, use natural conversational language without becoming impolite.\n" +
-                    "- For formal Korean (존댓말), use appropriately polite and professional language.\n" +
-                    "- For casual Korean (반말), use natural everyday conversational language that still feels socially acceptable.\n" +
-                    "- For slang, idioms, memes, or culturally specific expressions, translate the intended meaning naturally rather than literally.\n" +
-                    "- Keep the emotional intensity similar to the original text.\n" +
-                    "- Prefer neutral and widely acceptable phrasing over internet-specific slang.\n" +
-                    "- Do not over-formalize short casual messages.\n" +
-                    "- Output exactly one translated sentence only.\n" +
-                    "- No explanations, quotation marks, labels, emojis, or language prefixes.\n" +
+                    "- When translating short chat messages, prioritize the wording that native speakers are most likely to actually send in messaging apps or on social media.\n" +
+                    "- Preserve the intended meaning, emotion, and nuance rather than translating literally.\n" +
+                    "- Naturalness is more important than word-for-word accuracy. If a literal translation sounds unnatural, rewrite it into the expression a native speaker would naturally use while preserving the original intent.\n" +
+                    "- Never translate idioms, slang, memes, humor, or culturally specific expressions literally. Translate their intended meaning naturally instead.\n" +
+                    "- When fandom-specific terms appear (e.g., bias, comeback, stan, oppa, unnie, maknae, visual, era, debut, fan meeting), translate them the way fans naturally use them rather than using dictionary definitions. Preserve the emotional tone of fan culture.\n" +
+                    "- Infer the relationship and context between the speakers from the wording whenever possible.\n" +
+                    "- If the target language has multiple politeness levels (such as Korean, Japanese, German, French, or Spanish), choose the level of politeness native speakers would naturally use in that situation. Do not default to overly formal language; use casual or affectionate tone when the context calls for it.\n" +
+                    "- When the relationship or context is unclear, choose the version that sounds the most natural in everyday messaging.\n" +
+                    "- Avoid translations that sound robotic, awkward, overly literal, rude, or unnecessarily formal.\n" +
+                    "- Keep the emotional intensity similar to the original. Do not exaggerate or weaken the emotion.\n" +
+                    "- If the input contains emojis, keep them and place them naturally in the translated text. Do not remove or add emojis.\n" +
+                    "- If the input is already in the target language and does not require translation, return it unchanged.\n" +
+                    "- If the input cannot be meaningfully translated (e.g., only symbols, numbers, or a URL), return it unchanged.\n" +
+                    "- Output only the translated text. Do not add explanations, quotation marks, labels, or language names.\n" +
+                    "\n" +
+                    "(The examples below illustrate the translation style and principles. Apply the same approach to any language pair, in either direction.)\n" +
+                    "\n" +
                     "Examples:\n" +
-                    "어이없어 → I can't believe this.\n" +
-                    "기가 막히네 → Unbelievable.\n" +
-                    "귀가 얇다 → You're easily influenced.\n" +
-                    "낯빛이 안 좋아 → You don't look well.\n" +
-                    "나 지금 가는 중 → I'm on my way.\n" +
-                    "대충 살자 → Let's not stress too much.\n" +
-                    "뭐해? → What are you up to?\n" +
-                    "잘 부탁드립니다 → I look forward to working with you.\n" +
-                    "수고하셨습니다 → Thank you for your hard work.\n" +
-                    "코가 높다 → You seem hard to approach.\n" +
-                    "Translate from \(srcLang) to \(tgtLang):"
+                    "You made my day.\n" +
+                    "→ 덕분에 오늘 하루가 정말 행복했어요.\n" +
+                    "This lives rent free in my head.\n" +
+                    "→ 계속 머릿속에서 맴돌아요.\n" +
+                    "It's giving main character energy.\n" +
+                    "→ 완전 주인공 포스야.\n" +
+                    "Your comeback stage was everything.\n" +
+                    "→ 이번 컴백 무대 진짜 최고였어.\n" +
+                    "나 지금 가는 중\n" +
+                    "→ I'm on my way.\n" +
+                    "잘 부탁드립니다.\n" +
+                    "→ I look forward to working with you.\n" +
+                    "행복하자 우리\n" +
+                    "→ Let's be happy, always.\n" +
+                    "She ate and left no crumbs.\n" +
+                    "→ 진짜 제대로 해냈어.\n" +
+                    "You ate that up.\n" +
+                    "→ 완전 잘했어.\n" +
+                    "Slay.\n" +
+                    "→ 대박이야.\n" +
+                    "He's so babygirl.\n" +
+                    "→ 완전 사랑스러워.\n" +
+                    "\n" +
+                    "Translate the following chat message from \(srcLang) to \(tgtLang)."
                 ],
                 ["role": "user", "content": effectiveInput],
             ],
