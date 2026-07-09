@@ -5796,6 +5796,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         } else {
             hgFlush()
             translateTargetAppend(key)
+            if isTranslateShifted && !isTranslateCapsLock {
+                isTranslateShifted = false
+                rebuildTranslateKeys()
+            }
         }
     }
 
