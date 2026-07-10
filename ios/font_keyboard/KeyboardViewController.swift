@@ -3897,33 +3897,58 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func myListAddTapped() {
-        // Persist flag so the host app can navigate on next resume — the
-        // safety net: `checkPendingAppGroupFlags()` in AppDelegate picks it
-        // up on `applicationDidBecomeActive`, so the moment the user opens
-        // Fonkii themselves, AddPhraseScreen shows — independent of whether
-        // the ctx.open() below succeeds.
+        let isKo = Locale.current.language.languageCode?.identifier == "ko"
+
+        // Path 1: host app has a text selection — save it directly, no need
+        // to ever leave the extension. Reuses the same App Group storage
+        // (`myPhrasesKey`) and list-refresh (`showMode(.textTemplate)`) as
+        // every other My List write.
+        if let selected = textDocumentProxy.selectedText, !selected.isEmpty {
+            let trimmed = selected.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            guard trimmed.count <= 200 else {
+                showToast(isKo ? "선택한 텍스트가 너무 길어요 (200자 이하)" : "Selected text is too long (max 200 characters)")
+                return
+            }
+            var list = loadFavList(Self.myPhrasesKey)
+            if list.contains(trimmed) {
+                showToast(isKo ? "이미 목록에 있어요" : "Already in your list")
+                return
+            }
+            list.insert(trimmed, at: 0)
+            saveFavList(Self.myPhrasesKey, list)
+            showToast(isKo ? "내 목록에 저장했어요!" : "Saved to My List!")
+            showMode(.textTemplate)
+            return
+        }
+
+        // Path 2: nothing selected — fall back to opening the app. Persist
+        // flag so the host app can navigate on next resume — the safety
+        // net: `checkPendingAppGroupFlags()` in AppDelegate picks it up on
+        // `applicationDidBecomeActive`, so the moment the user opens Fonkii
+        // themselves, AddPhraseScreen shows — independent of whether the
+        // ctx.open() below succeeds.
         let defaults = UserDefaults(suiteName: Self.favAppGroup)
         defaults?.set(true, forKey: "open_my_list")
         defaults?.synchronize()
 
-        let isKo = Locale.current.language.languageCode?.identifier == "ko"
-
         // extensionContext.open() — public API, requires Full Access. Still
         // worth trying (works on some devices/iOS versions), but keyboard
         // extensions can't reliably auto-launch the host app, so a failure
-        // just falls through to the toast telling the user to open it
-        // themselves — the App Group flag above takes it from there.
+        // just falls through to the toast telling the user to select text
+        // or open the app themselves — the App Group flag above takes it
+        // from there.
         if let ctx = extensionContext, let url = URL(string: "fonkii://myList") {
             ctx.open(url) { [weak self] success in
                 print("🔗 [myList] ctx exists: \(self?.extensionContext != nil), open success: \(success)")
                 if !success {
                     DispatchQueue.main.async {
-                        self?.showToast(isKo ? "Fonkii 앱을 열면 문장을 추가할 수 있어요" : "Open the Fonkii app to add phrases")
+                        self?.showToast(isKo ? "텍스트를 선택하거나, Fonkii 앱에서 추가해보세요" : "Select text, or add phrases in the Fonkii app")
                     }
                 }
             }
         } else {
-            showToast(isKo ? "Fonkii 앱을 열면 문장을 추가할 수 있어요" : "Open the Fonkii app to add phrases")
+            showToast(isKo ? "텍스트를 선택하거나, Fonkii 앱에서 추가해보세요" : "Select text, or add phrases in the Fonkii app")
         }
     }
 
