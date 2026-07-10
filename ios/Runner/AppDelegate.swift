@@ -171,7 +171,55 @@ import UIKit
       }
     }
 
+    // Cold start: the keyboard may have written `open_my_list` / `open_paywall`
+    // to the App Group before this launch (e.g. the public `ctx.open()` call
+    // brought us to the foreground without the URL callback firing). Check
+    // once here so a cold launch picks it up immediately.
+    checkPendingAppGroupFlags()
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  /// Warm resume: the app was already alive in the background when the
+  /// keyboard extension called `ctx.open()`. `application(_:open:options:)` /
+  /// `scene(_:openURLContexts:)` only fire when the URL callback actually
+  /// reaches us — if it doesn't (Full Access edge cases, iOS quirks), the
+  /// App Group flag written by `myListAddTapped`/`openPaywallApp` is the only
+  /// surviving signal. Checking it here means every foreground transition —
+  /// not just a successful URL open — picks up a pending deep link.
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    super.applicationDidBecomeActive(application)
+    checkPendingAppGroupFlags()
+  }
+
+  /// Reads + clears `open_my_list` / `open_paywall` from the App Group and,
+  /// if set, routes through the same in-memory pending-flag + live-invoke
+  /// path `handleFonkiiURL` uses — so Dart needs no new wiring, it just sees
+  /// another `openAddPhrase` / `openPaywall` event. Read-then-clear happens
+  /// synchronously per flag, so calling this from both
+  /// `didFinishLaunchingWithOptions` and `applicationDidBecomeActive` on the
+  /// same cold start is safe: whichever runs first consumes the flag, the
+  /// second sees it already `false` and no-ops.
+  private func checkPendingAppGroupFlags() {
+    let defaults = UserDefaults(suiteName: appGroupID)
+
+    if defaults?.bool(forKey: "open_my_list") == true {
+      defaults?.set(false, forKey: "open_my_list")
+      defaults?.synchronize()
+      pendingAddPhrase = true
+      appGroupChannel?.invokeMethod("openAddPhrase", arguments: nil)
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+        guard let self, self.pendingAddPhrase else { return }
+        self.appGroupChannel?.invokeMethod("openAddPhrase", arguments: nil)
+      }
+    }
+
+    if defaults?.bool(forKey: "open_paywall") == true {
+      defaults?.set(false, forKey: "open_paywall")
+      defaults?.synchronize()
+      pendingPaywall = true
+      appGroupChannel?.invokeMethod("openPaywall", arguments: nil)
+    }
   }
 
   /// Scene lifecycle URL handler — called when app is active/warm and opened

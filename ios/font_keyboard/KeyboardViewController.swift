@@ -2357,26 +2357,35 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let hPad: CGFloat = 24
         let textWidth = cardWidth - hPad * 2
 
+        // Title text omits its own 👑 — the standalone crown icon above
+        // already covers that, so an inline one would just double up.
         let isKo = Locale.current.languageCode == "ko"
-        let bodyText = isKo
-            ? "Fonkii 프리미엄을 구독하고\n모든 기능을 사용해보세요!"
-            : "Subscribe to Fonkii Premium\nand unlock all features!"
-        let btnTitle = isKo ? "1주 무료 체험 시작하기" : "Start Free 1-Week Trial"
+        let titleText = isKo
+            ? "프리미엄 전용 기능이에요"
+            : "This is a Premium-only feature"
+        let guidanceText = isKo
+            ? "앱에서 일주일 무료 체험을 시작해보세요!"
+            : "Start your 1-week free trial in the app!"
 
-        let bodyFont = UIFont.boldSystemFont(ofSize: 14)
-        let bodyH = ceil((bodyText as NSString).boundingRect(
-            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: bodyFont],
-            context: nil
-        ).height)
+        let titleFont = UIFont.boldSystemFont(ofSize: 16)
+        let guidanceFont = UIFont.systemFont(ofSize: 14, weight: .medium)
+
+        func textHeight(_ text: String, font: UIFont) -> CGFloat {
+            ceil((text as NSString).boundingRect(
+                with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: font],
+                context: nil
+            ).height)
+        }
+        let titleH = textHeight(titleText, font: titleFont)
+        let guidanceH = textHeight(guidanceText, font: guidanceFont)
 
         let crownY: CGFloat = 16
         let crownH: CGFloat = 52
-        let bodyY  = crownY + crownH + 10
-        let btnY   = bodyY + bodyH + 16
-        let btnH: CGFloat = 44
-        let cardH  = btnY + btnH + 16
+        let titleY    = crownY + crownH + 10
+        let guidanceY = titleY + titleH + 8
+        let cardH     = guidanceY + guidanceH + 20
 
         let cardX = (overlay.bounds.width  - cardWidth) / 2
         let cardY = (overlay.bounds.height - cardH) / 2
@@ -2414,27 +2423,23 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         crownLabel.textAlignment = .center
         card.addSubview(crownLabel)
 
-        // ── 본문 ─────────────────────────────────────────────────────────────
-        let bodyLabel = UILabel(frame: CGRect(x: hPad, y: bodyY, width: textWidth, height: bodyH))
-        bodyLabel.text = bodyText
-        bodyLabel.font = bodyFont
-        bodyLabel.textAlignment = .center
-        bodyLabel.numberOfLines = 0
-        bodyLabel.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-        card.addSubview(bodyLabel)
+        // ── 제목 ─────────────────────────────────────────────────────────────
+        let titleLabel = UILabel(frame: CGRect(x: hPad, y: titleY, width: textWidth, height: titleH))
+        titleLabel.text = titleText
+        titleLabel.font = titleFont
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
+        titleLabel.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
+        card.addSubview(titleLabel)
 
-        // ── 구독 버튼 ─────────────────────────────────────────────────────────
-        let subscribeBtn = UIButton(type: .system)
-        subscribeBtn.frame = CGRect(x: hPad, y: btnY, width: textWidth, height: btnH)
-        subscribeBtn.setTitle(btnTitle, for: .normal)
-        subscribeBtn.titleLabel?.font = .boldSystemFont(ofSize: 16)
-        subscribeBtn.backgroundColor = UIColor(red: 0.44, green: 0.78, blue: 0.96, alpha: 1.0)
-        subscribeBtn.setTitleColor(.white, for: .normal)
-        subscribeBtn.layer.cornerRadius = 14
-        subscribeBtn.layer.masksToBounds = true
-        subscribeBtn.isUserInteractionEnabled = true
-        subscribeBtn.addTarget(self, action: #selector(openPaywallApp), for: .touchUpInside)
-        card.addSubview(subscribeBtn)
+        // ── 안내 ─────────────────────────────────────────────────────────────
+        let guidanceLabel = UILabel(frame: CGRect(x: hPad, y: guidanceY, width: textWidth, height: guidanceH))
+        guidanceLabel.text = guidanceText
+        guidanceLabel.font = guidanceFont
+        guidanceLabel.textAlignment = .center
+        guidanceLabel.numberOfLines = 0
+        guidanceLabel.textColor = UIColor(white: 0.35, alpha: 1)
+        card.addSubview(guidanceLabel)
     }
 
     @objc private func dismissLockedOverlay() {
@@ -2444,32 +2449,36 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc func openPaywallApp() {
         print("🔥 [Keyboard] openPaywallApp() called")
-        guard let url = URL(string: "fonkii://paywall") else { return }
+        // Persist flag so the host app can navigate on next resume — same
+        // App Group pattern as `myListAddTapped`'s `open_my_list` write.
+        // This is the safety net: `checkPendingAppGroupFlags()` in
+        // AppDelegate picks it up on `applicationDidBecomeActive`, so the
+        // moment the user opens Fonkii themselves, the paywall shows —
+        // independent of whether the ctx.open() below succeeds.
+        let defaults = UserDefaults(suiteName: Self.favAppGroup)
+        defaults?.set(true, forKey: "open_paywall")
+        defaults?.synchronize()
 
-        // Method 1: extensionContext.open() — requires Full Access.
+        guard let url = URL(string: "fonkii://paywall") else { return }
+        let isKo = Locale.current.language.languageCode?.identifier == "ko"
+
+        // extensionContext.open() — public API, requires Full Access. Still
+        // worth trying (works on some devices/iOS versions), but keyboard
+        // extensions can't reliably auto-launch the host app, so a failure
+        // just falls through to the toast telling the user to open it
+        // themselves — the App Group flag above takes it from there.
         if let ctx = extensionContext {
             ctx.open(url) { [weak self] success in
                 print("🔥 [Keyboard] extensionContext.open result: \(success)")
                 if !success {
-                    // Method 2: LSApplicationWorkspace private API fallback.
-                    DispatchQueue.main.async { self?.openPaywallViaWorkspace() }
+                    DispatchQueue.main.async {
+                        self?.showToast(isKo ? "Fonkii 앱을 열면 구독할 수 있어요" : "Open the Fonkii app to subscribe")
+                    }
                 }
             }
         } else {
-            openPaywallViaWorkspace()
+            showToast(isKo ? "Fonkii 앱을 열면 구독할 수 있어요" : "Open the Fonkii app to subscribe")
         }
-    }
-
-    private func openPaywallViaWorkspace() {
-        print("🔥 [Keyboard] openPaywallViaWorkspace() called")
-        guard let wsClass = NSClassFromString("LSApplicationWorkspace") as? NSObject.Type,
-              let workspace = wsClass.perform(NSSelectorFromString("defaultWorkspace"))?.takeUnretainedValue() as? NSObject
-        else { return }
-        if let url = URL(string: "fonkii://paywall") {
-            let result = workspace.perform(NSSelectorFromString("openURL:"), with: url as NSURL)
-            if result != nil { return }
-        }
-        workspace.perform(NSSelectorFromString("openApplicationWithBundleID:"), with: "com.yunajung.fonki")
     }
 
     // MARK: - Mode Bar
@@ -3888,46 +3897,34 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func myListAddTapped() {
-        // Persist flag so the host app can navigate on next resume.
+        // Persist flag so the host app can navigate on next resume — the
+        // safety net: `checkPendingAppGroupFlags()` in AppDelegate picks it
+        // up on `applicationDidBecomeActive`, so the moment the user opens
+        // Fonkii themselves, AddPhraseScreen shows — independent of whether
+        // the ctx.open() below succeeds.
         let defaults = UserDefaults(suiteName: Self.favAppGroup)
         defaults?.set(true, forKey: "open_my_list")
         defaults?.synchronize()
 
         let isKo = Locale.current.language.languageCode?.identifier == "ko"
 
-        // Method 1: extensionContext.open() — requires Full Access.
+        // extensionContext.open() — public API, requires Full Access. Still
+        // worth trying (works on some devices/iOS versions), but keyboard
+        // extensions can't reliably auto-launch the host app, so a failure
+        // just falls through to the toast telling the user to open it
+        // themselves — the App Group flag above takes it from there.
         if let ctx = extensionContext, let url = URL(string: "fonkii://myList") {
             ctx.open(url) { [weak self] success in
-                DispatchQueue.main.async {
-                    if !success {
-                        // Method 2: LSApplicationWorkspace private API fallback.
-                        self?.openViaWorkspace()
+                print("🔗 [myList] ctx exists: \(self?.extensionContext != nil), open success: \(success)")
+                if !success {
+                    DispatchQueue.main.async {
+                        self?.showToast(isKo ? "Fonkii 앱을 열면 문장을 추가할 수 있어요" : "Open the Fonkii app to add phrases")
                     }
-                    self?.showToast(isKo ? "Fonkii 앱을 열어주세요" : "Open Fonkii app")
                 }
             }
         } else {
-            openViaWorkspace()
-            showToast(isKo ? "Fonkii 앱을 열어주세요" : "Open Fonkii app")
+            showToast(isKo ? "Fonkii 앱을 열면 문장을 추가할 수 있어요" : "Open the Fonkii app to add phrases")
         }
-    }
-
-    /// LSApplicationWorkspace private-API fallback for opening the containing
-    /// app when extensionContext.open() is unavailable (Full Access off) or
-    /// returns false. Works on physical devices; App Store review typically
-    /// allows this pattern in keyboard extensions.
-    private func openViaWorkspace() {
-        guard let wsClass = NSClassFromString("LSApplicationWorkspace") as? NSObject.Type,
-              let workspace = wsClass.perform(NSSelectorFromString("defaultWorkspace"))?.takeUnretainedValue() as? NSObject
-        else { return }
-        // Prefer URL-based open so AppDelegate.application(_:open:url:options:) fires
-        // and sets pendingAddPhrase — avoids App Group UserDefaults sync timing issues.
-        if let url = URL(string: "fonkii://myList") {
-            let urlResult = workspace.perform(NSSelectorFromString("openURL:"), with: url as NSURL)
-            if urlResult != nil { return }
-        }
-        // Fallback: open by bundle ID (AppDelegate URL callback won't fire).
-        workspace.perform(NSSelectorFromString("openApplicationWithBundleID:"), with: "com.yunajung.fonki")
     }
 
     @objc private func myListItemTapped(_ s: UIButton) {
