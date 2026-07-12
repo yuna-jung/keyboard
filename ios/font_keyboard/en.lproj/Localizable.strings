@@ -236,10 +236,13 @@
 /* Feature tip popups (shown once on first tab entry) */
 "tip_fonts_title"     = "How to Change Fonts";
 "tip_fonts_body"      = "Select text, then tap\na different font to\nchange it instantly!";
-"tip_translate_title" = "How to Use Translation";
-"tip_translate_body"  = "① Enter text in the left field\n② Tap the translate button\n③ Insert directly into chat!\n\n💡 Tap ✓ in the left field\nto edit the chat content.";
+"tip_translate_title" = "How to Translate";
+"tip_translate_body"  = "① Type your text in the keyboard's text box\n② Tap the translate button\n③ The translation goes right into your chat!\n\n💡 Tap the ✓ button in the text box\nto edit your chat text.";
 "tip_gif_title"       = "How to Use GIFs";
-"tip_gif_body"        = "Search for a GIF and\ntap to copy it automatically.\nPaste it in your chat!";
+"tip_gif_body"        = "Just tap the GIF you want\nand it's copied automatically.\nPaste it into your chat to send!";
+"tip_textTemplate_title" = "Save your phrases";
+"tip_textTemplate_body"  = "Drag to select a phrase you use often,\nthen tap '+Add' to save it to your list!\nWorks with any language and emojis.";
+"tip_dont_show_again" = "Don't show again";
 
 /* Favorites action popup */
 "fav_add"    = "♥ Add to Favorites";
@@ -266,3 +269,4 @@
 /* Common */
 "ok_button"     = "OK";
 "cancel_button" = "Cancel";
+"close_button"  = "Close";

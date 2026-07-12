@@ -18,7 +18,7 @@ class _GuideScreenState extends State<GuideScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -33,8 +33,8 @@ class _GuideScreenState extends State<GuideScreen>
     final isKo = Localizations.localeOf(context).languageCode == 'ko';
 
     final tabLabels = isKo
-        ? const ['키보드 추가', '번역', '폰트', '즐겨찾기', '테마']
-        : const ['Add Keyboard', 'Translation', 'Fonts', 'Favorites', 'Themes'];
+        ? const ['키보드 추가', '번역', '폰트', '내 목록', '즐겨찾기', '테마']
+        : const ['Add Keyboard', 'Translation', 'Fonts', 'My List', 'Favorites', 'Themes'];
 
     return Column(
       children: [
@@ -57,6 +57,7 @@ class _GuideScreenState extends State<GuideScreen>
               _TabPage1(isKo: isKo, l: l),
               _TabPage4(isKo: isKo, l: l),
               _TabPage2(isKo: isKo, l: l),
+              _TabPage6(isKo: isKo, l: l),
               _TabPage3(isKo: isKo, l: l),
               _TabPage5(isKo: isKo, l: l),
             ],
@@ -1000,7 +1001,7 @@ class _TabPage5 extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              isKo ? '7가지 테마' : '7 Themes',
+              isKo ? '8가지 테마' : '8 Themes',
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
@@ -1019,8 +1020,170 @@ class _TabPage5 extends StatelessWidget {
                 _themeCard(isKo ? '버블 민트' : 'Bubble Mint', 'assets/guide/guide_5f.png'),
                 _themeCard(isKo ? '레트로 크림' : 'Retro Cream', 'assets/guide/guide_5g.png'),
                 _themeCard(isKo ? '빈티지 그레이' : 'Vintage Gray', 'assets/guide/guide_5h.png'),
+                _themeCard(isKo ? '미드나잇 핑크' : 'Midnight Pink', 'assets/guide/guide_5i.png'),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 탭 6: 내 목록(문장 저장) ──────────────────────────────────────────────
+
+class _TabPage6 extends StatelessWidget {
+  const _TabPage6({required this.isKo, required this.l});
+  final bool isKo;
+  final AppLocalizations l;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      child: _GuideCard(
+        number: 1,
+        emoji: '💬',
+        title: isKo ? '내 목록에 문장 저장하기' : 'Save Phrases to My List',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // STEP 1: 다른 앱에서 텍스트 선택
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(isKo ? '다른 앱에서' : 'In any app',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      children: [
+                        TextSpan(
+                          text: isKo ? '오히려 좋아! 💜' : 'Have a good one!',
+                          style: const TextStyle(
+                              backgroundColor: Color(0xFFB3D9FF)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                children: [
+                  const Icon(Icons.arrow_downward,
+                      color: Color(0xFFF77BAA), size: 20),
+                  Text(isKo ? '텍스트를 드래그해서 선택' : 'Drag to select text',
+                      style: const TextStyle(
+                          fontSize: 10, color: Color(0xFFF77BAA))),
+                ],
+              ),
+            ),
+            // STEP 2: 💬 탭에서 +추가
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFC8ECF0),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        const Text('Aa', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
+                        const Text('번역', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(8)),
+                          child: const Text('💬', style: TextStyle(fontSize: 12)),
+                        ),
+                        const Text('✦', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
+                        const Text('GIF', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
+                        const Text('⠿', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
+                        const Text('♥', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
+                        const Text('⚙', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    height: 32,
+                    color: const Color(0xFFEFEFEF),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      children: [
+                        _catChip(isKo ? '내 목록' : 'My List', true),
+                        const SizedBox(width: 6),
+                        _catChip(isKo ? '빠른메시지' : 'Quick', false),
+                        const SizedBox(width: 6),
+                        _catChip(isKo ? '일상' : 'Daily', false),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF77BAA),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        child: Text(isKo ? '+ 추가' : '+ Add',
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white)),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        decoration: BoxDecoration(color: const Color(0xFF222222), borderRadius: BorderRadius.circular(16)),
+                        child: Text(isKo ? '내 목록에 저장했어요!' : 'Saved to My List!',
+                            style: const TextStyle(fontSize: 12, color: Colors.white)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _StepList(steps: isKo
+                ? const [
+                    '원하는 텍스트를 드래그해서 선택하세요',
+                    "💬 탭에서 '+추가' 버튼을 누르세요",
+                    '선택한 문장이 내 목록에 저장돼요! (한글·이모지 모두 가능)',
+                    '저장한 문장은 길게 눌러 즐겨찾기에 추가할 수도 있어요',
+                  ]
+                : const [
+                    'Select the text you want by dragging',
+                    "Tap the '+Add' button in the 💬 tab",
+                    'The selected phrase is saved to My List! (Works with any language and emojis)',
+                    'Long-press a saved phrase to add it to Favorites too',
+                  ]),
           ],
         ),
       ),

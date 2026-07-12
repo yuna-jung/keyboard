@@ -3966,6 +3966,33 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let text = phrases[btn.tag]
         let overlay = makeOverlay()
         let stack = makePopupStack(in: overlay)
+
+        // Favorite toggle — shares `favKeyTextReplace` with the preset
+        // category's `fandomItemLongPressed`/`showAddPopup`, so a My List
+        // phrase favorited here shows up in the same ❤️ tab section
+        // alongside preset favorites. `addFavorite` already guards against
+        // duplicates (`toast_fav_exists`), so the "add" side reuses it as-is.
+        // The "remove" side can't reuse `removeFavorite` directly — it always
+        // ends with `showMode(.favorites)`, which would yank the user out of
+        // 💬 over to the ❤️ tab just for un-favoriting a My List phrase. So
+        // this mirrors its list-mutation logic but rebuilds `.textTemplate`
+        // instead, keeping the user on the tab they were already on.
+        let isFav = loadFavList(Self.favKeyTextReplace).contains(text)
+        stack.addArrangedSubview(makePopupButton(
+            title: loc(isFav ? "fav_delete" : "fav_add"),
+            color: UIColor(red: 0.90, green: 0.20, blue: 0.40, alpha: 1)) {
+            overlay.removeFromSuperview()
+            if isFav {
+                var favs = self.loadFavList(Self.favKeyTextReplace)
+                favs.removeAll { $0 == text }
+                self.saveFavList(Self.favKeyTextReplace, favs)
+                self.showToast(self.loc("favorite_removed"))
+                self.showMode(.textTemplate)
+            } else {
+                self.addFavorite(text, key: Self.favKeyTextReplace)
+            }
+        })
+
         stack.addArrangedSubview(makePopupButton(
             title: loc("text_replace_delete_yes"), color: .systemRed) {
             overlay.removeFromSuperview()
@@ -8407,9 +8434,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     // MARK: - First-entry usage tips
 
-    /// Live tip popup state. Tracked so both the "확인" button and a
-    /// background tap route through `dismissTip()` — which persists the
-    /// per-tab flag so the tip never reappears.
+    /// Live tip popup state. Tracked so the "닫기"/"다시 안 보기" buttons and
+    /// a background tap all route through `dismissTip(persist:)` — which
+    /// only persists the per-tab flag (so the tip never reappears) when
+    /// "다시 안 보기" was tapped. "닫기" and a background tap both dismiss
+    /// without persisting, so the tip shows again next time that tab opens.
     private var tipOverlay: UIView?
     private var tipCard: UIView?
     private var tipFlagKey: String?
@@ -8428,11 +8457,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             tip = ("🌐", loc("tip_translate_title"), loc("tip_translate_body"), "tip_shown_translate")
         case .gif:
             tip = ("🎬", loc("tip_gif_title"), loc("tip_gif_body"), "tip_shown_gif")
+        case .textTemplate:
+            tip = ("💬", loc("tip_textTemplate_title"), loc("tip_textTemplate_body"), "tip_shown_textTemplate")
         default:
             tip = nil
         }
         guard let tip = tip else { return }
-        guard isPremiumUser else { return }  // locked tabs don't get a tip
+        // My List (textTemplate) is free for all users, so its tip shouldn't
+        // be gated behind premium like the other tabs' tips are.
+        if mode != .textTemplate {
+            guard isPremiumUser else { return }  // locked tabs don't get a tip
+        }
 
         if UserDefaults.standard.bool(forKey: tip.key) { return }
 
@@ -8440,6 +8475,19 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     private func showTip(emoji: String, title: String, body: String, flagKey: String) {
+        // Tear down any tip already on screen first. Without this, a second
+        // `showTip` call (e.g. from a queued 0.5s-delayed `showTipIfNeeded`
+        // while the user flips through tabs) would stack a new overlay on
+        // top of the old one — the old one's buttons would still fire, but
+        // `dismissTip`/`tipBackgroundTapped` only ever act on the single
+        // shared `tipOverlay`/`tipCard`, so the orphaned one below could
+        // never be removed by tapping it. This is a redraw, not a user
+        // dismissal, so it must NOT persist the "don't show again" flag —
+        // that's why this doesn't go through `dismissTip(persist:)`.
+        tipOverlay?.removeFromSuperview()
+        tipOverlay = nil
+        tipCard = nil
+
         // Dedicated overlay (alpha 0.5, vs makeOverlay's 0.3) so the tip reads
         // as a modal rather than the lighter popup-picker dimming.
         let overlay = UIView()
@@ -8489,15 +8537,40 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         bodyLabel.numberOfLines = 0
         stack.addArrangedSubview(bodyLabel)
 
-        let confirm = UIButton(type: .system)
-        confirm.setTitle(loc("ok_button"), for: .normal)
-        confirm.setTitleColor(.white, for: .normal)
-        confirm.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
-        confirm.backgroundColor = UIColor(red: 0x7F / 255, green: 0xC7 / 255, blue: 0xFF / 255, alpha: 1)
-        confirm.layer.cornerRadius = 12
-        confirm.setHeight(44)
-        confirm.addAction(UIAction { [weak self] _ in self?.dismissTip() }, for: .touchUpInside)
-        stack.addArrangedSubview(confirm)
+        // Two buttons side by side: "다시 안 보기" (persists the per-tab
+        // flag) and "닫기" (dismisses without persisting, same as a
+        // background tap — the tip shows again next time this tab opens).
+        let buttonRow = UIStackView()
+        buttonRow.axis = .horizontal
+        buttonRow.spacing = 8
+        buttonRow.distribution = .fillEqually
+
+        let dontShowBtn = UIButton(type: .system)
+        dontShowBtn.setTitle(loc("tip_dont_show_again"), for: .normal)
+        dontShowBtn.setTitleColor(.darkGray, for: .normal)
+        dontShowBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        dontShowBtn.titleLabel?.adjustsFontSizeToFitWidth = true
+        dontShowBtn.backgroundColor = UIColor(white: 0.92, alpha: 1)
+        dontShowBtn.layer.cornerRadius = 12
+        dontShowBtn.setHeight(44)
+        dontShowBtn.addAction(UIAction { [weak self] _ in
+            self?.dismissTip(persist: true)
+        }, for: .touchUpInside)
+        buttonRow.addArrangedSubview(dontShowBtn)
+
+        let closeBtn = UIButton(type: .system)
+        closeBtn.setTitle(loc("close_button"), for: .normal)
+        closeBtn.setTitleColor(.white, for: .normal)
+        closeBtn.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        closeBtn.backgroundColor = UIColor(red: 0x7F / 255, green: 0xC7 / 255, blue: 0xFF / 255, alpha: 1)
+        closeBtn.layer.cornerRadius = 12
+        closeBtn.setHeight(44)
+        closeBtn.addAction(UIAction { [weak self] _ in
+            self?.dismissTip(persist: false)
+        }, for: .touchUpInside)
+        buttonRow.addArrangedSubview(closeBtn)
+
+        stack.addArrangedSubview(buttonRow)
 
         tipOverlay = overlay
         tipCard = card
@@ -8509,11 +8582,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // surrounding dimmed background should.
         guard let overlay = tipOverlay, let card = tipCard else { return }
         if card.frame.contains(g.location(in: overlay)) { return }
-        dismissTip()
+        // Dismissing via background tap is the same as tapping "확인" without
+        // checking the box — the tip should show again next time.
+        dismissTip(persist: false)
     }
 
-    private func dismissTip() {
-        if let key = tipFlagKey {
+    private func dismissTip(persist: Bool) {
+        if persist, let key = tipFlagKey {
             UserDefaults.standard.set(true, forKey: key)
         }
         tipOverlay?.removeFromSuperview()

@@ -237,9 +237,12 @@
 "tip_fonts_title"     = "폰트 변경 방법";
 "tip_fonts_body"      = "텍스트를 선택한 후\n다른 폰트를 탭하면\n해당 폰트로 변경돼요!";
 "tip_translate_title" = "번역 기능 사용법";
-"tip_translate_body"  = "① 왼쪽 칸에 번역할 내용 입력\n② 번역 버튼 탭\n③ 삽입 버튼으로 채팅창에 바로 입력!\n\n💡 왼쪽 칸의 ✓ 버튼을 눌러야\n채팅창 내용을 수정할 수 있어요.";
+"tip_translate_body"  = "① 키보드 내 텍스트 칸에 번역할 내용 입력\n② 번역 버튼 탭\n③ 채팅창에 번역 결과가 바로 입력돼요!\n\n💡 텍스트 칸의 ✓ 버튼을 누르면\n채팅창 내용을 수정할 수 있어요.";
 "tip_gif_title"       = "GIF 사용법";
-"tip_gif_body"        = "원하는 GIF를 검색하고\n탭하면 자동으로 복사돼요.\n채팅창에 붙여넣기로 전송하세요!";
+"tip_gif_body"        = "원하는 GIF를 선택하면\n자동으로 복사돼요.\n채팅창에 붙여넣기로 전송하세요!";
+"tip_textTemplate_title" = "문장 저장하기";
+"tip_textTemplate_body"  = "자주 쓰는 문장을 드래그해서 선택하고\n'+추가'를 누르면 내 목록에 저장돼요!\n한글·이모지 모두 가능해요.";
+"tip_dont_show_again" = "다시 보지 않기";
 
 /* 즐겨찾기 액션 팝업 */
 "fav_add"    = "♥ 즐겨찾기 추가";
@@ -266,3 +269,4 @@
 /* 공통 */
 "ok_button"     = "확인";
 "cancel_button" = "취소";
+"close_button"  = "닫기";
