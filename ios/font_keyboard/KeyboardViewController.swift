@@ -8463,12 +8463,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             tip = nil
         }
         guard let tip = tip else { return }
-        // My List (textTemplate) is free for all users, so its tip shouldn't
-        // be gated behind premium like the other tabs' tips are.
-        if mode != .textTemplate {
-            guard isPremiumUser else { return }  // locked tabs don't get a tip
-        }
-
+        // Fonts/translate/GIF are usable by free users too (usage-limited,
+        // not tab-locked — see the free-tier exemptions in `showMode`), so
+        // their tips show for every user, same as My List. Per-tab
+        // `tip_shown_*` flags below are still what prevents repeat showings.
         if UserDefaults.standard.bool(forKey: tip.key) { return }
 
         showTip(emoji: tip.emoji, title: tip.title, body: tip.body, flagKey: tip.key)
