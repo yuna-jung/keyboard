@@ -4980,11 +4980,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         trBtn.addTarget(self, action: #selector(translateTriggered), for: .touchUpInside)
         bottom.addArrangedSubview(trBtn)
 
-        // Return/newline key — identical to the Aa-tab one (`returnTapped`,
-        // same selector, not a copy): sends "\n" straight to
-        // `textDocumentProxy` (the host app). It never touches
-        // `translateInputField`/`translateTargetAppend`, so it can't affect
-        // the translate input box.
+        // Return/newline key — same visual style as the Aa-tab one, but
+        // wired to `translateReturnTapped` (below) so it A/B-routes: host
+        // app when unfocused (defers to the unmodified `returnTapped`), or
+        // the translate input box itself when that field is focused.
         let returnBtn = makeSpecialKey("")
         returnBtn.setTitle("", for: .normal)
         let returnImage = UIImage(systemName: "return", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .medium))
@@ -4994,7 +4993,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             : specialKeyBG
         returnBtn.tintColor = .black
         returnBtn.setTitleColor(.black, for: .normal)
-        returnBtn.addTarget(self, action: #selector(returnTapped), for: .touchDown)
+        returnBtn.addTarget(self, action: #selector(translateReturnTapped), for: .touchDown)
         returnBtn.setWidth(50)
         bottom.addArrangedSubview(returnBtn)
 
@@ -6227,11 +6226,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         row1.addArrangedSubview(del)
         cheonjiinContainer.addArrangedSubview(row1)
 
-        // ── Row 2: ㄱㅋ⁴ ㄴㄹ⁵ ㄷㅌ⁶ + [🔍 | ⎵] ─────────────────────────
-        // 4th slot is host-dependent: fonts tab keeps the decorative
-        // magnifying-glass for iOS-native visual parity; translate tab
-        // surfaces a space key (translate-target-aware) since the standard
-        // bottom bar with its own space button is hidden in this mode.
+        // ── Row 2: ㄱㅋ⁴ ㄴㄹ⁵ ㄷㅌ⁶ + [col 4] ─────────────────────────
+        // Col 4 is host-dependent: fonts tab keeps ← (cursor-left); translate
+        // tab swaps in `.,?!` here (moved up from row 3) so row 3 can carry
+        // the new newline key instead. Jamo columns 1-3 are untouched and
+        // identical for both hosts.
         let row2 = UIStackView()
         row2.axis = .horizontal
         row2.distribution = .fillEqually
@@ -6239,35 +6238,54 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         row2.addArrangedSubview(makeJamoKey("ㄱㅋ", digit: "4"))
         row2.addArrangedSubview(makeJamoKey("ㄴㄹ", digit: "5"))
         row2.addArrangedSubview(makeJamoKey("ㄷㅌ", digit: "6"))
-        // Row 2 col 4 — ← cursor-left for BOTH hosts. Originally fonts
-        // had ← (caret nudge) and translate had ⎵ space; now translate
-        // mirrors fonts so rows 1-3 are identical across both tab
-        // contexts. The shared `cheonjiinCursorLeftTapped` handler
-        // flushes Hangul / cheonjiin engine state before moving the
-        // cursor, so the next jamo tap doesn't merge into the syllable
-        // the cursor just departed.
-        let arrowLeft = makeFnKey(title: "")
-        let leftImg = UIImage(systemName: "chevron.left",
-                              withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium))
-        arrowLeft.setImage(leftImg, for: .normal)
-        arrowLeft.tintColor = .darkText
-        if currentTheme == .retroCream && host == .fontsTab {
-            arrowLeft.backgroundColor = UIColor(red: 0.98, green: 0.75, blue: 0.80, alpha: 1)
+        switch host {
+        case .fontsTab:
+            // ← cursor-left — unchanged from before this edit. The shared
+            // `cheonjiinCursorLeftTapped` handler flushes Hangul / cheonjiin
+            // engine state before moving the cursor, so the next jamo tap
+            // doesn't merge into the syllable the cursor just departed.
+            let arrowLeft = makeFnKey(title: "")
+            let leftImg = UIImage(systemName: "chevron.left",
+                                  withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium))
+            arrowLeft.setImage(leftImg, for: .normal)
+            arrowLeft.tintColor = .darkText
+            if currentTheme == .retroCream && host == .fontsTab {
+                arrowLeft.backgroundColor = UIColor(red: 0.98, green: 0.75, blue: 0.80, alpha: 1)
+            }
+            if currentTheme == .cottonCandy {
+                arrowLeft.backgroundColor = UIColor(red: 0.98, green: 0.97, blue: 0.96, alpha: 1)
+            }
+            if currentTheme == .lavender {
+                arrowLeft.backgroundColor = keyBG
+            }
+            arrowLeft.addTarget(self, action: #selector(cheonjiinCursorLeftTapped), for: .touchDown)
+            row2.addArrangedSubview(arrowLeft)
+        case .translateTab:
+            // `.,?!` moved up here from row 3 to make room for the newline
+            // key below. Same punctuation-cycle handler as before, just
+            // relocated.
+            let punctUp = makeFnKey(title: ".,?!")
+            punctUp.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+            if currentTheme == .vintageGray {
+                punctUp.backgroundColor = specialKeyBG
+            }
+            if currentTheme == .cottonCandy {
+                punctUp.backgroundColor = UIColor(red: 0.98, green: 0.97, blue: 0.96, alpha: 1)
+            }
+            if currentTheme == .lavender {
+                punctUp.backgroundColor = keyBG
+            }
+            punctUp.addTarget(self, action: #selector(cheonjiinPunctTapped), for: .touchDown)
+            row2.addArrangedSubview(punctUp)
         }
-        if currentTheme == .vintageGray && host == .translateTab {
-            arrowLeft.backgroundColor = specialKeyBG
-        }
-        if currentTheme == .cottonCandy {
-            arrowLeft.backgroundColor = UIColor(red: 0.98, green: 0.97, blue: 0.96, alpha: 1)
-        }
-        if currentTheme == .lavender {
-            arrowLeft.backgroundColor = keyBG
-        }
-        arrowLeft.addTarget(self, action: #selector(cheonjiinCursorLeftTapped), for: .touchDown)
-        row2.addArrangedSubview(arrowLeft)
         cheonjiinContainer.addArrangedSubview(row2)
 
-        // ── Row 3: ㅂㅍ⁷ ㅅㅎ⁸ ㅈㅊ⁹ .,?! ─────────────────────────
+        // ── Row 3: ㅂㅍ⁷ ㅅㅎ⁸ ㅈㅊ⁹ + [col 4] ─────────────────────────
+        // Col 4 is host-dependent: fonts tab keeps `.,?!` (unchanged);
+        // translate tab gets a newline key here instead, routed through the
+        // same `translateReturnTapped` the 두벌식 bottom bar's enter key
+        // already uses (A/B-routes: input box when focused, host app
+        // otherwise — reused as-is, not duplicated).
         let row3 = UIStackView()
         row3.axis = .horizontal
         row3.distribution = .fillEqually
@@ -6275,22 +6293,39 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         row3.addArrangedSubview(makeJamoKey("ㅂㅍ", digit: "7"))
         row3.addArrangedSubview(makeJamoKey("ㅅㅎ", digit: "8"))
         row3.addArrangedSubview(makeJamoKey("ㅈㅊ", digit: "9"))
-        let punct = makeFnKey(title: ".,?!")
-        punct.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-        if currentTheme == .retroCream && host == .fontsTab {
-            punct.backgroundColor = UIColor(red: 0.98, green: 0.75, blue: 0.80, alpha: 1)
+        switch host {
+        case .fontsTab:
+            let punct = makeFnKey(title: ".,?!")
+            punct.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+            if currentTheme == .retroCream && host == .fontsTab {
+                punct.backgroundColor = UIColor(red: 0.98, green: 0.75, blue: 0.80, alpha: 1)
+            }
+            if currentTheme == .cottonCandy {
+                punct.backgroundColor = UIColor(red: 0.98, green: 0.97, blue: 0.96, alpha: 1)
+            }
+            if currentTheme == .lavender {
+                punct.backgroundColor = keyBG
+            }
+            punct.addTarget(self, action: #selector(cheonjiinPunctTapped), for: .touchDown)
+            row3.addArrangedSubview(punct)
+        case .translateTab:
+            let returnBtn = makeFnKey(title: "")
+            let returnImg = UIImage(systemName: "return",
+                                    withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium))
+            returnBtn.setImage(returnImg, for: .normal)
+            returnBtn.tintColor = .darkText
+            if currentTheme == .vintageGray {
+                returnBtn.backgroundColor = specialKeyBG
+            }
+            if currentTheme == .cottonCandy {
+                returnBtn.backgroundColor = UIColor(red: 0.98, green: 0.97, blue: 0.96, alpha: 1)
+            }
+            if currentTheme == .lavender {
+                returnBtn.backgroundColor = keyBG
+            }
+            returnBtn.addTarget(self, action: #selector(translateReturnTapped), for: .touchDown)
+            row3.addArrangedSubview(returnBtn)
         }
-        if currentTheme == .vintageGray && host == .translateTab {
-            punct.backgroundColor = specialKeyBG
-        }
-        if currentTheme == .cottonCandy {
-            punct.backgroundColor = UIColor(red: 0.98, green: 0.97, blue: 0.96, alpha: 1)
-        }
-        if currentTheme == .lavender {
-            punct.backgroundColor = keyBG
-        }
-        punct.addTarget(self, action: #selector(cheonjiinPunctTapped), for: .touchDown)
-        row3.addArrangedSubview(punct)
         cheonjiinContainer.addArrangedSubview(row3)
 
         // ── Row 4: host-dependent ───────────────────────────────────────
@@ -6718,6 +6753,51 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
     }
 
+    /// Return/newline for the translate tab — routes through the same
+    /// `translateTargetsHostApp` flag `translateTargetAppend`/
+    /// `translateTargetRemoveLast` already use, so it's consistent with
+    /// every other A/B decision in this tab.
+    ///
+    /// Host-app target: just defers to the existing `returnTapped()`
+    /// (unchanged, reused as-is).
+    ///
+    /// Input-box target: deliberately does NOT call
+    /// `translateTargetAppend("\n")` — `UITextView.insertText(_:)` goes
+    /// through `UITextViewDelegate.textView(_:shouldChangeTextIn:...)`,
+    /// which explicitly rejects "\n" (treats it as "dismiss focus", see
+    /// that delegate method). Mutating `.text` directly bypasses that
+    /// delegate entirely, so this instead appends "\n" to the text itself
+    /// and replicates the same bookkeeping `textViewDidChange` does
+    /// (character cap, counter label, placeholder visibility) since a
+    /// direct `.text` assignment doesn't trigger that callback either.
+    @objc private func translateReturnTapped() {
+        guard !translateTargetsHostApp else {
+            returnTapped()
+            return
+        }
+        // Finalize any in-progress Hangul/cheonjiin composition before
+        // mutating `.text` directly below. `hgFlush()`/`cjjReset()` only
+        // reset the composer's own index state (hgCho/hgJung/hgJong,
+        // cjjLastGroup, etc.) — they never touch `field.text` or
+        // `textDocumentProxy`, so they're safe for either A or B target,
+        // same as `returnTapped()` already relies on. Without this, the
+        // composer keeps believing it's still mid-syllable (e.g. "요")
+        // after the newline is appended, so the next keystroke's
+        // `hgReplaceLast` deletes the just-inserted "\n" instead of the
+        // syllable it thinks is still last — producing duplicated/garbled
+        // characters.
+        hgFlush()
+        cjjReset()
+        guard let field = translateInputField else { return }
+        var newText = (field.text ?? "") + "\n"
+        if newText.count > 200 { newText = String(newText.prefix(200)) }
+        field.text = newText
+        translationInput = newText
+        let cnt = newText.count
+        translateCounterLabel?.text = "\(cnt) / 200"
+        translateCounterLabel?.textColor = cnt >= 180 ? .systemRed : .lightGray
+        translatePlaceholderLabel?.isHidden = !newText.isEmpty
+    }
 
     private func hgReplaceLast(_ s: String) {
         translateTargetRemoveLast()
@@ -6981,6 +7061,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     "- Avoid translations that sound robotic, awkward, overly literal, rude, or unnecessarily formal.\n" +
                     "- Keep the emotional intensity similar to the original. Do not exaggerate or weaken the emotion.\n" +
                     "- If the input contains emojis, keep them and place them naturally in the translated text. Do not remove or add emojis.\n" +
+                    "- If the input contains line breaks, preserve the same line break structure in the translated output.\n" +
                     "- If the input is already in the target language and does not require translation, return it unchanged.\n" +
                     "- If the input cannot be meaningfully translated (e.g., only symbols, numbers, or a URL), return it unchanged.\n" +
                     "- Output only the translated text. Do not add explanations, quotation marks, labels, or language names.\n" +
