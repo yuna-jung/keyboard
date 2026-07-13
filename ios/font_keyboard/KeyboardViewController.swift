@@ -4980,6 +4980,24 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         trBtn.addTarget(self, action: #selector(translateTriggered), for: .touchUpInside)
         bottom.addArrangedSubview(trBtn)
 
+        // Return/newline key — identical to the Aa-tab one (`returnTapped`,
+        // same selector, not a copy): sends "\n" straight to
+        // `textDocumentProxy` (the host app). It never touches
+        // `translateInputField`/`translateTargetAppend`, so it can't affect
+        // the translate input box.
+        let returnBtn = makeSpecialKey("")
+        returnBtn.setTitle("", for: .normal)
+        let returnImage = UIImage(systemName: "return", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .medium))
+        returnBtn.setImage(returnImage, for: .normal)
+        returnBtn.backgroundColor = currentTheme == .retroCream
+            ? UIColor(red: 0.98, green: 0.75, blue: 0.80, alpha: 1)
+            : specialKeyBG
+        returnBtn.tintColor = .black
+        returnBtn.setTitleColor(.black, for: .normal)
+        returnBtn.addTarget(self, action: #selector(returnTapped), for: .touchDown)
+        returnBtn.setWidth(50)
+        bottom.addArrangedSubview(returnBtn)
+
         container.addArrangedSubview(bottom)
         translateBottomBar = bottom
     }
