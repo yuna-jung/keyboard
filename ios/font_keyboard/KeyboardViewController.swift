@@ -2540,20 +2540,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // Translate keeps its own messaging (distinguishes lifetime from free).
         // Trial users have isPremiumUser=true but canTranslateUnlimited=false
-        // — they must reach `translateTriggered` so the 5/day counter applies,
+        // — they must reach `translateTriggered` so the 30/day counter applies,
         // so we gate on tier/membership here, not on the unlimited flag.
+        // Hard paywall gating for the free tier lives in `translateTriggered`
+        // (the action), NOT here — a tab-entry guard that calls
+        // showLockedOverlay() gets re-triggered every time
+        // dismissLockedOverlay() rebuilds the tab via showMode(currentMode),
+        // recreating the overlay forever (the bug fixed in My List/favorites).
         if mode == .translate {
             checkPremiumStatus()
             if userTier == "lifetime" {
                 showToast(loc("toast_translate_monthly"))
-                return
-            }
-            // Hard paywall: free tier's daily quota is 0 (see `maxCount` in
-            // translateTriggered), so there's nothing useful to do inside the
-            // tab — block entry outright instead of letting them type into a
-            // dead-end input box.
-            if !isPremiumUser {
-                showLockedOverlay()
                 return
             }
             showMode(mode)
@@ -3708,13 +3705,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // ── My List branch ──────────────────────────────────────────────────
         if selectedCat.sections.isEmpty {
-            // Hard paywall: My List (custom saved phrases) is premium-only.
-            guard isPremiumUser else {
-                showLockedOverlay()
-                return
-            }
+            // Hard paywall: My List is premium-only, but gated per-item (tap
+            // → showLockedOverlay) rather than at tab entry — a full-tab
+            // guard here would call showLockedOverlay() from inside
+            // buildTextTemplateMode(), which dismissLockedOverlay() re-enters
+            // via `showMode(currentMode)`, recreating the same overlay forever.
             let addBtn = UIButton(type: .system)
-            addBtn.setTitle(NSLocalizedString("text_replace_add", bundle: extBundle, comment: ""), for: .normal)
+            addBtn.setTitle(NSLocalizedString("text_replace_add", bundle: extBundle, comment: "") + (isPremiumUser ? "" : " 👑"), for: .normal)
             addBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
             addBtn.backgroundColor = accentColor
             addBtn.setTitleColor(.white, for: .normal)
@@ -3756,15 +3753,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
             let phrases = loadFavList(Self.myPhrasesKey)
             for (idx, phrase) in phrases.enumerated() {
+                let isLocked = !isPremiumUser
                 let btn = UIButton(type: .system)
                 btn.tag = idx
-                btn.setTitle(phrase, for: .normal)
+                btn.setTitle(phrase + (isLocked ? " 👑" : ""), for: .normal)
                 btn.titleLabel?.font = .systemFont(ofSize: 14)
                 btn.titleLabel?.lineBreakMode = .byTruncatingTail
                 btn.contentHorizontalAlignment = .left
                 btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
                 btn.backgroundColor = .white
-                btn.setTitleColor(.darkGray, for: .normal)
+                btn.setTitleColor(isLocked ? UIColor.systemGray3 : .darkGray, for: .normal)
+                btn.alpha = isLocked ? 0.6 : 1.0
                 btn.layer.cornerRadius = 8
                 btn.layer.borderWidth = 0.5
                 btn.layer.borderColor = UIColor(white: 0.85, alpha: 1).cgColor
@@ -3914,6 +3913,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func myListAddTapped() {
+        guard isPremiumUser else {
+            showLockedOverlay()
+            return
+        }
         let isKo = Locale.current.language.languageCode?.identifier == "ko"
 
         // Path 1: host app has a text selection — save it directly, no need
@@ -3970,6 +3973,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func myListItemTapped(_ s: UIButton) {
+        guard isPremiumUser else {
+            showLockedOverlay()
+            return
+        }
         let phrases = loadFavList(Self.myPhrasesKey)
         guard s.tag < phrases.count else { return }
         textDocumentProxy.insertText(phrases[s.tag])
@@ -4033,6 +4040,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func favTextReplaceTapped(_ s: UIButton) {
+        guard isPremiumUser else {
+            showLockedOverlay()
+            return
+        }
         let items = loadFavList(Self.favKeyTextReplace)
         guard s.tag < items.count else { return }
         textDocumentProxy.insertText(items[s.tag])
@@ -6959,6 +6970,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func translateTriggered() {
+        // Hard paywall: free tier can view/type in the translate tab (see
+        // modeTapped) but can't actually run a translation. Gated here (the
+        // action), not in buildTranslateMode (the screen) — see the comment
+        // at modeTapped's `.translate` branch for why that distinction matters.
+        guard isPremiumUser else {
+            showLockedOverlay()
+            return
+        }
         // ORIGINAL: guard !translationInput.isEmpty else { return }
         // Try reading the active text field's content via textDocumentProxy first.
         // ORIGINAL: guard !translationInput.isEmpty else { return }
@@ -7311,11 +7330,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Favorites Mode (♥)
 
     private func buildFavoritesMode() {
-        // Hard paywall: the favorites tab is premium-only.
-        guard isPremiumUser else {
-            showLockedOverlay()
-            return
-        }
+        // Hard paywall: favorites is premium-only, but gated per-item (tap →
+        // showLockedOverlay) rather than at tab entry — see the My List
+        // branch comment in buildTextTemplateMode for why a full-tab guard
+        // here breaks the overlay's ✕ button (dismissLockedOverlay() calls
+        // showMode(currentMode), which would re-enter this same guard).
         contentView.subviews.forEach { $0.removeFromSuperview() }
 
         let emoFavs    = loadFavList(Self.favKeyEmoticon)
@@ -8512,12 +8531,20 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func favoriteTapped(_ s: UIButton) {
+        guard isPremiumUser else {
+            showLockedOverlay()
+            return
+        }
         guard let text = s.title(for: .normal) else { return }
         textDocumentProxy.insertText(text)
         tapFeedback(s)
     }
 
     @objc private func favDotArtTapped(_ s: UIButton) {
+        guard isPremiumUser else {
+            showLockedOverlay()
+            return
+        }
         let dotArtFavs = loadFavList(Self.favKeyDotArt)
         guard s.tag < dotArtFavs.count else { return }
         textDocumentProxy.insertText(dotArtFavs[s.tag])
@@ -8525,6 +8552,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func favGifTapped(_ s: UIButton) {
+        guard isPremiumUser else {
+            showLockedOverlay()
+            return
+        }
         let gifFavs = loadFavList(Self.favKeyGif)
         guard s.tag < gifFavs.count, let url = URL(string: gifFavs[s.tag]) else { return }
         showToast(loc("toast_gif_downloading"))
