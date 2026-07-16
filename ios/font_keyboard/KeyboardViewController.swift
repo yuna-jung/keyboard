@@ -768,6 +768,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// holding the user's favorited fonts (if any) in the order saved.
     private let freeFontNames: Set<String> = ["Normal", "Bold", "Italic", "Sans", "Script"]
 
+    /// Hard paywall: free tier gets zero free fonts (all of `freeFontNames`
+    /// are premium-only). Flip the ternary to restore the old 5-free-fonts tier.
+    private var effectiveFreeFontNames: Set<String> { isPremiumUser ? freeFontNames : [] }
+
     private func displayFontName(_ style: FontStyleDef) -> String {
         // 특수 변환(closure 기반, 시각적으로 이상해지는 것)은 이름 그대로 표시
         let special: Set<String> = ["Flip", "Cloudy", "Box", "Candy"]
@@ -2306,7 +2310,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                                        },
                                        scrollTag: 100,
                                        fullBottomBar: true,
-                                       freeCount: 4)
+                                       freeCount: isPremiumUser ? 4 : 0)
         case .special:   buildGridMode(categories: specialCategories,
                                        selected: selectedSpecialCat,
                                        cols: 4, fontSize: 22,
@@ -2315,7 +2319,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                                            self?.showMode(.special)
                                        },
                                        scrollTag: 200,
-                                       freeCount: 6)
+                                       freeCount: isPremiumUser ? 6 : 0)
         case .dotArt:    buildDotArtMode()
         case .gif:       buildGifMode()
         case .translate: buildTranslateMode()
@@ -2542,6 +2546,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             checkPremiumStatus()
             if userTier == "lifetime" {
                 showToast(loc("toast_translate_monthly"))
+                return
+            }
+            // Hard paywall: free tier's daily quota is 0 (see `maxCount` in
+            // translateTriggered), so there's nothing useful to do inside the
+            // tab — block entry outright instead of letting them type into a
+            // dead-end input box.
+            if !isPremiumUser {
+                showLockedOverlay()
                 return
             }
             showMode(mode)
@@ -2983,7 +2995,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         ])
         let styles = visibleCats.isEmpty ? [] : visibleCats[safeCatIndex].1
         for (i, style) in styles.enumerated() {
-            let isLocked = !isPremiumUser && !freeFontNames.contains(style.name)
+            let isLocked = !isPremiumUser && !effectiveFreeFontNames.contains(style.name)
             let btn = UIButton(type: .system)
             btn.setTitle(displayFontName(style) + (isLocked ? " 👑" : ""), for: .normal)
             btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
@@ -3570,7 +3582,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             rowStack.spacing = 4
             for (colIdx, text) in row.enumerated() {
                 let globalIdx = rowIdx * cols + colIdx
-                let isLocked = !isPremiumUser && globalIdx >= 5
+                let isLocked = !isPremiumUser && globalIdx >= (isPremiumUser ? 5 : 0)
                 let btn = UIButton(type: .custom)
                 btn.tag = globalIdx
                 btn.backgroundColor = .white
@@ -3696,6 +3708,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         // ── My List branch ──────────────────────────────────────────────────
         if selectedCat.sections.isEmpty {
+            // Hard paywall: My List (custom saved phrases) is premium-only.
+            guard isPremiumUser else {
+                showLockedOverlay()
+                return
+            }
             let addBtn = UIButton(type: .system)
             addBtn.setTitle(NSLocalizedString("text_replace_add", bundle: extBundle, comment: ""), for: .normal)
             addBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
@@ -3837,7 +3854,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let items = safeSection >= 0 ? cat.sections[safeSection].items : []
 
         for (idx, item) in items.enumerated() {
-            let isLocked = !isPremiumUser && idx >= 3
+            let isLocked = !isPremiumUser && idx >= (isPremiumUser ? 3 : 0)
             let btn = UIButton(type: .system)
             btn.tag = idx
             fandomItemOutputs[idx] = item.output
@@ -3879,7 +3896,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func fandomItemTapped(_ s: UIButton) {
         print("🔥 [fandomItemTapped] tag=\(s.tag) isPremiumUser=\(isPremiumUser)")
-        if !isPremiumUser && s.tag >= 3 {
+        if !isPremiumUser && s.tag >= (isPremiumUser ? 3 : 0) {
             showLockedOverlay()
             return
         }
@@ -4669,7 +4686,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let today = df.string(from: Date())
             let storedDate = defaults?.string(forKey: "free_gif_date")
             var count = (storedDate == today) ? (defaults?.integer(forKey: "free_gif_count") ?? 0) : 0
-            if count >= 5 {
+            if count >= (isPremiumUser ? 5 : 0) {
                 showLockedOverlay()
                 return
             }
@@ -7027,7 +7044,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             ? (defaults?.integer(forKey: "translateDailyCount") ?? 0)
             : 0
 
-        let maxCount = canTranslateUnlimited ? 300 : 5
+        // 3-tier quota: full (non-trial) premium subscribers are unlimited-ish
+        // at 300/day; `can_translate_unlimited` is specifically false for
+        // trial subscribers (see subscription_service.dart _isInFreeTrial),
+        // so `isPremiumUser` (true for both trial and full premium) is what
+        // separates trial (30/day) from the free tier (0/day).
+        let maxCount = canTranslateUnlimited ? 300 : (isPremiumUser ? 30 : 0)
         if count >= maxCount {
             if canTranslateUnlimited {
                 showToast("오늘 번역 한도를 모두 사용했어요.")
@@ -7042,58 +7064,120 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         defaults?.set(today, forKey: "translateDailyDate")
 
         let srcLang = translateLangs[sourceLangIndex].1
+        let systemPrompt = """
+        You are a professional chat translation assistant for messaging apps, social media, and K-pop fan communities.
+
+        Translate the user's message from \(srcLang) to \(tgtLang).
+
+        Follow this priority order:
+        1. Preserve the original meaning and intended message.
+        2. Preserve the original tone, emotion, politeness, and communication style.
+        3. Preserve the user's formatting and expressive cues.
+        4. Make the translation sound natural to native speakers.
+        5. Rewrite the wording or sentence structure only when necessary for naturalness.
+
+        CORE TRANSLATION RULES
+        - Translate the intended meaning, not individual words or the source-language sentence structure.
+        - Write the translation as something a native speaker would naturally send in a real chat, comment, or social media post.
+        - Do not produce wording that sounds robotic, awkward, overly literal, or unnecessarily formal.
+        - Do not omit meaningful information from the source.
+        - Do not add information, implications, emotions, humor, or reactions that are not present in the source.
+        - Do not make the message cuter, funnier, friendlier, ruder, more affectionate, or more dramatic than the source.
+        - Keep the emotional intensity at the same level as the source.
+        - When the relationship or situation is unclear, use the most neutral and commonly used natural chat expression. Do not invent intimacy or formality.
+
+        STYLE AND FORMAT PRESERVATION
+        - Never add laughter such as ㅋㅋ, ㅎㅎ, haha, hehe, lol, lmao, or similar expressions unless laughter is present in the source.
+        - Never remove laughter that is present in the source. Translate it into the natural equivalent in the target language while preserving its intensity as closely as possible.
+        - Never add, remove, or replace emojis unless necessary to place the same emoji naturally in the translated sentence.
+        - Preserve repeated letters and exaggerated spelling when they express emotion, such as "HELPPPP", "noooo", or "제발ㄹㄹ".
+        - Preserve the original line-break structure.
+        - Preserve question marks, exclamation marks, ellipses, and other meaningful punctuation as closely as natural usage allows.
+        - Do not add a period when the source has no ending punctuation unless the target language absolutely requires it.
+        - If the text is already in the target language and requires no translation, return it unchanged.
+        - If the input contains only symbols, numbers, emojis, or a URL and has no translatable meaning, return it unchanged.
+
+        SLANG, MEMES, AND IDIOMS
+        - Before translating, determine whether an expression is literal, idiomatic, slang, a meme, or a culturally specific expression.
+        - If an expression is idiomatic, slang, or a meme, translate its intended conversational meaning rather than its individual words.
+        - Do not explain the expression or add notes.
+        - Do not preserve a meme literally when the literal wording would confuse native speakers of the target language.
+        - When possible, use a natural equivalent expression used by native speakers.
+        - If no direct equivalent exists, communicate the intended meaning naturally without inventing extra humor or emotion.
+        - Expressions ending in "challenge" may be playful social-media comments rather than official challenge names. Infer the intended teasing or joking meaning from the full sentence instead of translating each word separately.
+
+        K-POP AND FANDOM LANGUAGE
+        - This translator is frequently used by K-pop fans on Instagram, TikTok, X, YouTube, Weverse, Bubble, Discord, and similar platforms.
+        - Interpret fandom terms according to how fans actually use them, not according to dictionary definitions.
+        - Examples include bias, bias wrecker, comeback, stan, maknae, oppa, unnie, visual, era, ending fairy, fan meeting, debut, fancam, and similar terms.
+        - Preserve the warmth, excitement, admiration, teasing, and emotional tone of fan culture without exaggerating them.
+        - Do not automatically translate fandom slang literally when it has a recognized figurative meaning.
+
+        DIRECT ADDRESS AND PERSON NAMES
+        - When a person's name appears, first determine whether the person is being directly addressed or merely mentioned as a third party.
+        - Prioritize conversational intent over literal word order or punctuation.
+        - Treat the person as being directly addressed when the message speaks to them through a request, command, greeting, question, compliment, thanks, encouragement, confession, affectionate statement, or emotional reaction.
+        - A name may be a direct address even when it appears at the end of an informal sentence or has no comma.
+        - Requests such as "say hi to me", "notice me", "look at me", "wave at me", "smile", "marry me", "come to my country", and similar expressions are normally directed to the named person in fan comments.
+        - Do not incorrectly reinterpret the named person as the recipient of an indirect command such as "tell that person to do something" unless the sentence clearly expresses that meaning.
+        - When translating a direct address into Korean, use the person's name naturally as Korean fans would.
+        - Add -아 or -야 only when it sounds natural for that specific name and context.
+        - Nicknames, stage names, and full names may naturally remain without -아 or -야 when adding it would sound awkward.
+        - When the person is only being mentioned as a third party, do not use a vocative form.
+
+        POLITENESS
+        - If the target language has multiple politeness levels, infer the most natural level from the original wording and context.
+        - Do not automatically use formal language.
+        - Do not automatically use casual language.
+        - Preserve explicit politeness, affection, distance, or respect expressed in the source.
+        - When the context is unclear, choose a neutral everyday chat style rather than an unusually formal or intimate style.
+
+        OUTPUT
+        - Output only the translated text.
+        - Do not include explanations, quotation marks, labels, alternatives, language names, or introductory text.
+        """
         let body: [String: Any] = [
             "model": "gpt-4o-mini",
             "messages": [
-                ["role": "system", "content":
-                    "You are a professional chat translation assistant.\n" +
-                    "Your goal is to make every translation sound like something a native speaker would naturally type in a real conversation, not like a machine translation.\n" +
-                    "\n" +
-                    "Rules:\n" +
-                    "- When translating short chat messages, prioritize the wording that native speakers are most likely to actually send in messaging apps or on social media.\n" +
-                    "- Preserve the intended meaning, emotion, and nuance rather than translating literally.\n" +
-                    "- Naturalness is more important than word-for-word accuracy. If a literal translation sounds unnatural, rewrite it into the expression a native speaker would naturally use while preserving the original intent.\n" +
-                    "- Never translate idioms, slang, memes, humor, or culturally specific expressions literally. Translate their intended meaning naturally instead.\n" +
-                    "- When fandom-specific terms appear (e.g., bias, comeback, stan, oppa, unnie, maknae, visual, era, debut, fan meeting), translate them the way fans naturally use them rather than using dictionary definitions. Preserve the emotional tone of fan culture.\n" +
-                    "- Infer the relationship and context between the speakers from the wording whenever possible.\n" +
-                    "- If the target language has multiple politeness levels (such as Korean, Japanese, German, French, or Spanish), choose the level of politeness native speakers would naturally use in that situation. Do not default to overly formal language; use casual or affectionate tone when the context calls for it.\n" +
-                    "- When the relationship or context is unclear, choose the version that sounds the most natural in everyday messaging.\n" +
-                    "- Avoid translations that sound robotic, awkward, overly literal, rude, or unnecessarily formal.\n" +
-                    "- Keep the emotional intensity similar to the original. Do not exaggerate or weaken the emotion.\n" +
-                    "- If the input contains emojis, keep them and place them naturally in the translated text. Do not remove or add emojis.\n" +
-                    "- If the input contains line breaks, preserve the same line break structure in the translated output.\n" +
-                    "- If the input is already in the target language and does not require translation, return it unchanged.\n" +
-                    "- If the input cannot be meaningfully translated (e.g., only symbols, numbers, or a URL), return it unchanged.\n" +
-                    "- Output only the translated text. Do not add explanations, quotation marks, labels, or language names.\n" +
-                    "\n" +
-                    "(The examples below illustrate the translation style and principles. Apply the same approach to any language pair, in either direction.)\n" +
-                    "\n" +
-                    "Examples:\n" +
-                    "You made my day.\n" +
-                    "→ 덕분에 오늘 하루가 정말 행복했어요.\n" +
-                    "This lives rent free in my head.\n" +
-                    "→ 계속 머릿속에서 맴돌아요.\n" +
-                    "It's giving main character energy.\n" +
-                    "→ 완전 주인공 포스야.\n" +
-                    "Your comeback stage was everything.\n" +
-                    "→ 이번 컴백 무대 진짜 최고였어.\n" +
-                    "나 지금 가는 중\n" +
-                    "→ I'm on my way.\n" +
-                    "잘 부탁드립니다.\n" +
-                    "→ I look forward to working with you.\n" +
-                    "행복하자 우리\n" +
-                    "→ Let's be happy, always.\n" +
-                    "She ate and left no crumbs.\n" +
-                    "→ 진짜 제대로 해냈어.\n" +
-                    "You ate that up.\n" +
-                    "→ 완전 잘했어.\n" +
-                    "Slay.\n" +
-                    "→ 대박이야.\n" +
-                    "He's so babygirl.\n" +
-                    "→ 완전 사랑스러워.\n" +
-                    "\n" +
-                    "Translate the following chat message from \(srcLang) to \(tgtLang)."
-                ],
+                ["role": "system", "content": systemPrompt],
+                // 1-3: 자연스러운 의역 / 팬덤 슬랭
+                ["role": "user", "content": "This lives rent free in my head"],
+                ["role": "assistant", "content": "계속 머릿속에서 맴돌아"],
+                ["role": "user", "content": "She ate and left no crumbs"],
+                ["role": "assistant", "content": "진짜 제대로 해냈어"],
+                ["role": "user", "content": "He's so babygirl"],
+                ["role": "assistant", "content": "완전 사랑스러워"],
+                // 4-5: SNS challenge 표현
+                ["role": "user", "content": "Stop being so perfect challenge"],
+                ["role": "assistant", "content": "완벽한 거 좀 그만해봐"],
+                ["role": "user", "content": "Try not to laugh challenge"],
+                ["role": "assistant", "content": "안 웃기 챌린지"],
+                // 6-8: 이름이 문장 끝에 있어도 직접 호명으로 판단
+                ["role": "user", "content": "say hi to me, jhope please"],
+                ["role": "assistant", "content": "제이홉 제발 나한테 인사해줘"],
+                ["role": "user", "content": "i love you so much jimin"],
+                ["role": "assistant", "content": "지민아 진짜 너무 사랑해"],
+                ["role": "user", "content": "please notice my comment mark"],
+                ["role": "assistant", "content": "마크야 제발 내 댓글 좀 봐줘"],
+                // 9-10: 이름이 제3자로 언급되는 경우
+                ["role": "user", "content": "I watched Jungkook's live"],
+                ["role": "assistant", "content": "정국이 라이브 봤어"],
+                ["role": "user", "content": "Felix made me laugh"],
+                ["role": "assistant", "content": "필릭스 때문에 웃었어"],
+                // 11-14: 원문에 없는 웃음 표현 추가 금지
+                ["role": "user", "content": "I love you"],
+                ["role": "assistant", "content": "사랑해"],
+                ["role": "user", "content": "I love you lol"],
+                ["role": "assistant", "content": "사랑해ㅋㅋ"],
+                ["role": "user", "content": "Really?"],
+                ["role": "assistant", "content": "진짜?"],
+                ["role": "user", "content": "Really?? 😭"],
+                ["role": "assistant", "content": "진짜?? 😭"],
+                // 15-16: 반대 방향 번역 스타일
+                ["role": "user", "content": "나 지금 가는 중"],
+                ["role": "assistant", "content": "I'm on my way"],
+                ["role": "user", "content": "너무 웃겨ㅋㅋ"],
+                ["role": "assistant", "content": "You're so funny lol"],
                 ["role": "user", "content": effectiveInput],
             ],
             "max_tokens": 500,
@@ -7227,6 +7311,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Favorites Mode (♥)
 
     private func buildFavoritesMode() {
+        // Hard paywall: the favorites tab is premium-only.
+        guard isPremiumUser else {
+            showLockedOverlay()
+            return
+        }
         contentView.subviews.forEach { $0.removeFromSuperview() }
 
         let emoFavs    = loadFavList(Self.favKeyEmoticon)
@@ -7908,7 +7997,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let styles = cats.isEmpty ? [] : cats[safeCat].1
         print("🔥 [styleTapped] tag=\(s.tag) isPremiumUser=\(isPremiumUser) styleName=\(s.tag < styles.count ? styles[s.tag].name : "oob")")
         if !isPremiumUser {
-            if s.tag < styles.count && !freeFontNames.contains(styles[s.tag].name) {
+            if s.tag < styles.count && !effectiveFreeFontNames.contains(styles[s.tag].name) {
                 showLockedOverlay()
                 return
             }
@@ -8037,7 +8126,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let styleName = styles[btn.tag].name
 
         // Block favorites for locked fonts
-        if !isPremiumUser && !freeFontNames.contains(styleName) {
+        if !isPremiumUser && !effectiveFreeFontNames.contains(styleName) {
             showLockedOverlay()
             return
         }
@@ -8226,7 +8315,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let startIdx = rowIdx * cols
             for (colIdx, style) in rowStyles.enumerated() {
                 let styleIdx = startIdx + colIdx
-                let isLocked = !isPremiumUser && !freeFontNames.contains(style.name)
+                let isLocked = !isPremiumUser && !effectiveFreeFontNames.contains(style.name)
                 let btn = UIButton(type: .system)
                 btn.setTitle(displayFontName(style) + (isLocked ? " 👑" : ""), for: .normal)
                 btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
@@ -8266,7 +8355,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let safeCat = min(fontCatIndex, max(cats.count - 1, 0))
         let styles = cats.isEmpty ? [] : cats[safeCat].1
         if !isPremiumUser {
-            if s.tag < styles.count && !freeFontNames.contains(styles[s.tag].name) {
+            if s.tag < styles.count && !effectiveFreeFontNames.contains(styles[s.tag].name) {
                 fontPickerExpanded = false
                 showLockedOverlay()
                 return
@@ -8313,8 +8402,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         print("🔥 [gridItemTapped] tag=\(s.tag) isPremiumUser=\(isPremiumUser) mode=\(currentMode)")
         if !isPremiumUser {
             let limit: Int
-            if currentMode == .emoticon { limit = 4 }
-            else if currentMode == .special { limit = 6 }
+            if currentMode == .emoticon { limit = isPremiumUser ? 4 : 0 }
+            else if currentMode == .special { limit = isPremiumUser ? 6 : 0 }
             else { limit = Int.max }
             if s.tag >= limit {
                 showLockedOverlay()
@@ -8330,7 +8419,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func dotArtTapped(_ s: UIButton) {
-        if !isPremiumUser && s.tag >= 5 {
+        if !isPremiumUser && s.tag >= (isPremiumUser ? 5 : 0) {
             showLockedOverlay()
             return
         }
