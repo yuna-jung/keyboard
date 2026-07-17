@@ -138,7 +138,13 @@ class _PaywallObserver extends AdaptyUIPaywallsEventsObserver {
   }
 
   @override
-  void paywallViewDidFailRestore(AdaptyUIPaywallView view, AdaptyError error) {}
+  void paywallViewDidFailRestore(AdaptyUIPaywallView view, AdaptyError error) {
+    if (!context.mounted) return;
+    final l = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.paywallErrorRestore)),
+    );
+  }
 
   @override
   void paywallViewDidFailRendering(AdaptyUIPaywallView view, AdaptyError error) {
