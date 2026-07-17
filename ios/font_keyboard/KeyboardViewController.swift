@@ -6991,7 +6991,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let tgtLang = translateLangs[targetLangIndex].1
         let containsKorean = effectiveInput.unicodeScalars.contains { $0.value >= 0xAC00 && $0.value <= 0xD7A3 }
         let containsLatin = effectiveInput.unicodeScalars.contains { ($0.value >= 0x41 && $0.value <= 0x5A) || ($0.value >= 0x61 && $0.value <= 0x7A) }
-        if tgtLang == "Korean" && containsKorean {
+        // `!containsLatin` mirrors the English branch below — without it,
+        // a mostly-English sentence with a single Korean word mixed in
+        // (extremely common in this app's K-pop fandom context, e.g. "I
+        // love 지민 so much") was treated as "already Korean" and passed
+        // through completely untranslated. That's the actual cause behind
+        // the "translation occasionally shows the original English"
+        // reports — not a silent API-failure fallback (there isn't one;
+        // every error path below shows a toast and inserts nothing).
+        if tgtLang == "Korean" && containsKorean && !containsLatin {
             textDocumentProxy.insertText(effectiveInput)
             translateInputField?.resignFirstResponder()
             return
@@ -7109,6 +7117,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         CORE TRANSLATION RULES
         - Translate the intended meaning, not individual words or the source-language sentence structure.
+        - If the input is a single word or a very short phrase — no sentence-ending punctuation, no conjugated verb forming a full sentence (this includes slang, idioms, and interjections) — do not invent a sentence or context around it. Translate it as the single most natural corresponding word or short expression in the target language, keeping the same word/phrase form as the input. For example: "flex" → "자랑하다"/"플렉스", "mood" → "기분"/"분위기" — do not expand either into a fabricated full sentence like an imperative or a first-person statement.
         - Write the translation as something a native speaker would naturally send in a real chat, comment, or social media post.
         - Do not produce wording that sounds robotic, awkward, overly literal, or unnecessarily formal.
         - Do not omit meaningful information from the source.
