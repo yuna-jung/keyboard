@@ -1,0 +1,479 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "mother_is_mothering",
+      "patterns": [
+        { "value": "mother is mothering", "match": "exact_phrase", "priority": 100 },
+        { "value": "she's mothering", "match": "exact_phrase", "priority": 90 }
+      ],
+      "meaning": "Internet slang praising someone (often a celebrity, character, or friend) for acting with commanding, nurturing, boss-like excellence — an exaggerated positive intensifier, not literal childcare.",
+      "guideline": "Apply only when used as hype/praise about someone's excellence or commanding presence. If the sentence literally describes a parent caring for their own child, translate literally instead — do not force the meme meaning onto a genuine parenting context.",
+      "preferred_translations": {
+        "ko": [
+          "역시 언니는 다르네.",
+          "역시 레전드다.",
+          "이번에도 제대로 해내네.",
+          "카리스마 미쳤다."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "understood_the_assignment",
+      "patterns": [
+        { "value": "understood the assignment", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang meaning someone correctly understood the expected vibe, style, or goal and executed it very well.",
+      "guideline": "Apply only when used figuratively. Do not translate it as literally understanding homework or an assignment. Convey that the person understood what was expected and delivered successfully. If the sentence is literally about schoolwork (e.g. a student and a teacher's explanation), translate literally instead.",
+      "preferred_translations": {
+        "ko": [
+          "제대로 해냈네.",
+          "완전 제대로 했네.",
+          "기대 이상으로 해냈네.",
+          "센스 있게 잘했네."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "this_aint_it_chief",
+      "patterns": [
+        { "value": "this ain't it chief", "match": "exact_phrase", "priority": 100 },
+        { "value": "this ain't it, chief", "match": "exact_phrase", "priority": 100 },
+        { "value": "that ain't it chief", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang used to casually dismiss or mildly mock something as clearly wrong, off-base, or a bad decision. 'Chief' is a sarcastic, informal way of addressing the person, not a literal rank or title.",
+      "guideline": "Apply only when the sentence expresses casual disapproval or mockery of a choice, statement, or action. Do not translate 'chief' as an actual job title, rank, or leader unless the sentence is clearly about a real chief/boss/officer.",
+      "preferred_translations": {
+        "ko": [
+          "이건 좀 아닌데.",
+          "이건 아니지.",
+          "이거 진짜 아니다.",
+          "이건 좀 아니지 않냐."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "bias_wrecker",
+      "patterns": [
+        { "value": "bias wrecker", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "K-pop fandom noun for a group member (usually not the fan's main bias) who is so charming or attractive that they threaten to become the fan's new favorite. This is a noun that names a PERSON, not an action or state.",
+      "guideline": "Use this only when the sentence names or describes a specific person as this kind of member (e.g. 'X is my bias wrecker'). Do not confuse with the separate verb-phrase meaning of being shaken by someone's charm — that is a different entry ('bias wrecked me'). Do not translate 'wrecker' as someone who destroys things.",
+      "preferred_translations": {
+        "ko": [
+          "차애",
+          "최애를 위협하는 멤버",
+          "제2의 최애"
+        ]
+      },
+      "category": "fandom"
+    },
+    {
+      "id": "bias_wrecked_me",
+      "patterns": [
+        { "value": "bias wrecked me", "match": "exact_phrase", "priority": 100 },
+        { "value": "bias wrecking me", "match": "exact_phrase", "priority": 100 },
+        { "value": "bias-wrecked me", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "K-pop fandom expression describing the experience/event of a fan's loyalty being shaken by another (non-favorite) member's charm. This is a verb phrase describing something that HAPPENED to the fan, not a noun naming a person.",
+      "guideline": "This describes an experience — the fan was newly charmed or shaken by another member — not a person's identity. Do not translate it the same way as the separate noun entry 'bias wrecker'. Do not translate 'wrecked' as literal destruction or injury.",
+      "preferred_translations": {
+        "ko": [
+          "또 차애한테 흔들렸어.",
+          "또 차애한테 치였어.",
+          "최애가 흔들릴 뻔했어.",
+          "마음이 또 흔들렸어."
+        ]
+      },
+      "category": "fandom"
+    },
+    {
+      "id": "delulu",
+      "patterns": [
+        { "value": "delulu is the solulu", "match": "exact_phrase", "priority": 100 },
+        { "value": "delulu", "match": "whole_word", "priority": 75 }
+      ],
+      "meaning": "Internet/fandom slang: 'delulu' means playfully self-aware delusion about a crush, celebrity, or unlikely dream. 'Delulu is the solulu' jokingly means that embracing the delusion is itself the coping strategy.",
+      "guideline": "Keep the tone playful and self-aware, not clinical or medical. Do not translate 'delulu'/'solulu' as literal psychological or medical terms — they are coined slang, not real words.",
+      "preferred_translations": {
+        "ko": [
+          "망상이 곧 답이야.",
+          "믿는 대로 되는 거야(웃음).",
+          "그냥 믿고 사는 거지 뭐.",
+          "혼자만의 상상이지만 그게 낙이야."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "touch_grass",
+      "patterns": [
+        { "value": "touch grass", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang telling someone (often mockingly) that they've been online too much and should get some real-life perspective.",
+      "guideline": "Do not translate literally as touching lawn grass. Convey the meaning of stepping away from the internet or getting real-life perspective, keeping the teasing/mocking tone.",
+      "preferred_translations": {
+        "ko": [
+          "현실 좀 살아.",
+          "인터넷 좀 그만해.",
+          "밖에 좀 나가라.",
+          "좀 그만 좀 해 진짜."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "be_so_for_real",
+      "patterns": [
+        { "value": "be so for real", "match": "exact_phrase", "priority": 100 },
+        { "value": "be so fr", "match": "exact_phrase", "priority": 95 }
+      ],
+      "meaning": "Internet slang emphasizing strong agreement or disbelief — roughly 'you have to be kidding' or 'I'm dead serious', used purely for emphasis.",
+      "guideline": "This is an emphatic interjection, not a literal request for someone to 'be real'. Match the emotional intensity implied by context — agreement, disbelief, or exasperation.",
+      "preferred_translations": {
+        "ko": [
+          "진짜 실화냐.",
+          "이거 레전드다 진짜.",
+          "찐이다 진짜.",
+          "이건 진짜 인정."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "clock_it",
+      "patterns": [
+        { "value": "clock it", "match": "exact_phrase", "priority": 100 },
+        { "value": "clocked it", "match": "exact_phrase", "priority": 100 },
+        { "value": "clocked that", "match": "exact_phrase", "priority": 95 }
+      ],
+      "meaning": "Slang meaning to notice or recognize something quickly and correctly, often something subtle or something someone was trying to hide.",
+      "guideline": "Apply only when it means 'noticed/recognized'. Do not translate literally as checking a physical clock or clocking in/out of work — if the context is about an actual clock or a work shift, translate literally instead.",
+      "preferred_translations": {
+        "ko": [
+          "바로 눈치챘어.",
+          "바로 알아챘어.",
+          "딱 캐치했어.",
+          "바로 알겠더라."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "flop_era",
+      "patterns": [
+        { "value": "flop era", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Self-deprecating or teasing internet slang for a period where someone or something is underperforming or having bad luck.",
+      "guideline": "Keep the tone light, self-deprecating, or teasing — not literally about a commercial 'flop'. Convey the sense of 'a rough patch' or 'off period'.",
+      "preferred_translations": {
+        "ko": [
+          "요즘 완전 침체기야.",
+          "요즘 좀 폭망 시기다.",
+          "요즘 좀 삐끗하는 중.",
+          "요즘 좀 안 풀리는 시기."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "lost_the_plot",
+      "patterns": [
+        { "value": "lost the plot", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Idiom meaning someone has stopped making sense, gone off the rails, or is acting irrationally/out of touch — can be critical or affectionately exasperated.",
+      "guideline": "Do not translate literally as losing a story's plot. Convey the sense of someone acting irrational, out of touch, or off the rails, matching the critical or exasperated tone of the source.",
+      "preferred_translations": {
+        "ko": [
+          "완전 정신줄 놨네.",
+          "진짜 선 넘었다.",
+          "제정신이 아니네.",
+          "이건 좀 이상해졌는데."
+        ]
+      },
+      "category": "idiom"
+    },
+    {
+      "id": "not_on_my_bingo_card",
+      "patterns": [
+        { "value": "not on my bingo card", "match": "exact_phrase", "priority": 100 },
+        { "value": "wasn't on my bingo card", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang for something completely unexpected happening — 'I did not see this coming at all'.",
+      "guideline": "Do not translate literally about an actual bingo game. Convey genuine surprise at an unexpected turn of events.",
+      "preferred_translations": {
+        "ko": [
+          "이건 진짜 예상 못했다.",
+          "이건 상상도 못했어.",
+          "이거 완전 반전인데.",
+          "이건 진짜 의외다."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "ate",
+      "patterns": [
+        { "value": "ate and left no crumbs", "match": "exact_phrase", "priority": 100 },
+        { "value": "ate that up", "match": "exact_phrase", "priority": 90 },
+        { "value": "ate that", "match": "exact_phrase", "priority": 85 }
+      ],
+      "meaning": "Internet slang praising someone for performing flawlessly and impressively, with nothing left to criticize ('left no crumbs' = left nothing to critique).",
+      "guideline": "Apply only when used as praise for an outstanding performance. Do not translate 'ate' as consuming food and do not translate 'crumbs' literally. Do not register a bare 'ate' by itself as this slang — only the fuller phrases here refer to it, since 'ate' alone is almost always the ordinary past tense of 'eat'.",
+      "preferred_translations": {
+        "ko": [
+          "진짜 제대로 해냈어.",
+          "완벽하게 해치웠다.",
+          "흠잡을 데 없이 잘했어.",
+          "이번에 진짜 씹어먹었다."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "serving_face",
+      "patterns": [
+        { "value": "serving face", "match": "exact_phrase", "priority": 100 },
+        { "value": "serving looks", "match": "exact_phrase", "priority": 100 },
+        { "value": "\\bserving \\w+ face", "match": "regex", "priority": 90 }
+      ],
+      "meaning": "Fashion/ballroom-derived slang meaning someone is confidently presenting a striking look, expression, or vibe — 'serving' here means impressively showing off.",
+      "guideline": "Apply only in the sense of confidently presenting a look, vibe, or style. Do not translate literally as serving food or serving in a job/sport/tennis context — if that's the actual topic, translate literally instead.",
+      "preferred_translations": {
+        "ko": [
+          "비주얼 미쳤다.",
+          "포스 실화냐.",
+          "완전 부심 있게 소화하네.",
+          "분위기 미쳤다 진짜."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "its_giving",
+      "patterns": [
+        { "value": "\\bit'?s giving\\b", "match": "regex", "priority": 100 }
+      ],
+      "meaning": "Internet slang meaning 'this has the vibe/energy of ___' — used to describe an impression or aesthetic something gives off.",
+      "guideline": "Translate as conveying a vibe, impression, or energy — not literally 'giving' something away as a gift. Adapt naturally to whatever follows in the sentence.",
+      "preferred_translations": {
+        "ko": [
+          "완전 그 느낌이야.",
+          "그 분위기 나잖아.",
+          "딱 그 느낌인데.",
+          "완전 그 바이브야."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "babygirl",
+      "patterns": [
+        { "value": "babygirl", "match": "whole_word", "priority": 80 },
+        { "value": "baby girl", "match": "exact_phrase", "priority": 80 }
+      ],
+      "meaning": "Term of endearment; in internet meme culture also used ironically to describe an adult (often a man) as endearingly soft, pampered, or precious.",
+      "guideline": "Determine from context whether this is a literal term of endearment (e.g. addressing an actual baby girl or a partner) or the ironic meme usage describing someone — often unexpectedly — as adorable or precious. Match the tone accordingly: literal affection vs. playful irony.",
+      "preferred_translations": {
+        "ko": [
+          "완전 사랑스러워.",
+          "그 남자 완전 애기 같아.",
+          "너무 귀여워 진짜.",
+          "존잘인데 은근 순둥순둥해."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "roman_empire",
+      "patterns": [
+        { "value": "my roman empire", "match": "exact_phrase", "priority": 100 },
+        { "value": "roman empire", "match": "exact_phrase", "priority": 85 }
+      ],
+      "meaning": "Meme referencing 'how often do you think about the Roman Empire' — 'my Roman Empire' means something a person unexpectedly and frequently thinks about or is obsessed with.",
+      "guideline": "Apply only when used as the meme (a frequent obsession/thought). Do not apply this if the sentence is literally discussing the historical Roman Empire (e.g. history, education, travel context) — translate literally in that case.",
+      "preferred_translations": {
+        "ko": [
+          "내 머릿속을 떠나지 않는 거.",
+          "나만의 떡밥이야(계속 생각나).",
+          "나 요즘 이거에 완전 꽂혔어.",
+          "이거 완전 내 인생 떡밥."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "no_business_being_this_good",
+      "patterns": [
+        { "value": "no business being this good", "match": "exact_phrase", "priority": 100 },
+        { "value": "\\bno business being this \\w+", "match": "regex", "priority": 90 }
+      ],
+      "meaning": "Hyperbolic praise expressing that something or someone is impressively good — 'this shouldn't even be allowed to be this good'.",
+      "guideline": "Convey enthusiastic, exaggerated admiration — not a literal statement about permission or business. Adapt the quality word to match whatever is being praised (good, talented, pretty, etc.).",
+      "preferred_translations": {
+        "ko": [
+          "이렇게 잘할 일이야?",
+          "이 정도로 잘하는 거 반칙 아니냐.",
+          "이건 좀 사기 아니냐.",
+          "이 정도면 반칙이지."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "canon_event",
+      "patterns": [
+        { "value": "canon event", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Meme (from Spider-Man: Across the Spider-Verse) referring to a formative, seemingly unavoidable life moment that shapes who someone becomes — often used humorously about minor personal mishaps.",
+      "guideline": "Convey the sense of 'a defining/inevitable life moment', often with a humorous or ironic tone about something small. Do not translate literally as an official in-universe canonical event unless the context is actually about franchise canon or lore.",
+      "preferred_translations": {
+        "ko": [
+          "이것도 인생의 한 장면이지.",
+          "이것도 내 인생 필수 코스였나 봐.",
+          "이런 것도 다 거쳐가는 거지.",
+          "이거 완전 인생 이벤트였음."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "let_him_cook",
+      "patterns": [
+        { "value": "let him cook", "match": "exact_phrase", "priority": 100 },
+        { "value": "let her cook", "match": "exact_phrase", "priority": 100 },
+        { "value": "let them cook", "match": "exact_phrase", "priority": 100 },
+        { "value": "\\b(?:is (?:he|she|it)|are (?:you|they|we)) (?:actually |really |so |totally )?cooking\\b", "match": "regex", "priority": 90 }
+      ],
+      "meaning": "Encouragement to not interrupt someone who is confidently doing their thing / on a roll — trust the process and let them continue. The question form ('is he cooking?', 'is she cooking right now?') asks the same thing: whether someone is currently on a roll/performing impressively.",
+      "guideline": "Do not translate 'cook'/'cooking' literally as preparing food. Convey trust and encouragement to let the person continue what they're doing without interference (imperative form), or genuine curiosity about whether someone is currently on a roll (question form). This is distinct from 'I'm cooked', which means the opposite (being doomed) — keep them as separate meanings. The question-form pattern is intentionally restricted to 'is/are + pronoun + cooking' (not plain declarative 'X is cooking [food]') to avoid colliding with literal sentences about preparing a meal — but if the sentence is still clearly a literal question about food (e.g. 'Is he cooking dinner tonight?'), translate literally instead.",
+      "preferred_translations": {
+        "ko": [
+          "가만히 냅둬 봐, 잘하고 있잖아.",
+          "믿고 지켜보자.",
+          "터치하지 말고 냅둬.",
+          "지금 완전 물 올랐으니까 냅둬."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "im_cooked",
+      "patterns": [
+        { "value": "i'm cooked", "match": "exact_phrase", "priority": 100 },
+        { "value": "im cooked", "match": "exact_phrase", "priority": 100 },
+        { "value": "we're cooked", "match": "exact_phrase", "priority": 100 },
+        { "value": "he's cooked", "match": "exact_phrase", "priority": 100 },
+        { "value": "she's cooked", "match": "exact_phrase", "priority": 100 },
+        { "value": "you're cooked", "match": "exact_phrase", "priority": 100 },
+        { "value": "they're cooked", "match": "exact_phrase", "priority": 100 },
+        { "value": "\\b(?:he's|she's|you're|they're|we're) (?:actually |really |so |totally )?cooked\\b", "match": "regex", "priority": 90 },
+        { "value": "\\b(?:is (?:he|she|it)|are (?:you|they|we)) (?:actually |really |so |totally )?cooked\\b", "match": "regex", "priority": 90 }
+      ],
+      "meaning": "Slang meaning someone is in serious trouble, doomed, or has failed badly — not literal cooking. Applies to any grammatical person (I'm/we're/he's/she's/you're/they're cooked, or the question form 'is he cooked?').",
+      "guideline": "Do not translate literally about food being cooked. Convey a sense of being doomed, exhausted, or in deep trouble, matching the source's intensity (serious vs. joking). This is distinct from 'let him cook', which means the opposite (encouragement) — keep them as separate meanings. Because English \"'s\" can contract either 'is' or 'has', a phrase like 'she's cooked' can also literally mean she has finished preparing food (a completed real action) — if the surrounding sentence has a food/meal object (e.g. 'she's cooked dinner already'), translate literally instead of applying the doomed/failed meaning.",
+      "preferred_translations": {
+        "ko": [
+          "나 완전 망했다.",
+          "나 이제 죽었다.",
+          "나 진짜 큰일 났다.",
+          "이번엔 진짜 답 없다."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "no_thoughts_just_vibes",
+      "patterns": [
+        { "value": "no thoughts, just vibes", "match": "exact_phrase", "priority": 100 },
+        { "value": "no thoughts just vibes", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang for a carefree, mindless, in-the-moment state — not overthinking, just going with the flow or feeling.",
+      "guideline": "Convey a carefree, not-overthinking, going-with-the-flow tone. Do not translate 'vibes' literally as a physical vibration.",
+      "preferred_translations": {
+        "ko": [
+          "생각은 없고 그냥 느낌대로.",
+          "아무 생각 없이 그냥 즐기는 중.",
+          "그냥 분위기에 몸을 맡기는 중.",
+          "고민 없이 그냥 흘러가는 대로."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "thats_on_period",
+      "patterns": [
+        { "value": "that's on period", "match": "exact_phrase", "priority": 100 },
+        { "value": "and that's on period", "match": "exact_phrase", "priority": 100 },
+        { "value": "on period, no pause", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang used to emphatically affirm a statement as undeniably true — 'period' here functions like 'end of discussion', unrelated to menstruation or a time duration.",
+      "guideline": "Apply only when used as an emphatic affirmation ending a statement. Do not translate literally about a menstrual period or a time period/duration — if the sentence is about either of those, translate literally instead.",
+      "preferred_translations": {
+        "ko": [
+          "이건 진짜야.",
+          "반박 불가.",
+          "이걸로 끝.",
+          "두말하면 잔소리지."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "the_audacity",
+      "patterns": [
+        { "value": "the audacity", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Sarcastic, exasperated expression of shock at someone's boldness or nerve — usually critical, not admiring.",
+      "guideline": "Convey exasperated disbelief at someone's boldness or nerve, not a positive sense of 'courage'. Do not translate 'audacity' as an admirable trait unless the context clearly praises boldness rather than criticizing it.",
+      "preferred_translations": {
+        "ko": [
+          "와 그 뻔뻔함 실화냐.",
+          "진짜 어이가 없네.",
+          "와 진짜 대담하네(어이없음).",
+          "그 뻔뻔함 클래스 보소."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "this_is_sending_me",
+      "patterns": [
+        { "value": "this is sending me", "match": "exact_phrase", "priority": 100 },
+        { "value": "that's sending me", "match": "exact_phrase", "priority": 100 },
+        { "value": "this sent me", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang expressing that something is extremely funny — 'sending me' means making the speaker laugh uncontrollably or 'dying' from laughter.",
+      "guideline": "Convey that something is hilarious, not a literal statement about being sent somewhere. Match the intensity of laughter implied by the source. Keep as a separate meaning from 'chronically online' — they are not interchangeable. Only apply this to the 'this/that is sending me' construction — do not apply it to plain 'sending me' in a literal delivery/messaging context (e.g. 'Are you sending me the file?', 'Stop sending me messages.'), which should be translated literally.",
+      "preferred_translations": {
+        "ko": [
+          "이거 너무 웃겨.",
+          "나 이거 때문에 죽겠다ㅋㅋ",
+          "이거 실화냐 진짜 웃김.",
+          "이거 보고 완전 빵 터졌어."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "chronically_online",
+      "patterns": [
+        { "value": "chronically online", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Slang (often self-critical or teasing) describing someone who spends so much time on the internet that their perspective or references are skewed or out of touch with offline reality.",
+      "guideline": "Convey the sense of being overly immersed in internet culture or out of touch with offline reality. Do not translate 'chronically' as a literal medical condition. Keep as a separate meaning from 'this is sending me' — they are not interchangeable.",
+      "preferred_translations": {
+        "ko": [
+          "인터넷에 너무 절여졌어.",
+          "인터넷 과몰입 상태야.",
+          "인터넷을 너무 많이 하나 봐.",
+          "인터넷에 너무 찌들었어."
+        ]
+      },
+      "category": "internet_slang"
+    }
+  ]
+}

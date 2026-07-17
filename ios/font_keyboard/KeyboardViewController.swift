@@ -7022,6 +7022,18 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return
         }
 
+        // ── Knowledge Base 2차 조회 (밈/슬랭) ───────────────────────────
+        // TranslationDB was a miss — check the meme/slang Knowledge Base for
+        // reference material (meaning + guideline + candidate wording) that
+        // steers GPT away from literal mistranslations of figurative
+        // expressions. `nil` on no match, and fail-safe to `nil` if the
+        // bundled JSON is missing/malformed — either way the request below
+        // proceeds exactly as it did before the KB existed.
+        let kbReference = TranslationKnowledgeBase.shared.buildReference(
+            for: effectiveInput,
+            targetLanguage: tgtLang
+        )
+
         // Full Access check — keyboard extensions cannot make network
         // requests without Full Access in Settings.
         if !hasFullAccess {
@@ -7150,55 +7162,77 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         - Do not automatically use casual language.
         - Preserve explicit politeness, affection, distance, or respect expressed in the source.
         - When the context is unclear, choose a neutral everyday chat style rather than an unusually formal or intimate style.
+        - Do not mix casual and polite speech levels within a single sentence or connected clause — keep one consistent formality level across the whole sentence, based on the overall casualness/formality of the source.
 
         OUTPUT
         - Output only the translated text.
         - Do not include explanations, quotation marks, labels, alternatives, language names, or introductory text.
         """
+        // Fixed system-prompt + few-shot prefix is built as its own array so
+        // it stays byte-identical across every request regardless of the KB
+        // — that identical prefix is what OpenAI's prompt caching keys off
+        // of. The KB reference (if any) and the real input are appended
+        // AFTER it, never interleaved into it.
+        var messages: [[String: Any]] = [
+            ["role": "system", "content": systemPrompt],
+            // 1-3: 자연스러운 의역 / 팬덤 슬랭
+            ["role": "user", "content": "This lives rent free in my head"],
+            ["role": "assistant", "content": "계속 머릿속에서 맴돌아"],
+            ["role": "user", "content": "She ate and left no crumbs"],
+            ["role": "assistant", "content": "진짜 제대로 해냈어"],
+            ["role": "user", "content": "He's so babygirl"],
+            ["role": "assistant", "content": "완전 사랑스러워"],
+            // 4-5: SNS challenge 표현
+            ["role": "user", "content": "Stop being so perfect challenge"],
+            ["role": "assistant", "content": "완벽한 거 좀 그만해봐"],
+            ["role": "user", "content": "Try not to laugh challenge"],
+            ["role": "assistant", "content": "안 웃기 챌린지"],
+            // 6-8: 이름이 문장 끝에 있어도 직접 호명으로 판단
+            ["role": "user", "content": "say hi to me, jhope please"],
+            ["role": "assistant", "content": "제이홉 제발 나한테 인사해줘"],
+            ["role": "user", "content": "i love you so much jimin"],
+            ["role": "assistant", "content": "지민아 진짜 너무 사랑해"],
+            ["role": "user", "content": "please notice my comment mark"],
+            ["role": "assistant", "content": "마크야 제발 내 댓글 좀 봐줘"],
+            // 9-10: 이름이 제3자로 언급되는 경우
+            ["role": "user", "content": "I watched Jungkook's live"],
+            ["role": "assistant", "content": "정국이 라이브 봤어"],
+            ["role": "user", "content": "Felix made me laugh"],
+            ["role": "assistant", "content": "필릭스 때문에 웃었어"],
+            // 11-12: 제3자에게 전달/질문 요청 — 호격 아님, 화자는 "전해줘/물어봐줘"의
+            // 대상이지 이름의 주인이 아님 (예: "tell taehyung ~"은 태형이한테
+            // 직접 말 거는 게 아니라, 상대방에게 태형이한테 전해달라는 부탁)
+            ["role": "user", "content": "tell taehyung I said good luck tonight"],
+            ["role": "assistant", "content": "태형이한테 오늘 잘 되길 바란다고 전해줘"],
+            ["role": "user", "content": "ask namjoon if he's eating well"],
+            ["role": "assistant", "content": "남준이한테 잘 먹고 있는지 물어봐줘"],
+            // 13-16: 원문에 없는 웃음 표현 추가 금지
+            ["role": "user", "content": "I love you"],
+            ["role": "assistant", "content": "사랑해"],
+            ["role": "user", "content": "I love you lol"],
+            ["role": "assistant", "content": "사랑해ㅋㅋ"],
+            ["role": "user", "content": "Really?"],
+            ["role": "assistant", "content": "진짜?"],
+            ["role": "user", "content": "Really?? 😭"],
+            ["role": "assistant", "content": "진짜?? 😭"],
+            // 17-18: 반대 방향 번역 스타일
+            ["role": "user", "content": "나 지금 가는 중"],
+            ["role": "assistant", "content": "I'm on my way"],
+            ["role": "user", "content": "너무 웃겨ㅋㅋ"],
+            ["role": "assistant", "content": "You're so funny lol"],
+            // 19: 부정문에서도 문장 전체의 반말/존댓말 톤을 일관되게 유지
+            // (앞은 반말인데 뒤에서 갑자기 존댓말로 바뀌는 톤 혼합 방지)
+            ["role": "user", "content": "this is NOT giving villain energy, don't even try it"],
+            ["role": "assistant", "content": "이건 절대 악당 느낌 아니야, 그런 시도도 하지 마"],
+        ]
+        if let kbReference {
+            messages.append(["role": "system", "content": kbReference])
+        }
+        messages.append(["role": "user", "content": effectiveInput])
+
         let body: [String: Any] = [
             "model": "gpt-4o-mini",
-            "messages": [
-                ["role": "system", "content": systemPrompt],
-                // 1-3: 자연스러운 의역 / 팬덤 슬랭
-                ["role": "user", "content": "This lives rent free in my head"],
-                ["role": "assistant", "content": "계속 머릿속에서 맴돌아"],
-                ["role": "user", "content": "She ate and left no crumbs"],
-                ["role": "assistant", "content": "진짜 제대로 해냈어"],
-                ["role": "user", "content": "He's so babygirl"],
-                ["role": "assistant", "content": "완전 사랑스러워"],
-                // 4-5: SNS challenge 표현
-                ["role": "user", "content": "Stop being so perfect challenge"],
-                ["role": "assistant", "content": "완벽한 거 좀 그만해봐"],
-                ["role": "user", "content": "Try not to laugh challenge"],
-                ["role": "assistant", "content": "안 웃기 챌린지"],
-                // 6-8: 이름이 문장 끝에 있어도 직접 호명으로 판단
-                ["role": "user", "content": "say hi to me, jhope please"],
-                ["role": "assistant", "content": "제이홉 제발 나한테 인사해줘"],
-                ["role": "user", "content": "i love you so much jimin"],
-                ["role": "assistant", "content": "지민아 진짜 너무 사랑해"],
-                ["role": "user", "content": "please notice my comment mark"],
-                ["role": "assistant", "content": "마크야 제발 내 댓글 좀 봐줘"],
-                // 9-10: 이름이 제3자로 언급되는 경우
-                ["role": "user", "content": "I watched Jungkook's live"],
-                ["role": "assistant", "content": "정국이 라이브 봤어"],
-                ["role": "user", "content": "Felix made me laugh"],
-                ["role": "assistant", "content": "필릭스 때문에 웃었어"],
-                // 11-14: 원문에 없는 웃음 표현 추가 금지
-                ["role": "user", "content": "I love you"],
-                ["role": "assistant", "content": "사랑해"],
-                ["role": "user", "content": "I love you lol"],
-                ["role": "assistant", "content": "사랑해ㅋㅋ"],
-                ["role": "user", "content": "Really?"],
-                ["role": "assistant", "content": "진짜?"],
-                ["role": "user", "content": "Really?? 😭"],
-                ["role": "assistant", "content": "진짜?? 😭"],
-                // 15-16: 반대 방향 번역 스타일
-                ["role": "user", "content": "나 지금 가는 중"],
-                ["role": "assistant", "content": "I'm on my way"],
-                ["role": "user", "content": "너무 웃겨ㅋㅋ"],
-                ["role": "assistant", "content": "You're so funny lol"],
-                ["role": "user", "content": effectiveInput],
-            ],
+            "messages": messages,
             "max_tokens": 500,
             "temperature": 0.1,
         ]
@@ -7270,6 +7304,20 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     self.showTranslateError("응답 파싱 실패\n\(bodyText.prefix(300))")
                     return
                 }
+                #if DEBUG
+                // Prompt-caching visibility: don't assume the fixed system
+                // prompt + few-shot prefix is actually being cached — read
+                // it back from the API instead. `cached_tokens` is only
+                // present once OpenAI has cached that prefix from a prior
+                // request; 0/absent doesn't mean caching is broken, just
+                // that this particular request didn't hit it.
+                if let usage = json?["usage"] as? [String: Any] {
+                    let promptTokens = usage["prompt_tokens"] as? Int ?? -1
+                    let completionTokens = usage["completion_tokens"] as? Int ?? -1
+                    let cachedTokens = (usage["prompt_tokens_details"] as? [String: Any])?["cached_tokens"] as? Int ?? 0
+                    print("🔥 [translateTriggered] usage: prompt=\(promptTokens) completion=\(completionTokens) cached=\(cachedTokens)")
+                }
+                #endif
                 self.lastTranslation = self.sanitizeTranslationOutput(translated)
                 self.textDocumentProxy.insertText(self.lastTranslation)
                 self.translateInputField?.resignFirstResponder()
