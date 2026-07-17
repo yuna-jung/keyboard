@@ -45,6 +45,52 @@ final class TranslationKnowledgeBaseTests: XCTestCase {
         XCTAssertTrue(kb.matchedEntryIDs(for: "I'm so delulu about this.").contains("delulu"))
     }
 
+    func testMatches_flexBareAndGerund() {
+        XCTAssertTrue(kb.matchedEntryIDs(for: "flex").contains("flex"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "stop flexing").contains("flex"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "he's always flexing his new car").contains("flex"))
+    }
+
+    // "flex" is genuinely ambiguous (slang "show off" vs. literal "bend a
+    // muscle") the same way "roman_empire"/"im_cooked" are — the pattern
+    // deliberately still fires here; disambiguation is the entry's
+    // `guideline`'s job at the GPT level, not the matcher's. This test only
+    // documents that expectation (see `testNoMatch_romanEmpireLiteralHistory`
+    // for the same pattern elsewhere in this file).
+    func testMatches_flexLiteralMuscleContext_patternStillFires() {
+        XCTAssertTrue(kb.matchedEntryIDs(for: "Flex your muscles before you start lifting.").contains("flex"))
+    }
+
+    func testMatches_bias_possessiveAndFandomConstructs() {
+        XCTAssertTrue(kb.matchedEntryIDs(for: "who's your bias").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "who is your bias").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "my bias is Jimin").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "his bias changed again").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "her bias is the maknae").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "their bias is so talented").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "ult bias").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "ultimate bias reveal").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "bias list update").contains("bias"))
+    }
+
+    // The standalone-message pattern is anchored to the ENTIRE normalized
+    // message (`^bias[?!.]*$`), not a bare substring — deliberately narrow
+    // per the KB design note on this entry, since an unanchored "bias"
+    // whole_word match would collide constantly with the everyday
+    // "prejudice" sense.
+    func testMatches_bias_standaloneAnchoredMessage() {
+        XCTAssertTrue(kb.matchedEntryIDs(for: "bias").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "bias?").contains("bias"))
+        XCTAssertTrue(kb.matchedEntryIDs(for: "Bias!!").contains("bias"))
+    }
+
+    func testNoMatch_bias_literalPrejudiceSentences() {
+        XCTAssertFalse(kb.matchedEntryIDs(for: "I have a bias against modern architecture.").contains("bias"))
+        XCTAssertFalse(kb.matchedEntryIDs(for: "There's clear media bias in this article.").contains("bias"))
+        XCTAssertFalse(kb.matchedEntryIDs(for: "unconscious bias training at work").contains("bias"))
+        XCTAssertFalse(kb.matchedEntryIDs(for: "gender bias in hiring decisions").contains("bias"))
+    }
+
     func testMatches_bianWreckerVsBiasWreckedMe_areDistinctEntries() {
         XCTAssertTrue(kb.matchedEntryIDs(for: "Jimin is such a bias wrecker.").contains("bias_wrecker"))
         XCTAssertTrue(kb.matchedEntryIDs(for: "My bias wrecked me again.").contains("bias_wrecked_me"))

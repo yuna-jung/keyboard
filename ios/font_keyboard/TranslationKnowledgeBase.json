@@ -56,6 +56,28 @@
       "category": "internet_slang"
     },
     {
+      "id": "bias",
+      "patterns": [
+        { "value": "my bias", "match": "exact_phrase", "priority": 100 },
+        { "value": "your bias", "match": "exact_phrase", "priority": 100 },
+        { "value": "his bias", "match": "exact_phrase", "priority": 100 },
+        { "value": "her bias", "match": "exact_phrase", "priority": 100 },
+        { "value": "their bias", "match": "exact_phrase", "priority": 100 },
+        { "value": "who's your bias", "match": "exact_phrase", "priority": 100 },
+        { "value": "who is your bias", "match": "exact_phrase", "priority": 100 },
+        { "value": "ult bias", "match": "exact_phrase", "priority": 100 },
+        { "value": "ultimate bias", "match": "exact_phrase", "priority": 100 },
+        { "value": "bias list", "match": "exact_phrase", "priority": 100 },
+        { "value": "^bias[?!.]*$", "match": "regex", "priority": 90 }
+      ],
+      "meaning": "K-pop fandom noun meaning a fan's favorite member within a group — their 'bias'. Completely unrelated to the everyday English word 'bias' meaning prejudice, a skewed inclination, or a cognitive/statistical bias.",
+      "guideline": "Never transliterate this as '바이어스', and never mistranslate it as '바이브' (vibe) — when used in the fandom sense, translate it as '최애'. Determine the sense from context: mentions of an idol/member/group, casual fan-chat tone, or constructs like 'ult bias'/'bias list' signal the fandom sense. If the context is clearly about prejudice, discrimination, or a skewed judgment (e.g. 'unconscious bias', 'media bias', 'gender bias in hiring'), translate literally as 편견/편향 instead — do not force '최애' onto a literal discussion of prejudice. The standalone-message pattern only fires when the entire message is just 'bias' (optionally with ?/!/.), which is deliberately narrow to avoid colliding with ordinary sentences about prejudice.",
+      "preferred_translations": {
+        "ko": ["최애", "네 최애", "누구 최애야?", "최애가 누구야?"]
+      },
+      "category": "fandom"
+    },
+    {
       "id": "bias_wrecker",
       "patterns": [
         { "value": "bias wrecker", "match": "exact_phrase", "priority": 100 }
@@ -471,6 +493,23 @@
           "인터넷 과몰입 상태야.",
           "인터넷을 너무 많이 하나 봐.",
           "인터넷에 너무 찌들었어."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "flex",
+      "patterns": [
+        { "value": "flex", "match": "whole_word", "priority": 100 },
+        { "value": "flexing", "match": "whole_word", "priority": 100 }
+      ],
+      "meaning": "Internet/hip-hop slang meaning to show off or flaunt one's abilities, possessions, or achievements. A figurative extension of the literal meaning (to bend or tense a body part, e.g. a muscle).",
+      "guideline": "When used in the slang sense (showing off), do not paraphrase it as '자랑하다' — use the loanword '플렉스' instead (e.g. 'flex' → '플렉스', 'stop flexing' → '플렉스 그만해'). If the sentence clearly describes a literal physical action (e.g. flexing a muscle before exercising), translate literally instead (e.g. '구부리다'/'풀다') — do not force '플렉스' onto a literal physical-movement context.",
+      "preferred_translations": {
+        "ko": [
+          "플렉스",
+          "플렉스하다",
+          "플렉스 좀 그만해"
         ]
       },
       "category": "internet_slang"
