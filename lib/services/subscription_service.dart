@@ -68,6 +68,15 @@ class SubscriptionService with WidgetsBindingObserver {
       Adapty().didUpdateProfileStream.listen((profile) {
         _applyProfile(profile);
       });
+      // Fire-and-forget: reinstalls / new devices / fresh Xcode installs
+      // get a brand new anonymous Adapty profile with no purchase history
+      // synced yet, even when the same Apple ID has an active subscription
+      // or has already used its introductory offer. `refreshStatus()` alone
+      // only reads the (empty) profile Adapty already has server-side, so
+      // without this, a returning subscriber's paywall wrongly shows the
+      // trial-eligible offer right up until they tap "restore" themselves.
+      // Deliberately not awaited — must never delay app startup.
+      unawaited(_maybeSilentRestore());
     } catch (e) {
       debugPrint('Adapty init error: $e');
     }
@@ -128,6 +137,69 @@ class SubscriptionService with WidgetsBindingObserver {
       final profile = await Adapty().getProfile();
       _applyProfile(profile);
     } catch (_) {}
+  }
+
+  /// Silent, best-effort startup restore — runs on every cold launch. See
+  /// the call site in `initialize()` for why this exists.
+  ///
+  /// Entirely invisible to the user by design: no loading indicator, no
+  /// error surfaced on failure (a fresh/never-purchased profile is expected
+  /// to "fail" here — that's not an error condition), and it never blocks
+  /// app startup since the caller never awaits it. The explicit "복원"
+  /// button / `restorePurchase()` and `paywallViewDidFailRestore` remain
+  /// unchanged as the user-facing manual fallback.
+  ///
+  /// Deliberately NOT gated to "once per profile" — an earlier version
+  /// persisted a `SharedPreferences` flag to skip repeat attempts, but that
+  /// flag lives in the app's own sandboxed container, and there turned out
+  /// to be no reliable way to guarantee it's wiped exactly when (and only
+  /// when) the Adapty profile itself is fresh — e.g. reinstalling over an
+  /// existing container (rather than a true delete) or a device/iCloud
+  /// backup restore can bring the old flag back even though the app
+  /// genuinely has purchase history that needs restoring. When that
+  /// happens the flag silently disables restore forever, which is exactly
+  /// the wrong failure mode (a returning subscriber keeps seeing the
+  /// trial-eligible paywall). `restorePurchases()` costs nothing and shows
+  /// nothing on screen, so just retrying it every launch is cheap
+  /// insurance against that.
+  Future<void> _maybeSilentRestore() async {
+    final tierBefore = currentTier;
+    final premiumBefore = isPremiumNow;
+    var success = false;
+    Object? error;
+    // Tier computed directly from the profile `restorePurchases()` handed
+    // back, BEFORE it goes through `_applyProfile`/`_tierNotifier` — lets
+    // the log below tell apart "Adapty/Apple says this account has no
+    // purchase to restore" from "the restore call worked but something
+    // between `_applyProfile` and this log clobbered the notifier"
+    // (e.g. `didUpdateProfileStream` firing concurrently with a stale
+    // profile and racing the assignment).
+    SubscriptionTier? restoredProfileTier;
+
+    if (kDebugMode) {
+      debugPrint(
+        '🔥 [SubscriptionService] silent restore starting, '
+        'tierBefore=$tierBefore isPremiumBefore=$premiumBefore',
+      );
+    }
+
+    try {
+      final profile = await Adapty().restorePurchases();
+      restoredProfileTier = _computeTier(profile);
+      _applyProfile(profile);
+      success = true;
+    } catch (e) {
+      error = e;
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        '🔥 [SubscriptionService] silent restore attempted, success=$success '
+        'tierBefore=$tierBefore restoredProfileTier=$restoredProfileTier '
+        'tierAfter=$currentTier isPremiumAfter=$isPremiumNow'
+        '${error != null ? ' error=$error' : ''}',
+      );
+    }
   }
 
   void _syncTierToAppGroup(SubscriptionTier tier, {bool isInTrial = false}) {
