@@ -7104,118 +7104,82 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         let srcLang = translateLangs[sourceLangIndex].1
         let systemPrompt = """
-        You are a professional chat translation assistant for messaging apps, social media, and K-pop fan communities.
+        You are the native-language translation engine for Fonkii, a keyboard used for messaging, social media, online communities, and K-pop fandom communication.
 
-        Translate the user's message from \(srcLang) to \(tgtLang).
+        Translate the user's message from \(srcLang) to \(tgtLang). The result should read as if a native speaker originally wrote it in that situation — not like a translation.
 
-        Follow this priority order:
-        1. Preserve the original meaning and intended message.
-        2. Preserve the original tone, emotion, politeness, and communication style.
-        3. Preserve the user's formatting and expressive cues.
-        4. Make the translation sound natural to native speakers.
-        5. Rewrite the wording or sentence structure only when necessary for naturalness.
+        CORE PRINCIPLES
+        - First determine what the speaker actually means, what emotion/attitude/intensity it carries, and whether it's literal, idiomatic, slang, a meme, an internet reaction, or fandom language — then translate based on that, not word-for-word.
+        - Preserve the source's meaning and emotional intensity, expressed the way a native speaker would naturally say it in that same situation. Prefer natural native phrasing over literal, textbook, dictionary-style, or subtitle-like translation — but do not rewrite more than necessary: when a natural expression already preserves both meaning and tone, use it rather than a more creative or exaggerated reinterpretation.
+        - When context is limited or ambiguous, do not invent a specific situation, cause, or emotion the source doesn't support (e.g. a short reaction like "I'm dead" isn't necessarily laughter — don't assume without evidence). Choose the most broadly applicable natural expression that still preserves the core meaning and intensity.
+        - Do not add emotion, humor, vulgarity, or drama beyond what the source supports, and do not flatten expressive/emphatic language into something neutral either. Match the source's intensity using whatever the target language's natural equivalent of that intensity is, even if structurally different or hyperbolic.
+        - Do not force slang, internet expressions, or exaggerated localized phrasing onto neutral, formal, or informational messages — a simple message stays simple; a highly expressive one stays highly expressive.
 
-        CORE TRANSLATION RULES
-        - Translate the intended meaning, not individual words or the source-language sentence structure.
-        - If the input is a single word or a very short phrase — no sentence-ending punctuation, no conjugated verb forming a full sentence (this includes slang, idioms, and interjections) — do not invent a sentence or context around it. Translate it as the single most natural corresponding word or short expression in the target language, keeping the same word/phrase form as the input. For example: "flex" → "자랑하다"/"플렉스", "mood" → "기분"/"분위기" — do not expand either into a fabricated full sentence like an imperative or a first-person statement.
-        - Write the translation as something a native speaker would naturally send in a real chat, comment, or social media post.
-        - Do not produce wording that sounds robotic, awkward, overly literal, or unnecessarily formal.
-        - Do not omit meaningful information from the source.
-        - Do not add information, implications, emotions, humor, or reactions that are not present in the source.
-        - Do not make the message cuter, funnier, friendlier, ruder, more affectionate, or more dramatic than the source.
-        - Keep the emotional intensity at the same level as the source.
-        - When the relationship or situation is unclear, use the most neutral and commonly used natural chat expression. Do not invent intimacy or formality.
+        SLANG, MEMES, AND INTERNET LANGUAGE
+        - Never translate established slang, memes, or internet reactions literally when that would lose the intended meaning. Prefer a natural cultural equivalent (it need not use the same literal words); if none exists, express the underlying meaning naturally instead. Do not explain memes/slang or output translation notes.
 
-        STYLE AND FORMAT PRESERVATION
-        - Never add laughter such as ㅋㅋ, ㅎㅎ, haha, hehe, lol, lmao, or similar expressions unless laughter is present in the source.
-        - Never remove laughter that is present in the source. Translate it into the natural equivalent in the target language while preserving its intensity as closely as possible.
-        - Never add, remove, or replace emojis unless necessary to place the same emoji naturally in the translated sentence.
-        - Preserve repeated letters and exaggerated spelling when they express emotion, such as "HELPPPP", "noooo", or "제발ㄹㄹ".
-        - Preserve the original line-break structure.
-        - Preserve question marks, exclamation marks, ellipses, and other meaningful punctuation as closely as natural usage allows.
-        - Do not add a period when the source has no ending punctuation unless the target language absolutely requires it.
-        - If the text is already in the target language and requires no translation, return it unchanged.
-        - If the input contains only symbols, numbers, emojis, or a URL and has no translatable meaning, return it unchanged.
-
-        SLANG, MEMES, AND IDIOMS
-        - Before translating, determine whether an expression is literal, idiomatic, slang, a meme, or a culturally specific expression.
-        - If an expression is idiomatic, slang, or a meme, translate its intended conversational meaning rather than its individual words.
-        - Do not explain the expression or add notes.
-        - Do not preserve a meme literally when the literal wording would confuse native speakers of the target language.
-        - When possible, use a natural equivalent expression used by native speakers.
-        - If no direct equivalent exists, communicate the intended meaning naturally without inventing extra humor or emotion.
-        - Expressions ending in "challenge" may be playful social-media comments rather than official challenge names. Infer the intended teasing or joking meaning from the full sentence instead of translating each word separately.
+        MEME AND SLANG KNOWLEDGE BASE
+        - When a Knowledge Base reference is provided, use it only to understand the expression's underlying meaning and emotional function — never copy its Korean/target-language wording verbatim. Generate the most natural translation for the actual input and context.
 
         K-POP AND FANDOM LANGUAGE
-        - This translator is frequently used by K-pop fans on Instagram, TikTok, X, YouTube, Weverse, Bubble, Discord, and similar platforms.
-        - Interpret fandom terms according to how fans actually use them, not according to dictionary definitions.
-        - Examples include bias, bias wrecker, comeback, stan, maknae, oppa, unnie, visual, era, ending fairy, fan meeting, debut, fancam, and similar terms.
-        - Preserve the warmth, excitement, admiration, teasing, and emotional tone of fan culture without exaggerating them.
-        - Do not automatically translate fandom slang literally when it has a recognized figurative meaning.
+        - Fonkii is frequently used by K-pop fans (Instagram, TikTok, X, YouTube, Weverse, Bubble, Discord). Interpret fandom terms (bias, bias wrecker, comeback, stan, maknae, oppa, unnie, visual, era, ending fairy, fan meeting, debut, fancam, etc.) the way fans actually use them, not by dictionary definition. Preserve fan culture's warmth, excitement, and teasing at the source's own intensity — do not automatically intensify every fandom message.
 
         DIRECT ADDRESS AND PERSON NAMES
-        - When a person's name appears, first determine whether the person is being directly addressed or merely mentioned as a third party.
-        - Prioritize conversational intent over literal word order or punctuation.
-        - Treat the person as being directly addressed when the message speaks to them through a request, command, greeting, question, compliment, thanks, encouragement, confession, affectionate statement, or emotional reaction.
-        - A name may be a direct address even when it appears at the end of an informal sentence or has no comma.
-        - Requests such as "say hi to me", "notice me", "look at me", "wave at me", "smile", "marry me", "come to my country", and similar expressions are normally directed to the named person in fan comments.
-        - Do not incorrectly reinterpret the named person as the recipient of an indirect command such as "tell that person to do something" unless the sentence clearly expresses that meaning.
-        - When translating a direct address into Korean, use the person's name naturally as Korean fans would.
-        - Add -아 or -야 only when it sounds natural for that specific name and context.
-        - Nicknames, stage names, and full names may naturally remain without -아 or -야 when adding it would sound awkward.
-        - When the person is only being mentioned as a third party, do not use a vocative form.
+        - When a person's name appears, determine whether they're being directly addressed or merely mentioned as a third party, prioritizing conversational intent over literal word order or punctuation.
+        - Treat it as direct address when the message speaks to them through a request, command, greeting, question, compliment, thanks, encouragement, confession, affectionate statement, or emotional reaction — even at the end of an informal sentence with no comma. Requests like "say hi to me", "notice me", "look at me", "marry me" are normally directed at the named person in fan comments. Do not reinterpret the named person as the recipient of an indirect command unless the sentence clearly means that.
+        - In Korean, use the name naturally as fans would: add -아/-야 only when it sounds natural for that name; nicknames, stage names, and full names may stay bare when a vocative ending would sound awkward. When the person is only mentioned as a third party, never use a vocative form.
 
         POLITENESS
-        - If the target language has multiple politeness levels, infer the most natural level from the original wording and context.
-        - Do not automatically use formal language.
-        - Do not automatically use casual language.
-        - Preserve explicit politeness, affection, distance, or respect expressed in the source.
-        - When the context is unclear, choose a neutral everyday chat style rather than an unusually formal or intimate style.
-        - Do not mix casual and polite speech levels within a single sentence or connected clause — keep one consistent formality level across the whole sentence, based on the overall casualness/formality of the source.
+        - Infer the most natural politeness level from the source's wording and context — do not default to formal or casual automatically. Preserve explicit politeness, affection, or distance from the source, and do not mix incompatible politeness levels within one sentence or clause.
+
+        STYLE AND FORMAT PRESERVATION
+        - Never add laughter (ㅋㅋ, ㅎㅎ, haha, lol, etc.) unless it's present in the source or the source expression itself functions as laughter; never remove laughter that is present — translate it into a natural equivalent preserving its intensity.
+        - Never add, remove, or replace emojis unless repositioning one naturally. Preserve repeated/exaggerated letters that express emotion, the original line-break structure, and meaningful punctuation. Do not automatically add a period the source doesn't have.
+        - If the text is already in the target language, or contains only symbols/numbers/emojis/a URL with no translatable meaning, return it unchanged.
+
+        GENERAL WORD TRANSLATION
+        - For a standalone vocabulary word or very short phrase with no idiomatic/slang/meme/fandom meaning, translate it as the single most natural corresponding word or short expression — do not invent a full sentence around it, and do not creatively guess an unlikely part of speech (prefer the common, dictionary-first sense).
+        - Do not transliterate into a loanword pronunciation just because one exists (e.g. "key" → 키) when a natural meaning-based equivalent exists (e.g. 열쇠) — only transliterate when no natural equivalent exists or the loanword is already the standard, established term (e.g. 버스, 커피).
+
+        Before finalizing: does this read like something a native speaker would naturally type — not a translation? If it's technically correct but sounds translated, rewrite it naturally. If it sounds trendy but changed or over-interpreted the meaning, pull it back toward the source.
 
         OUTPUT
-        - Output only the translated text.
-        - Do not include explanations, quotation marks, labels, alternatives, language names, or introductory text.
+        - Output only the translated text. Do not include explanations, quotation marks, labels, alternatives, language names, or introductory text.
         """
         // Fixed system-prompt + few-shot prefix is built as its own array so
         // it stays byte-identical across every request regardless of the KB
         // — that identical prefix is what OpenAI's prompt caching keys off
         // of. The KB reference (if any) and the real input are appended
         // AFTER it, never interleaved into it.
+        //
+        // Ordering is deliberate: Functional few-shot (structural correctness
+        // — direct address, third-person, indirect request, laughter/emoji
+        // preservation) comes first since those are near-deterministic rules.
+        // Native Style few-shot comes LAST, closest to the actual query, so
+        // those tone/register examples carry the strongest recency-weighted
+        // influence — "You had one job" in particular is placed as the very
+        // last few-shot pair for exactly that reason (see conversation notes
+        // on 2026-07-18: this exact input/output pair already existed in the
+        // array but wasn't reliably reproduced, so it was repositioned
+        // instead of duplicated).
         var messages: [[String: Any]] = [
             ["role": "system", "content": systemPrompt],
-            // 1-3: 자연스러운 의역 / 팬덤 슬랭
-            ["role": "user", "content": "This lives rent free in my head"],
-            ["role": "assistant", "content": "계속 머릿속에서 맴돌아"],
-            ["role": "user", "content": "She ate and left no crumbs"],
-            ["role": "assistant", "content": "진짜 제대로 해냈어"],
-            ["role": "user", "content": "He's so babygirl"],
-            ["role": "assistant", "content": "완전 사랑스러워"],
-            // 4-5: SNS challenge 표현
-            ["role": "user", "content": "Stop being so perfect challenge"],
-            ["role": "assistant", "content": "완벽한 거 좀 그만해봐"],
-            ["role": "user", "content": "Try not to laugh challenge"],
-            ["role": "assistant", "content": "안 웃기 챌린지"],
-            // 6-8: 이름이 문장 끝에 있어도 직접 호명으로 판단
+            // MARK: - Functional Few-shot: Direct Address
             ["role": "user", "content": "say hi to me, jhope please"],
             ["role": "assistant", "content": "제이홉 제발 나한테 인사해줘"],
             ["role": "user", "content": "i love you so much jimin"],
             ["role": "assistant", "content": "지민아 진짜 너무 사랑해"],
             ["role": "user", "content": "please notice my comment mark"],
             ["role": "assistant", "content": "마크야 제발 내 댓글 좀 봐줘"],
-            // 9-10: 이름이 제3자로 언급되는 경우
+            // MARK: - Functional Few-shot: Third-person Reference
             ["role": "user", "content": "I watched Jungkook's live"],
             ["role": "assistant", "content": "정국이 라이브 봤어"],
-            ["role": "user", "content": "Felix made me laugh"],
-            ["role": "assistant", "content": "필릭스 때문에 웃었어"],
-            // 11-12: 제3자에게 전달/질문 요청 — 호격 아님, 화자는 "전해줘/물어봐줘"의
-            // 대상이지 이름의 주인이 아님 (예: "tell taehyung ~"은 태형이한테
-            // 직접 말 거는 게 아니라, 상대방에게 태형이한테 전해달라는 부탁)
+            // MARK: - Functional Few-shot: Indirect Request
             ["role": "user", "content": "tell taehyung I said good luck tonight"],
             ["role": "assistant", "content": "태형이한테 오늘 잘 되길 바란다고 전해줘"],
             ["role": "user", "content": "ask namjoon if he's eating well"],
             ["role": "assistant", "content": "남준이한테 잘 먹고 있는지 물어봐줘"],
-            // 13-16: 원문에 없는 웃음 표현 추가 금지
+            // MARK: - Functional Few-shot: Do Not Add Laughter or Emotion
             ["role": "user", "content": "I love you"],
             ["role": "assistant", "content": "사랑해"],
             ["role": "user", "content": "I love you lol"],
@@ -7224,20 +7188,57 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             ["role": "assistant", "content": "진짜?"],
             ["role": "user", "content": "Really?? 😭"],
             ["role": "assistant", "content": "진짜?? 😭"],
-            // 17-18: 반대 방향 번역 스타일
+            // MARK: - Reverse Translation
             ["role": "user", "content": "나 지금 가는 중"],
             ["role": "assistant", "content": "I'm on my way"],
             ["role": "user", "content": "너무 웃겨ㅋㅋ"],
             ["role": "assistant", "content": "You're so funny lol"],
-            // 19: 부정문에서도 문장 전체의 반말/존댓말 톤을 일관되게 유지
-            // (앞은 반말인데 뒤에서 갑자기 존댓말로 바뀌는 톤 혼합 방지)
-            ["role": "user", "content": "this is NOT giving villain energy, don't even try it"],
-            ["role": "assistant", "content": "이건 절대 악당 느낌 아니야, 그런 시도도 하지 마"],
+            // MARK: - Native Style Few-shot (kept last — see ordering note above)
+            ["role": "user", "content": "I'm dead 😭"],
+            ["role": "assistant", "content": "죽겠네 😭"],
+            ["role": "user", "content": "This hit different"],
+            ["role": "assistant", "content": "이건 좀 다르네"],
+            ["role": "user", "content": "Wait, this is unreal"],
+            ["role": "assistant", "content": "잠깐만 이거 실화야?"],
+            ["role": "user", "content": "Don't even get me started"],
+            ["role": "assistant", "content": "아 말도 마"],
+            ["role": "user", "content": "It is what it is"],
+            ["role": "assistant", "content": "뭐 어쩌겠어"],
+            ["role": "user", "content": "I didn't see that coming"],
+            ["role": "assistant", "content": "이건 예상 못 했네"],
+            ["role": "user", "content": "I'm obsessed"],
+            ["role": "assistant", "content": "완전 빠졌어"],
+            ["role": "user", "content": "Why is this so real"],
+            ["role": "assistant", "content": "아니 왜 이렇게 현실적이야"],
         ]
+        // NOTE: "I'm actually screaming" / "This is too much" / "It's giving
+        // main character" / "You had one job" were removed from here — they
+        // now live in TranslationDB.enKo as exact-match "hero phrases" that
+        // short-circuit before this API call ever runs (see the DB lookup
+        // earlier in this function), so keeping them here too would only
+        // burn prompt tokens on turns the DB never lets through anyway.
         if let kbReference {
             messages.append(["role": "system", "content": kbReference])
         }
         messages.append(["role": "user", "content": effectiveInput])
+
+        #if DEBUG
+        // Temporary runtime verification (diagnostic only — does not change
+        // prompt content): confirms the actual `messages` array being sent
+        // to the API matches the current source, to rule out a stale build
+        // silently serving an old prompt. Never compiled into release
+        // builds; never logs the API key.
+        let debugSystemPreview = String(systemPrompt.prefix(150))
+        let debugOneJobIndex = messages.firstIndex { ($0["content"] as? String) == "You had one job" }
+        let debugOneJobAssistant: String = {
+            guard let idx = debugOneJobIndex, idx + 1 < messages.count else { return "NOT FOUND IN messages ARRAY" }
+            return (messages[idx + 1]["content"] as? String) ?? "(non-string content)"
+        }()
+        print("🔥 [translateTriggered/DEBUG] messages.count=\(messages.count)")
+        print("🔥 [translateTriggered/DEBUG] systemPrompt[0..<150]=\(debugSystemPreview)...")
+        print("🔥 [translateTriggered/DEBUG] 'You had one job' at index=\(debugOneJobIndex.map(String.init) ?? "nil"), paired assistant=\(debugOneJobAssistant)")
+        print("🔥 [translateTriggered/DEBUG] final user message (effectiveInput)=\(effectiveInput)")
+        #endif
 
         let body: [String: Any] = [
             "model": "gpt-4o-mini",

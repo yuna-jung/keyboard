@@ -28,7 +28,10 @@ struct TranslationDB {
         // 영→한
         if src.contains("English") && (tgt.contains("Korean") || tgt.contains("한국어")) {
             let lower = key.lowercased()
-            return stepLookup(lower, in: enKo) ?? stepLookup(key, in: enKo)
+            if let hit = stepLookup(lower, in: enKo) ?? stepLookup(key, in: enKo) {
+                return hit
+            }
+            return heroPhraseFallback(lower)
         }
 
         // 일→한
@@ -80,6 +83,47 @@ struct TranslationDB {
         while let last = stripped.last, "?!~。？！".contains(last) {
             stripped.removeLast()
             if let result = map[stripped] { return result }
+        }
+        return nil
+    }
+
+    // MARK: - 히어로 문구 느슨한 매칭 (강조 부사 1개 삽입 허용)
+    // 아래 9개 문구에만 적용되는 2차 fallback. heroPhraseKeys가 후보를
+    // 이 9개로 명시적으로 제한하기 때문에, 예를 들어 "i'm really sorry"에서
+    // "really"를 제거해도 일반 항목인 "i'm sorry"는 절대 매칭되지 않는다.
+    private static let heroPhraseKeys: Set<String> = [
+        "you had one job",
+        "it's giving main character",
+        "this is too much",
+        "i'm actually screaming",
+        "this is my roman empire",
+        "he has no business looking this good",
+        "i'm never getting over this",
+        "this changed my life",
+        "the way my jaw dropped",
+    ]
+
+    private static let heroAdverbs: Set<String> = [
+        "literally", "actually", "absolutely", "really",
+        "just", "honestly", "genuinely", "totally",
+    ]
+
+    // stepLookup의 정확 매칭이 모두 실패한 뒤에만 시도된다. 부사 하나를
+    // 제거했을 때 heroPhraseKeys와 정확히 일치하는 경우에만 값을 반환하며,
+    // 실제 값은 enKo에서 가져와(단일 출처) 이후 번역문이 바뀌어도 여기를
+    // 따로 수정할 필요가 없게 한다.
+    private static func heroPhraseFallback(_ lowercasedText: String) -> String? {
+        var stripped = lowercasedText
+        while let last = stripped.last, "?!~。？！.".contains(last) {
+            stripped.removeLast()
+        }
+        let words = stripped.split(separator: " ").map(String.init)
+        for adverb in heroAdverbs {
+            guard words.contains(adverb) else { continue }
+            let withoutAdverb = words.filter { $0 != adverb }.joined(separator: " ")
+            if heroPhraseKeys.contains(withoutAdverb) {
+                return enKo[withoutAdverb]
+            }
         }
         return nil
     }
@@ -224,6 +268,27 @@ struct TranslationDB {
         "take care of yourself.": "건강 챙겨.",
         "i support you.": "응원해.",
         "i'm cheering for you.": "응원해.",
+
+        // "히어로 문구" — 밈/과장 표현 GPT 크로스토크(다른 밈끼리 뒤섞여 나오는
+        // 현상) 없이 항상 고정 출력되도록 DB에서 우선 가로챔.
+        "you had one job": "그거 하나를 못하냐 진짜",
+        "you had one job.": "그거 하나를 못하냐 진짜",
+        "it's giving main character": "완전 주인공 재질이다",
+        "it's giving main character.": "완전 주인공 재질이다",
+        "this is too much": "이건 좀 에바야",
+        "this is too much.": "이건 좀 에바야",
+        "i'm actually screaming": "나 진짜 소리 지름",
+        "i'm actually screaming.": "나 진짜 소리 지름",
+        "this is my roman empire": "요즘 계속 생각남",
+        "this is my roman empire.": "요즘 계속 생각남",
+        "he has no business looking this good": "와 진짜 존잘ㄷㄷ",
+        "he has no business looking this good.": "와 진짜 존잘ㄷㄷ",
+        "i'm never getting over this": "나 이거 평생 못 잊음",
+        "i'm never getting over this.": "나 이거 평생 못 잊음",
+        "this changed my life": "이거 진짜 신세계다",
+        "this changed my life.": "이거 진짜 신세계다",
+        "the way my jaw dropped": "입틀막",
+        "the way my jaw dropped.": "입틀막",
     ]
 
     // MARK: - 일→한 (jaKo)

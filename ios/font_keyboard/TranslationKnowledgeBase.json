@@ -41,7 +41,9 @@
       "patterns": [
         { "value": "this ain't it chief", "match": "exact_phrase", "priority": 100 },
         { "value": "this ain't it, chief", "match": "exact_phrase", "priority": 100 },
-        { "value": "that ain't it chief", "match": "exact_phrase", "priority": 100 }
+        { "value": "that ain't it chief", "match": "exact_phrase", "priority": 100 },
+        { "value": "this ain't it", "match": "exact_phrase", "priority": 100 },
+        { "value": "that ain't it", "match": "exact_phrase", "priority": 100 }
       ],
       "meaning": "Internet slang used to casually dismiss or mildly mock something as clearly wrong, off-base, or a bad decision. 'Chief' is a sarcastic, informal way of addressing the person, not a literal rank or title.",
       "guideline": "Apply only when the sentence expresses casual disapproval or mockery of a choice, statement, or action. Do not translate 'chief' as an actual job title, rank, or leader unless the sentence is clearly about a real chief/boss/officer.",
@@ -331,10 +333,11 @@
       "id": "no_business_being_this_good",
       "patterns": [
         { "value": "no business being this good", "match": "exact_phrase", "priority": 100 },
-        { "value": "\\bno business being this \\w+", "match": "regex", "priority": 90 }
+        { "value": "no business looking this good", "match": "exact_phrase", "priority": 100 },
+        { "value": "\\bno business (?:being|looking) this \\w+", "match": "regex", "priority": 90 }
       ],
-      "meaning": "Hyperbolic praise expressing that something or someone is impressively good — 'this shouldn't even be allowed to be this good'.",
-      "guideline": "Convey enthusiastic, exaggerated admiration — not a literal statement about permission or business. Adapt the quality word to match whatever is being praised (good, talented, pretty, etc.).",
+      "meaning": "Hyperbolic praise expressing that something or someone is impressively good — 'this shouldn't even be allowed to be this good/look this good'.",
+      "guideline": "Convey enthusiastic, exaggerated admiration — not a literal statement about permission or business. Adapt the quality word to match whatever is being praised (good, talented, pretty, etc.), and adapt the verb (being/looking) naturally to the target language rather than translating it literally.",
       "preferred_translations": {
         "ko": [
           "이렇게 잘할 일이야?",
@@ -510,6 +513,112 @@
           "플렉스",
           "플렉스하다",
           "플렉스 좀 그만해"
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "rent_free",
+      "patterns": [
+        { "value": "rent free", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang describing something (an idea, image, song, or moment) that stays persistently and involuntarily in someone's mind, the way an unwanted tenant would occupy space without paying — 'living rent free' in their head.",
+      "guideline": "Convey the sense of something repeatedly and involuntarily coming to mind or being stuck in one's thoughts. Do not translate 'rent' or 'free' literally — this has nothing to do with housing costs.",
+      "preferred_translations": {
+        "ko": [
+          "계속 머릿속에 맴돌아.",
+          "머릿속에서 안 떠나.",
+          "자꾸 생각나.",
+          "계속 생각나서 미치겠어."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "main_character_energy",
+      "patterns": [
+        { "value": "main character energy", "match": "exact_phrase", "priority": 100 },
+        { "value": "main character moment", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang describing someone acting confident, central, or narratively significant, as if they were the protagonist of a story or movie in that moment.",
+      "guideline": "Convey confident, spotlight-worthy, protagonist-like presence or behavior. Do not translate 'main character' as a literal reference to a story or film character unless the sentence is actually discussing fiction.",
+      "preferred_translations": {
+        "ko": [
+          "완전 주인공 포스야.",
+          "주인공 그 자체다.",
+          "이건 무조건 주인공 각.",
+          "완전 주인공st야."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "duality",
+      "patterns": [
+        { "value": "the duality of", "match": "exact_phrase", "priority": 100 },
+        { "value": "duality of man", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet meme phrase pointing out a contrast or contradiction between two sides of the same person or thing (e.g. posting something wholesome right after something chaotic) — 'the duality of man/humans'.",
+      "guideline": "Convey the sense of pointing out an amusing contradiction or two contrasting sides of the same person. Do not translate 'duality' as an abstract philosophical term unless the context is genuinely philosophical or academic.",
+      "preferred_translations": {
+        "ko": [
+          "이 반전 매력 뭐야.",
+          "이 극과 극인 모습 봐.",
+          "사람이 이렇게 다를 수가.",
+          "반전 있네 진짜."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "woke_up_and_chose_violence",
+      "patterns": [
+        { "value": "woke up and chose violence", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang describing someone being unusually savage, blunt, or aggressively funny/critical that day — as if they deliberately decided to be combative.",
+      "guideline": "Convey a joking sense of someone being especially savage, blunt, or merciless (usually in a funny or roast context) — not literal physical violence.",
+      "preferred_translations": {
+        "ko": [
+          "오늘 작정하고 독설 날리네.",
+          "오늘따라 왜 이렇게 세게 나가.",
+          "오늘 진짜 살벌하다.",
+          "오늘 제대로 마음먹고 나왔네."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "i_fear",
+      "patterns": [
+        { "value": "i fear", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Internet slang using 'I fear' ironically or humorously to dramatically state an obvious or mundane observation, mimicking dread for comedic effect, rather than expressing literal fear.",
+      "guideline": "When followed by a mundane, funny, or obviously-true statement (not a genuinely dangerous or threatening situation), convey ironic, deadpan, mock-dramatic delivery — not real fear. If the sentence describes genuine danger, anxiety, or a real threat, translate literally as actual fear.",
+      "preferred_translations": {
+        "ko": [
+          "...인 것 같아 무섭다(웃음).",
+          "...일까 봐 진심 무서움.",
+          "...인 게 레전드로 무서운 부분.",
+          "설마 ...인가 무섭다."
+        ]
+      },
+      "category": "internet_slang"
+    },
+    {
+      "id": "jaw_dropped",
+      "patterns": [
+        { "value": "jaw dropped", "match": "exact_phrase", "priority": 100 },
+        { "value": "my jaw dropped", "match": "exact_phrase", "priority": 100 },
+        { "value": "jaw dropping", "match": "exact_phrase", "priority": 100 }
+      ],
+      "meaning": "Slang/hyperbole describing intense shock, awe, or amazement at something impressive or surprising — not a literal physical description of one's jaw falling open.",
+      "guideline": "Convey a strong sense of shock, amazement, or awe. A literal physical jaw-drop reading is possible but rare in casual chat/social-media context — treat it as the figurative amazement sense unless the sentence is clearly describing an actual physical or medical reaction.",
+      "preferred_translations": {
+        "ko": [
+          "와 소름 돋았어.",
+          "진짜 입이 안 다물어져.",
+          "완전 충격이었어.",
+          "미쳤다 진짜."
         ]
       },
       "category": "internet_slang"
