@@ -7140,6 +7140,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         GENERAL WORD TRANSLATION
         - For a standalone vocabulary word or very short phrase with no idiomatic/slang/meme/fandom meaning, translate it as the single most natural corresponding word or short expression — do not invent a full sentence around it, and do not creatively guess an unlikely part of speech (prefer the common, dictionary-first sense).
         - Do not transliterate into a loanword pronunciation just because one exists (e.g. "key" → 키) when a natural meaning-based equivalent exists (e.g. 열쇠) — only transliterate when no natural equivalent exists or the loanword is already the standard, established term (e.g. 버스, 커피).
+        - For well-known proper nouns, brand names, or event names, use the standard, commonly used Korean transliteration rather than inventing a new one. For example, "Met Gala" should be transliterated as "멧 갈라", not "메트 갈라".
 
         Before finalizing: does this read like something a native speaker would naturally type — not a translation? If it's technically correct but sounds translated, rewrite it naturally. If it sounds trendy but changed or over-interpreted the meaning, pull it back toward the source.
 
@@ -7155,13 +7156,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // Ordering is deliberate: Functional few-shot (structural correctness
         // — direct address, third-person, indirect request, laughter/emoji
         // preservation) comes first since those are near-deterministic rules.
-        // Native Style few-shot comes LAST, closest to the actual query, so
-        // those tone/register examples carry the strongest recency-weighted
-        // influence — "You had one job" in particular is placed as the very
-        // last few-shot pair for exactly that reason (see conversation notes
-        // on 2026-07-18: this exact input/output pair already existed in the
-        // array but wasn't reliably reproduced, so it was repositioned
-        // instead of duplicated).
+        // Native Style few-shot comes after that, and Politeness comes LAST,
+        // closest to the actual query, so those tone/register examples carry
+        // the strongest recency-weighted influence — without at least one
+        // formal-register example, 20/20 prior pairs skewed casual and the
+        // model over-generalized "this app always uses 반말" (see
+        // conversation notes on 2026-07-19).
         var messages: [[String: Any]] = [
             ["role": "system", "content": systemPrompt],
             // MARK: - Functional Few-shot: Direct Address
@@ -7210,6 +7210,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             ["role": "assistant", "content": "완전 빠졌어"],
             ["role": "user", "content": "Why is this so real"],
             ["role": "assistant", "content": "아니 왜 이렇게 현실적이야"],
+            // MARK: - Politeness (formal vs. casual — judge from source, not default)
+            ["role": "user", "content": "Could you please let me know when you're available?"],
+            ["role": "assistant", "content": "언제 시간 되시는지 알려주실 수 있을까요?"],
+            ["role": "user", "content": "Thank you so much for your help today."],
+            ["role": "assistant", "content": "오늘 도와주셔서 정말 감사합니다."],
+            ["role": "user", "content": "hey what's up, free later?"],
+            ["role": "assistant", "content": "야 뭐해, 나중에 시간 있어?"],
+            ["role": "user", "content": "Chanel, are u serious? This is a casual look that many people wear when going to campus. The outfit is nice, but not for a Met Gala"],
+            ["role": "assistant", "content": "샤넬, 진심이에요? 이건 많은 사람들이 캠퍼스 갈 때 입는 캐주얼한 룩이잖아요. 옷은 예쁘지만 멧 갈라에는 안 어울려요"],
         ]
         // NOTE: "I'm actually screaming" / "This is too much" / "It's giving
         // main character" / "You had one job" were removed from here — they
