@@ -11,9 +11,10 @@ import 'screens/add_phrase_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding/onboarding_page1.dart';
 import 'screens/onboarding/onboarding_page2.dart';
+import 'services/app_navigation.dart';
 import 'services/subscription_service.dart';
 
-final _navigatorKey = GlobalKey<NavigatorState>();
+final _navigatorKey = appNavigatorKey;
 
 const _pink = Color(0xFF5BC8F5);
 

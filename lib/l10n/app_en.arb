@@ -99,5 +99,11 @@
   "guideSection4Step4": "Tap \"Insert\" to paste the result directly into the host app",
   "guideSection5Title": "Changing Keyboard Colors",
   "guideSection5Step1": "Tap the Palette tab (🎨)",
-  "guideSection5Step2": "Choose from 6 preset colors or create your own with the RGB sliders"
+  "guideSection5Step2": "Choose from 6 preset colors or create your own with the RGB sliders",
+
+  "trialNotificationTitle": "Your free trial is ending soon",
+  "trialNotificationBody": "Your subscription starts automatically in 2 days! You'll stick around, right? 🩵",
+  "trialPrimerTitle": "We'll remind you before your trial ends 🩵",
+  "trialPrimerBody": "You'll get a reminder 2 days before your trial ends.\nPlease allow notifications.",
+  "trialPrimerConfirmButton": "OK"
 }

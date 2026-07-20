@@ -305,4 +305,21 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get guideSection5Step2 =>
       'Choose from 6 preset colors or create your own with the RGB sliders';
+
+  @override
+  String get trialNotificationTitle => 'Your free trial is ending soon';
+
+  @override
+  String get trialNotificationBody =>
+      'Your subscription starts automatically in 2 days! You\'ll stick around, right? 🩵';
+
+  @override
+  String get trialPrimerTitle => 'We\'ll remind you before your trial ends 🩵';
+
+  @override
+  String get trialPrimerBody =>
+      'You\'ll get a reminder 2 days before your trial ends.\nPlease allow notifications.';
+
+  @override
+  String get trialPrimerConfirmButton => 'OK';
 }

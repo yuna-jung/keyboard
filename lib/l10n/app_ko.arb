@@ -99,5 +99,11 @@
   "guideSection4Step4": "\"삽입\" 버튼으로 호스트 앱에 결과를 바로 붙여넣을 수 있어요",
   "guideSection5Title": "키보드 컬러 변경",
   "guideSection5Step1": "팔레트 탭(🎨) 선택",
-  "guideSection5Step2": "6가지 프리셋 색상을 고르거나, RGB 슬라이더로 직접 만드세요"
+  "guideSection5Step2": "6가지 프리셋 색상을 고르거나, RGB 슬라이더로 직접 만드세요",
+
+  "trialNotificationTitle": "무료 체험이 곧 끝나가요",
+  "trialNotificationBody": "2일 후 자동으로 구독이 시작돼요! 계속 함께 하실 거죠…? 🩵",
+  "trialPrimerTitle": "체험 끝나기 전에 알려드릴게요 🩵",
+  "trialPrimerBody": "무료 체험 종료 2일 전에 알림을 보내드려요\n알림을 허용해 주세요",
+  "trialPrimerConfirmButton": "확인"
 }
