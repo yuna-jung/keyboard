@@ -39,7 +39,8 @@
 
 /* GIF tab */
 "gif_search_placeholder" = "Search GIFs...";
-"gif_trending"           = "Trending";
+"gif_search_button"      = "Search";
+"gif_trending"           = "K-pop";
 "gif_search_empty"       = "No results found";
 "gif_no_access"          = "Full Access is required to use GIFs\nSettings → General → Keyboard → Fonkii → Enable Full Access";
 "gif_settings_button"    = "Go to Settings";

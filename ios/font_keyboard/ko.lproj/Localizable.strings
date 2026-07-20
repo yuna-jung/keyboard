@@ -39,7 +39,8 @@
 
 /* GIF 탭 */
 "gif_search_placeholder" = "GIF 검색...";
-"gif_trending"           = "인기";
+"gif_search_button"      = "검색";
+"gif_trending"           = "kpop";
 "gif_search_empty"       = "검색 결과가 없습니다";
 "gif_no_access"          = "GIF를 사용하려면 전체 접근 허용이 필요해요\n설정 → 일반 → 키보드 → Fonkii → 전체 접근 허용 켜기";
 "gif_settings_button"    = "설정으로 가기";

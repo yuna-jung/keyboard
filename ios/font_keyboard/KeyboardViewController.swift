@@ -1,6 +1,7 @@
 import UIKit
 import AudioToolbox
 import os
+import ImageIO
 
 // MARK: - Constants
 
@@ -1697,7 +1698,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - GIF State
 
     private lazy var gifCategories: [(String, String?)] = [
-        (loc("gif_trending"), nil),
+        // Default tab: was raw `/gifs/trending` (nil query). Changed to a
+        // fixed "kpop" search so the tab opens on fandom-relevant GIFs by
+        // default — Fonkii's whole audience is K-pop fans. The trending
+        // endpoint branch in `fetchGiphy` is intentionally left in place
+        // (still reachable if `gifSearchQuery` is ever nil again) rather
+        // than deleted, per explicit instruction to keep it around as a
+        // fallback even though nothing currently routes to it.
+        (loc("gif_trending"), "kpop"),
         (loc("gif_cat_funny"), "funny"),
         (loc("gif_cat_love"), "love"),
         (loc("gif_cat_sad"), "sad"),
@@ -1712,6 +1720,39 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var gifOffset = 0
     private var isLoadingGifs = false
     private var gifSearchQuery: String?
+
+    // Lazy/visible-cell-only GIF decoding (see `gifUpdateVisibleCells`) —
+    // decoding every animated GIF in the grid up front was crashing the
+    // extension under iOS's tight per-extension memory ceiling. Cells hold
+    // a decoded image only while scrolled into view; `gifImageCache` keeps
+    // recently-decoded frames around for fast re-display when scrolling
+    // back, and self-evicts under system memory pressure (NSCache's own
+    // built-in behavior — no manual notification wiring needed, which
+    // matters here since `UIApplication.shared`-based memory-warning
+    // notifications aren't available in an app extension anyway).
+    private var gifCellViews: [(gif: GiphyImage, imageView: UIImageView)] = []
+    private var gifVisibleIDs: Set<String> = []
+    private var gifLoadingIDs: Set<String> = []
+    private var gifScrollDebounceWorkItem: DispatchWorkItem?
+    private let gifImageCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 60
+        return cache
+    }()
+    // Defensive ceiling on simultaneously-decoded animated images. The
+    // viewport-based visibility check already keeps this near the number
+    // of cells that physically fit on screen (plus a small preload
+    // margin), so this should rarely if ever be hit — it exists as a
+    // backstop for unusually tall layouts, not as the primary control.
+    private let gifMaxConcurrentDecoded = 18
+
+    // Free-text GIF search box state — separate from `gifSearchQuery`
+    // (which category taps also drive). See GifSearchKeypad.swift for the
+    // keypad itself; this is only the search bar's own display/text state.
+    private var gifSearchText: String = ""
+    private weak var gifSearchBarLabel: UILabel?
+    private weak var gifSearchClearButton: UIButton?
+    private weak var gifSearchKeypadView: GifSearchKeypadView?
 
     // MARK: - Translate State
 
@@ -2111,6 +2152,22 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         super.viewWillAppear(animated)
         checkPremiumStatus()
         applyPlainTextFieldGate()
+    }
+
+    /// Extra defensive pass on top of `NSCache`'s own automatic eviction
+    /// (which already responds to system memory pressure without any
+    /// wiring here — extensions have no `UIApplication.shared` to post the
+    /// usual memory-warning notification through, so `NSCache`'s built-in
+    /// handling is what actually matters). Also proactively drops any
+    /// currently off-screen GIF images the cache pass alone wouldn't touch
+    /// (an image already assigned to an `imageView` stays retained by that
+    /// view regardless of what happens to the cache).
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        gifImageCache.removeAllObjects()
+        for cell in gifCellViews where !gifVisibleIDs.contains(cell.gif.id) {
+            cell.imageView.image = nil
+        }
     }
 
     /// Detect whether the connected host field is URL/email/search-style and,
@@ -4356,6 +4413,56 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         pinToEdges(container, in: contentView)
         container.heightAnchor.constraint(equalToConstant: tabContainerHeight).isActive = true
 
+        // Search bar — tap to reveal the GIF-tab-only keypad (GifSearchKeypad.swift).
+        let searchBar = UIView()
+        searchBar.translatesAutoresizingMaskIntoConstraints = false
+        searchBar.backgroundColor = UIColor(white: 0.92, alpha: 1)
+        searchBar.layer.cornerRadius = 14
+        searchBar.layer.masksToBounds = true
+        searchBar.isUserInteractionEnabled = true
+        searchBar.addGestureRecognizer(
+            UITapGestureRecognizer(target: self, action: #selector(gifSearchBarTapped)))
+        container.addSubview(searchBar)
+
+        let searchIcon = UIImageView(image: UIImage(systemName: "magnifyingglass"))
+        searchIcon.tintColor = .gray
+        searchIcon.contentMode = .scaleAspectFit
+        searchIcon.translatesAutoresizingMaskIntoConstraints = false
+        searchBar.addSubview(searchIcon)
+
+        let searchLabel = UILabel()
+        searchLabel.font = .systemFont(ofSize: 14)
+        searchLabel.text = gifSearchText.isEmpty ? loc("gif_search_placeholder") : gifSearchText
+        searchLabel.textColor = gifSearchText.isEmpty ? .gray : .black
+        searchLabel.translatesAutoresizingMaskIntoConstraints = false
+        searchBar.addSubview(searchLabel)
+        gifSearchBarLabel = searchLabel
+
+        let clearBtn = UIButton(type: .system)
+        clearBtn.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+        clearBtn.tintColor = .gray
+        clearBtn.isHidden = gifSearchText.isEmpty
+        clearBtn.translatesAutoresizingMaskIntoConstraints = false
+        clearBtn.addTarget(self, action: #selector(gifSearchClearTapped), for: .touchUpInside)
+        searchBar.addSubview(clearBtn)
+        gifSearchClearButton = clearBtn
+
+        NSLayoutConstraint.activate([
+            searchIcon.leadingAnchor.constraint(equalTo: searchBar.leadingAnchor, constant: 10),
+            searchIcon.centerYAnchor.constraint(equalTo: searchBar.centerYAnchor),
+            searchIcon.widthAnchor.constraint(equalToConstant: 15),
+            searchIcon.heightAnchor.constraint(equalToConstant: 15),
+
+            searchLabel.leadingAnchor.constraint(equalTo: searchIcon.trailingAnchor, constant: 8),
+            searchLabel.centerYAnchor.constraint(equalTo: searchBar.centerYAnchor),
+            searchLabel.trailingAnchor.constraint(lessThanOrEqualTo: clearBtn.leadingAnchor, constant: -6),
+
+            clearBtn.trailingAnchor.constraint(equalTo: searchBar.trailingAnchor, constant: -8),
+            clearBtn.centerYAnchor.constraint(equalTo: searchBar.centerYAnchor),
+            clearBtn.widthAnchor.constraint(equalToConstant: 20),
+            clearBtn.heightAnchor.constraint(equalToConstant: 20),
+        ])
+
         // Category tabs
         let catScroll = UIScrollView()
         catScroll.showsHorizontalScrollIndicator = false
@@ -4424,7 +4531,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         gifLoadingLabel = loadingLabel
 
         NSLayoutConstraint.activate([
-            catScroll.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            searchBar.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            searchBar.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+            searchBar.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
+            searchBar.heightAnchor.constraint(equalToConstant: 32),
+
+            catScroll.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 4),
             catScroll.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             catScroll.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             catScroll.heightAnchor.constraint(equalToConstant: 32),
@@ -4444,7 +4556,63 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             loadingLabel.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 40),
         ])
 
+        // Search keypad — overlays the grid area only (never the search bar
+        // or category tabs above it), hidden until the search bar is
+        // tapped. See GifSearchKeypad.swift for why this is a fully
+        // separate component from the fonts/translate tab keypads.
+        let keypad = GifSearchKeypadView(
+            accentColor: accentColor, searchButtonTitle: loc("gif_search_button"))
+        keypad.delegate = self
+        keypad.translatesAutoresizingMaskIntoConstraints = false
+        keypad.isHidden = true
+        keypad.layer.cornerRadius = 10
+        keypad.layer.masksToBounds = true
+        keypad.setText(gifSearchText)
+        container.addSubview(keypad)
+        gifSearchKeypadView = keypad
+        NSLayoutConstraint.activate([
+            keypad.topAnchor.constraint(equalTo: catScroll.bottomAnchor, constant: 4),
+            keypad.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            keypad.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            keypad.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+
         loadGifs()
+    }
+
+    // MARK: - GIF Search Bar / Keypad
+
+    @objc private func gifSearchBarTapped() {
+        guard let keypad = gifSearchKeypadView, keypad.isHidden else { return }
+        keypad.setText(gifSearchText)
+        keypad.isHidden = false
+        keypad.superview?.layoutIfNeeded()
+        keypad.transform = CGAffineTransform(translationX: 0, y: keypad.bounds.height)
+        UIView.animate(withDuration: 0.25) {
+            keypad.transform = .identity
+        }
+    }
+
+    private func hideGifSearchKeypad() {
+        guard let keypad = gifSearchKeypadView, !keypad.isHidden else { return }
+        UIView.animate(withDuration: 0.2, animations: {
+            keypad.transform = CGAffineTransform(translationX: 0, y: keypad.bounds.height)
+        }, completion: { _ in
+            keypad.isHidden = true
+            keypad.transform = .identity
+        })
+    }
+
+    @objc private func gifSearchClearTapped() {
+        gifSearchText = ""
+        gifSearchBarLabel?.text = loc("gif_search_placeholder")
+        gifSearchBarLabel?.textColor = .gray
+        gifSearchClearButton?.isHidden = true
+
+        gifImages = []
+        gifOffset = 0
+        gifSearchQuery = "kpop"
+        fetchGiphy(append: false)
     }
 
     // MARK: - GIPHY Network
@@ -4485,8 +4653,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
         guard let url = URL(string: urlString) else { isLoadingGifs = false; return }
 
+        #if DEBUG
+        let fetchStart = Date()
+        let debugQuery = gifSearchQuery ?? "trending"
+        #endif
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             guard let self = self else { return }
+
+            #if DEBUG
+            let networkElapsed = Date().timeIntervalSince(fetchStart)
+            print("🔥 [GIF] list fetch network=\(String(format: "%.3f", networkElapsed))s query=\"\(debugQuery)\" append=\(append) bytes=\(data?.count ?? 0)")
+            #endif
 
             guard let data = data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -4507,7 +4684,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let gifs: [GiphyImage] = items.compactMap { item in
                 guard let id = item["id"] as? String,
                       let images = item["images"] as? [String: Any],
-                      let preview = images["fixed_width_small_still"] as? [String: Any],
+                      // `fixed_width_small` (animated) — was
+                      // `fixed_width_small_still`, a static first-frame
+                      // thumbnail. Small rendition per Giphy's bandwidth
+                      // guidance for grid/list previews.
+                      let preview = images["fixed_width_small"] as? [String: Any],
                       let previewStr = preview["url"] as? String,
                       let previewURL = URL(string: previewStr),
                       let original = images["original"] as? [String: Any],
@@ -4578,6 +4759,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private func renderGifGrid() {
         guard let gridStack = gifGridStack else { return }
         gridStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        gifCellViews = []
+        gifVisibleIDs = []
+        gifLoadingIDs = []
+        gifScrollDebounceWorkItem?.cancel()
 
         let cols = 3
         let chunked = stride(from: 0, to: gifImages.count, by: cols).map {
@@ -4615,23 +4800,187 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     imageView.bottomAnchor.constraint(equalTo: btn.bottomAnchor),
                 ])
 
-                loadGifPreview(url: gif.previewURL, into: imageView, gifID: gif.id, button: btn)
+                // Decoding is deferred to `gifUpdateVisibleCells` (only
+                // cells actually on screen get decoded) rather than fired
+                // here for all 50 cells at once.
+                gifCellViews.append((gif: gif, imageView: imageView))
                 rowStack.addArrangedSubview(btn)
             }
             for _ in 0..<(cols - row.count) { rowStack.addArrangedSubview(UIView()) }
             gridStack.addArrangedSubview(rowStack)
         }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.gifUpdateVisibleCells()
+        }
     }
 
-    private func loadGifPreview(url: URL, into imageView: UIImageView, gifID: String, button: UIButton) {
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data = data, let image = UIImage(data: data) else { return }
+    /// Loads (from `gifImageCache` if present, else network+decode) the
+    /// preview image for one cell. Guarded by `gifLoadingIDs` so a cell
+    /// straddling two visibility-check passes doesn't fire a second
+    /// request while the first is still in flight.
+    private func gifLoadImage(for gif: GiphyImage, into imageView: UIImageView) {
+        let key = gif.id as NSString
+        if let cached = gifImageCache.object(forKey: key) {
+            imageView.image = cached
+            return
+        }
+        guard !gifLoadingIDs.contains(gif.id) else { return }
+        gifLoadingIDs.insert(gif.id)
+
+        // If the visible set is already at the defensive cap, decode this
+        // one as a static image instead of animated — see
+        // `gifMaxConcurrentDecoded`'s doc comment.
+        let decodeAnimated = gifVisibleIDs.count < gifMaxConcurrentDecoded
+
+        #if DEBUG
+        let requestStart = Date()
+        #endif
+        URLSession.shared.dataTask(with: gif.previewURL) { [weak self] data, _, _ in
+            guard let self = self else { return }
+            defer {
+                DispatchQueue.main.async { self.gifLoadingIDs.remove(gif.id) }
+            }
+            #if DEBUG
+            let networkElapsed = Date().timeIntervalSince(requestStart)
+            #endif
+            guard let data = data else {
+                #if DEBUG
+                print("🔥 [GIF] preview FAILED id=\(gif.id) network=\(String(format: "%.3f", networkElapsed))s")
+                #endif
+                return
+            }
+            #if DEBUG
+            let decodeStart = Date()
+            #endif
+            let image = decodeAnimated ? self.decodeAnimatedGIF(data) : UIImage(data: data)
+            #if DEBUG
+            let decodeElapsed = Date().timeIntervalSince(decodeStart)
+            print("🔥 [GIF] preview id=\(gif.id) network=\(String(format: "%.3f", networkElapsed))s decode=\(String(format: "%.3f", decodeElapsed))s animated=\(decodeAnimated) bytes=\(data.count) success=\(image != nil)")
+            #endif
+            guard let image = image else { return }
             DispatchQueue.main.async {
-                if button.accessibilityIdentifier == gifID {
+                self.gifImageCache.setObject(image, forKey: key)
+                // Only actually display it if the cell is still visible —
+                // it may have scrolled off while this request was in
+                // flight, and assigning now would just mean immediately
+                // freeing it again on the next visibility pass.
+                if self.gifVisibleIDs.contains(gif.id) {
                     imageView.image = image
                 }
             }
         }.resume()
+    }
+
+    /// Debounced entry point for scroll-driven visibility checks — keeps
+    /// re-scheduling itself ~120ms out on every scroll tick, so a fast
+    /// fling never triggers a decode pass mid-flight; it only actually
+    /// runs once scrolling has paused. `scrollViewDidEndDragging`/
+    /// `scrollViewDidEndDecelerating` additionally call
+    /// `gifUpdateVisibleCells()` directly (no debounce) the moment
+    /// scrolling definitively stops, so there's no visible lag after a
+    /// deliberate stop.
+    private func gifScheduleVisibilityCheck() {
+        gifScrollDebounceWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.gifUpdateVisibleCells() }
+        gifScrollDebounceWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
+    }
+
+    /// Walks every built cell, decodes/loads the ones now on screen (plus a
+    /// small preload margin so cells don't pop in blank right at the
+    /// viewport edge), and frees (`imageView.image = nil`) the ones that
+    /// scrolled out — the actual fix for the extension's memory ceiling
+    /// being exceeded when every GIF in the grid was held decoded at once.
+    private func gifUpdateVisibleCells() {
+        guard let scrollView = gifScrollView, !gifCellViews.isEmpty else {
+            #if DEBUG
+            print("🔥 [GIF] visibility check skipped: scrollView=\(gifScrollView != nil) cellCount=\(gifCellViews.count)")
+            #endif
+            return
+        }
+        // A freshly built grid (category tap → `buildGifMode()` rebuilding
+        // the whole tab) has a brand-new `UIScrollView` whose `bounds` is
+        // still (0,0,0,0) until Auto Layout actually resolves the new
+        // constraint tree. On a fast response this function could run
+        // before that happens, measuring a zero-size `visibleRect` and
+        // treating every cell as off-screen — force any pending layout in
+        // this subtree to finish first so `bounds` is always the real,
+        // final frame by the time it's read below. Cheap no-op when
+        // nothing is pending (the common case: search reuses an
+        // already-laid-out scrollView, and repeated scroll-driven calls
+        // land after layout has long since settled).
+        scrollView.superview?.layoutIfNeeded()
+
+        // Small preload margin — kept tight so the 18-cell decode cap (see
+        // `gifMaxConcurrentDecoded`) gets spent on cells actually on
+        // screen rather than being exhausted by rows still well outside
+        // the viewport. ±120pt was pulling in enough off-screen rows to
+        // burn through the cap before it even reached the visible ones,
+        // which looked like most of the visible grid falling back to
+        // static images.
+        let visibleRect = scrollView.bounds.insetBy(dx: 0, dy: -50)
+
+        var stillVisible: Set<String> = []
+        for cell in gifCellViews {
+            let frameInScroll = cell.imageView.convert(cell.imageView.bounds, to: scrollView)
+            guard visibleRect.intersects(frameInScroll) else { continue }
+            stillVisible.insert(cell.gif.id)
+            if cell.imageView.image == nil {
+                gifLoadImage(for: cell.gif, into: cell.imageView)
+            }
+        }
+        gifVisibleIDs = stillVisible
+
+        #if DEBUG
+        print("🔥 [GIF] visibility check: scrollView.bounds=\(scrollView.bounds) visible=\(stillVisible.count)/\(gifCellViews.count)")
+        #endif
+
+        for cell in gifCellViews where !stillVisible.contains(cell.gif.id) {
+            if cell.imageView.image != nil {
+                cell.imageView.image = nil
+            }
+        }
+    }
+
+    /// Decodes GIF `data` into a UIKit-animatable `UIImage` via ImageIO.
+    /// `UIImage(data:)` alone only decodes a GIF's first frame — this walks
+    /// every frame and its `kCGImagePropertyGIFDelayTime`/
+    /// `kCGImagePropertyGIFUnclampedDelayTime` through `CGImageSource` and
+    /// hands the result to `UIImage.animatedImage(with:duration:)`, which
+    /// `UIImageView` animates natively with no further code.
+    ///
+    /// Uses only the system ImageIO framework — no third-party dependency.
+    /// The keyboard extension target isn't wired into the Podfile at all
+    /// (only `Runner`/`RunnerTests` are), so adding something like
+    /// SDWebImage here would mean linking CocoaPods into the extension for
+    /// the first time; this avoids that entirely.
+    private func decodeAnimatedGIF(_ data: Data) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let count = CGImageSourceGetCount(source)
+        guard count > 1 else { return UIImage(data: data) }
+
+        var frames: [UIImage] = []
+        var totalDuration: TimeInterval = 0
+        frames.reserveCapacity(count)
+
+        for i in 0..<count {
+            guard let cgImage = CGImageSourceCreateImageAtIndex(source, i, nil) else { continue }
+            frames.append(UIImage(cgImage: cgImage))
+
+            var frameDuration = 0.1
+            if let properties = CGImageSourceCopyPropertiesAtIndex(source, i, nil) as? [CFString: Any],
+               let gifProperties = properties[kCGImagePropertyGIFDictionary] as? [CFString: Any] {
+                if let unclamped = gifProperties[kCGImagePropertyGIFUnclampedDelayTime] as? Double, unclamped > 0 {
+                    frameDuration = unclamped
+                } else if let clamped = gifProperties[kCGImagePropertyGIFDelayTime] as? Double, clamped > 0 {
+                    frameDuration = clamped
+                }
+            }
+            totalDuration += frameDuration
+        }
+        guard !frames.isEmpty else { return nil }
+        return UIImage.animatedImage(with: frames, duration: totalDuration)
     }
 
     private func appendGifRows(from startIndex: Int) {
@@ -4670,11 +5019,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                     imageView.trailingAnchor.constraint(equalTo: btn.trailingAnchor),
                     imageView.bottomAnchor.constraint(equalTo: btn.bottomAnchor),
                 ])
-                loadGifPreview(url: gif.previewURL, into: imageView, gifID: gif.id, button: btn)
+                gifCellViews.append((gif: gif, imageView: imageView))
                 rowStack.addArrangedSubview(btn)
             }
             for _ in 0..<(cols - row.count) { rowStack.addArrangedSubview(UIView()) }
             gridStack.addArrangedSubview(rowStack)
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.gifUpdateVisibleCells()
         }
     }
 
@@ -9002,7 +9355,25 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             if contentH > 0, offsetY > contentH - frameH - 100 {
                 loadMoreGifs()
             }
+            gifScheduleVisibilityCheck()
         }
+    }
+
+    // Fires the moment scrolling definitively stops (no debounce wait) so
+    // there's no visible lag between the scroll ending and off-screen GIFs
+    // starting to load in. `gifScheduleVisibilityCheck` (called from
+    // `scrollViewDidScroll` above) still covers the "paused mid-scroll"
+    // case via its own debounce.
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        guard scrollView === gifScrollView, !decelerate else { return }
+        gifScrollDebounceWorkItem?.cancel()
+        gifUpdateVisibleCells()
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        guard scrollView === gifScrollView else { return }
+        gifScrollDebounceWorkItem?.cancel()
+        gifUpdateVisibleCells()
     }
 
     // MARK: - Toast
@@ -9321,6 +9692,28 @@ extension KeyboardViewController: UITextViewDelegate {
     func textViewDidEndEditing(_ textView: UITextView) {
         translateCloseButton?.alpha = 0
         hgFlush()
+    }
+}
+
+// MARK: - GifSearchKeypadDelegate (see GifSearchKeypad.swift)
+extension KeyboardViewController: GifSearchKeypadDelegate {
+    func gifSearchKeypad(_ keypad: GifSearchKeypadView, didChangeText text: String) {
+        gifSearchBarLabel?.text = text.isEmpty ? loc("gif_search_placeholder") : text
+        gifSearchBarLabel?.textColor = text.isEmpty ? .gray : .black
+    }
+
+    func gifSearchKeypadDidRequestSearch(_ keypad: GifSearchKeypadView, text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        gifSearchText = trimmed
+        gifSearchBarLabel?.text = trimmed.isEmpty ? loc("gif_search_placeholder") : trimmed
+        gifSearchBarLabel?.textColor = trimmed.isEmpty ? .gray : .black
+        gifSearchClearButton?.isHidden = trimmed.isEmpty
+        hideGifSearchKeypad()
+
+        gifImages = []
+        gifOffset = 0
+        gifSearchQuery = trimmed.isEmpty ? "kpop" : trimmed
+        fetchGiphy(append: false)
     }
 }
 
