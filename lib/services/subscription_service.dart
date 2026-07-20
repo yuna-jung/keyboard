@@ -6,6 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:adapty_flutter/adapty_flutter.dart';
 
+import 'trial_notification_service.dart';
+
 const _premiumAccess = 'premium';
 // Product identifiers used for matching within the Adapty paywall.
 // Matching is case-insensitive and substring-based, so both vendor product IDs
@@ -45,9 +47,9 @@ class SubscriptionService with WidgetsBindingObserver {
   bool get canTranslateUnlimited =>
       !debugForceFree && currentTier == SubscriptionTier.premium && !_isInTrialNow;
 
-  /// Cached view of `_isInFreeTrial(lastProfile)` for synchronous getters.
-  /// Updated on every `_applyProfile` call. DEBUG forces it to false to keep
-  /// development unthrottled.
+  /// Cached view of `_activeTrialSubscription(lastProfile) != null` for
+  /// synchronous getters. Updated on every `_applyProfile` call. DEBUG
+  /// forces it to false to keep development unthrottled.
   bool _isInTrialNow = false;
 
   AdaptyPaywall? _paywall;
@@ -105,31 +107,50 @@ class SubscriptionService with WidgetsBindingObserver {
     return SubscriptionTier.free;
   }
 
-  /// Whether the user's currently-active premium subscription is still in its
-  /// introductory free trial. Trial users keep premium-tier gating (so they
-  /// can open the translate tab) but are *not* `canTranslateUnlimited` — the
-  /// keyboard's 10/day counter applies. Once the trial converts to a paid
-  /// renewal, `activeIntroductoryOfferType` clears and translation becomes
-  /// unlimited.
+  /// The active subscription still in its introductory free trial, if any.
+  /// Trial users keep premium-tier gating (so they can open the translate
+  /// tab) but are *not* `canTranslateUnlimited` — the keyboard's 10/day
+  /// counter applies. Once the trial converts to a paid renewal,
+  /// `activeIntroductoryOfferType` clears and translation becomes
+  /// unlimited. `expiresAt` on the returned subscription also drives the
+  /// trial-ending local notification (see `_applyProfile`).
   ///
   /// Adapty exposes the offer kind on both subscriptions and access levels.
   /// We check the active subscription so paid intro offers (`pay_as_you_go`,
   /// `pay_up_front`) don't get throttled — only literal `free_trial` does.
-  bool _isInFreeTrial(AdaptyProfile profile) {
+  AdaptySubscription? _activeTrialSubscription(AdaptyProfile profile) {
     for (final sub in profile.subscriptions.values) {
       if (sub.isActive && sub.activeIntroductoryOfferType == 'free_trial') {
-        return true;
+        return sub;
       }
     }
-    return false;
+    return null;
   }
 
   void _applyProfile(AdaptyProfile profile) {
     final realTier = _computeTier(profile);
     _tierNotifier.value = realTier;
-    final inTrial = _isInFreeTrial(profile);
+    final trialSub = _activeTrialSubscription(profile);
+    final inTrial = trialSub != null;
     _isInTrialNow = inTrial;
     _syncTierToAppGroup(realTier, isInTrial: inTrial);
+
+    // Re-evaluated on every profile apply (resume, restore, purchase, live
+    // profile updates) rather than only on a trial→non-trial transition:
+    // still in trial → schedule if nothing is pending yet (no-op if already
+    // scheduled); no longer in trial (cancelled, converted to paid, or was
+    // never in one) → cancel any pending reminder. Both calls are fire-and-
+    // forget and fail silently, so they can never block tier syncing.
+    final expiresAt = trialSub?.expiresAt;
+    if (inTrial && expiresAt != null) {
+      unawaited(
+        TrialNotificationService.instance.scheduleTrialExpiryIfNeeded(
+          expiresAt,
+        ),
+      );
+    } else {
+      unawaited(TrialNotificationService.instance.cancelTrialExpiry());
+    }
   }
 
   Future<void> refreshStatus() async {

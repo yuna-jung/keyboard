@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -17,6 +18,12 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
+
+    // flutter_local_notifications' recommended iOS setup — without this,
+    // a trial-expiry reminder that happens to fire while the app is
+    // foregrounded silently would not display (background delivery works
+    // fine either way; this only covers that foreground edge case).
+    UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
 
     // ── App Group MethodChannel ──────────────────────────────────────────
     let controller = window?.rootViewController as! FlutterViewController

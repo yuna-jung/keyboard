@@ -655,6 +655,36 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'6가지 프리셋 색상을 고르거나, RGB 슬라이더로 직접 만드세요'**
   String get guideSection5Step2;
+
+  /// No description provided for @trialNotificationTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'무료 체험이 곧 끝나가요'**
+  String get trialNotificationTitle;
+
+  /// No description provided for @trialNotificationBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'2일 후 자동으로 구독이 시작돼요! 계속 함께 하실 거죠…? 🩵'**
+  String get trialNotificationBody;
+
+  /// No description provided for @trialPrimerTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'체험 끝나기 전에 알려드릴게요 🩵'**
+  String get trialPrimerTitle;
+
+  /// No description provided for @trialPrimerBody.
+  ///
+  /// In ko, this message translates to:
+  /// **'무료 체험 종료 2일 전에 알림을 보내드려요\n알림을 허용해 주세요'**
+  String get trialPrimerBody;
+
+  /// No description provided for @trialPrimerConfirmButton.
+  ///
+  /// In ko, this message translates to:
+  /// **'확인'**
+  String get trialPrimerConfirmButton;
 }
 
 class _AppLocalizationsDelegate
