@@ -416,6 +416,12 @@ abstract class AppLocalizations {
   /// **'체험하기'**
   String get homeTabTrial;
 
+  /// No description provided for @homeTabStickerMaker.
+  ///
+  /// In ko, this message translates to:
+  /// **'이모티콘 생성'**
+  String get homeTabStickerMaker;
+
   /// No description provided for @homeTabGuide.
   ///
   /// In ko, this message translates to:

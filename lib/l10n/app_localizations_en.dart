@@ -175,6 +175,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeTabTrial => 'Try';
 
   @override
+  String get homeTabStickerMaker => 'Sticker Maker';
+
+  @override
   String get homeTabGuide => 'Guide';
 
   @override

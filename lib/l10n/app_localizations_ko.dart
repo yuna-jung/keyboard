@@ -171,6 +171,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get homeTabTrial => '체험하기';
 
   @override
+  String get homeTabStickerMaker => '이모티콘 생성';
+
+  @override
   String get homeTabGuide => '가이드';
 
   @override

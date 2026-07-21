@@ -58,5 +58,7 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>그린 스티커를 사진 앱에 저장하려면 접근 권한이 필요해요</string>
 </dict>
 </plist>

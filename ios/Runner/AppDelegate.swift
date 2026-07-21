@@ -19,6 +19,14 @@ import UserNotifications
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
 
+    // Sticker drawing canvas (phase 1: main-app-only PencilKit screen, see
+    // DrawingCanvasPlatformView.swift). Registered directly rather than via
+    // a third-party Flutter PencilKit wrapper.
+    if let drawingRegistrar = self.registrar(forPlugin: "DrawingCanvasPlugin") {
+      let drawingCanvasFactory = DrawingCanvasViewFactory(messenger: drawingRegistrar.messenger())
+      drawingRegistrar.register(drawingCanvasFactory, withId: "com.yunajung.fonki/drawing_canvas")
+    }
+
     // flutter_local_notifications' recommended iOS setup — without this,
     // a trial-expiry reminder that happens to fire while the app is
     // foregrounded silently would not display (background delivery works

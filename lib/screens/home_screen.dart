@@ -8,6 +8,7 @@ import 'add_phrase_screen.dart';
 import 'guide_screen.dart';
 import 'paywall_screen.dart';
 import 'settings_screen.dart';
+import 'sticker_canvas_screen.dart';
 
 const _pink = Color(0xFF5BC8F5);
 
@@ -137,11 +138,12 @@ class _HomeScreenState extends State<HomeScreen> {
     // backed by a screen here — its tap handler (below) opens the Adapty
     // paywall as a modal and returns without flipping `_selectedIndex`,
     // so dismissing the paywall lands the user back on whatever tab they
-    // were on before. Keeping `IndexedStack` length at 2 also prevents
+    // were on before. Keeping `IndexedStack` length at 3 also prevents
     // any accidental index-out-of-range if `_selectedIndex` ever drifted
-    // to 2 (it can't, by construction).
+    // to 3 — 구독's index (it can't, by construction).
     final screens = <Widget>[
       const _ChatTab(),
+      const StickerCanvasScreen(),
       const GuideScreen(),
     ];
     final navItems = <BottomNavigationBarItem>[
@@ -149,6 +151,11 @@ class _HomeScreenState extends State<HomeScreen> {
         icon: const Icon(Icons.chat_bubble_outline),
         activeIcon: const Icon(Icons.chat_bubble),
         label: l.homeTabTrial,
+      ),
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.draw_outlined),
+        activeIcon: const Icon(Icons.draw),
+        label: l.homeTabStickerMaker,
       ),
       BottomNavigationBarItem(
         icon: const Icon(Icons.help_outline),
@@ -199,12 +206,12 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (i) {
-          // iOS 구독 tab (index 2): show the Adapty paywall as a modal and
+          // iOS 구독 tab (index 3): show the Adapty paywall as a modal and
           // return WITHOUT touching `_selectedIndex`. Dismissing the paywall
           // (StoreKit cancel, X button, swipe down) leaves the user on
           // whatever tab they were on before tapping 구독 — there is no
           // SubscriptionScreen behind it to fall through to.
-          if (_isIOS && i == 2) {
+          if (_isIOS && i == 3) {
             PaywallScreen.show(context);
             return;
           }
