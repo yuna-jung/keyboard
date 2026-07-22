@@ -3,15 +3,16 @@ import 'package:flutter/services.dart';
 
 const _pink = Color(0xFF5BC8F5);
 
-/// Phase 1 of the sticker feature: a standalone screen where the user draws
-/// on a square, transparent-background PencilKit canvas and saves the
-/// result as a PNG to the Photos app.
+enum _Tool { pen, eraser, bucket }
+
+/// A screen where the user draws on a square, transparent-background
+/// PencilKit canvas — with a bucket (flood fill) tool and photo import as
+/// a drawable background layer — and saves the result as a PNG to the
+/// Photos app.
 ///
-/// Deliberately out of scope for this phase (see later work): App Group
-/// sharing, a "my stickers" gallery, the keyboard extension side, the flood
-/// fill / bucket tool, and any free-tier/paywall gating. This screen only
-/// needs to prove out the native PencilKit embed and the save-to-Photos
-/// path end to end.
+/// Deliberately out of scope so far (see later work): App Group sharing, a
+/// "my stickers" gallery, the keyboard extension side, and any
+/// free-tier/paywall gating.
 class StickerCanvasScreen extends StatefulWidget {
   const StickerCanvasScreen({super.key});
 
@@ -23,12 +24,20 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
   static const _viewType = 'com.yunajung.fonki/drawing_canvas';
 
   MethodChannel? _channel;
-  bool _isEraser = false;
-  int _widthIndex = 1; // 0 = thin, 1 = medium, 2 = thick
+  _Tool _tool = _Tool.pen;
+  // Pen and eraser each remember their own last-picked size — switching
+  // tools no longer clobbers the other's choice.
+  int _penWidthIndex = 1; // 0 = thin, 1 = medium, 2 = thick
+  int _eraserWidthIndex = 2; // middle of 5 — see `_eraserWidthLabels`
   int _colorIndex = 0;
   bool _isSaving = false;
+  bool _isImporting = false;
 
   static const _widthLabels = ['얇게', '중간', '굵게'];
+  // Eraser gets its own, wider size range — erasing typically needs to
+  // cover more area than a single pen stroke, so the top end (40pt) sits
+  // well above the pen's thickest (16pt) rather than just reusing it.
+  static const _eraserWidthLabels = ['아주 얇게', '얇게', '중간', '굵게', '아주 굵게'];
 
   // Hardcoded swatches — a custom color picker is out of scope for this
   // phase.
@@ -57,13 +66,20 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
   Future<void> _applyCurrentTool() async {
     final channel = _channel;
     if (channel == null) return;
-    if (_isEraser) {
-      await channel.invokeMethod('setEraserTool');
-    } else {
-      await channel.invokeMethod('setPenTool', {
-        'widthIndex': _widthIndex,
-        'colorHex': _hexOf(_colors[_colorIndex]),
-      });
+    switch (_tool) {
+      case _Tool.pen:
+        await channel.invokeMethod('setPenTool', {
+          'widthIndex': _penWidthIndex,
+          'colorHex': _hexOf(_colors[_colorIndex]),
+        });
+      case _Tool.eraser:
+        await channel.invokeMethod('setEraserTool', {
+          'widthIndex': _eraserWidthIndex,
+        });
+      case _Tool.bucket:
+        await channel.invokeMethod('setBucketTool', {
+          'colorHex': _hexOf(_colors[_colorIndex]),
+        });
     }
   }
 
@@ -118,6 +134,27 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
       _showSnack('저장에 실패했어요: ${e.message ?? e.code}');
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  /// Presents the native photo picker, center-crops the selection to the
+  /// canvas's own square size, and sets it as the drawable background layer
+  /// (native side — see `DrawingCanvasPlatformView.centerCroppedSquare`).
+  /// A `false` result means the user cancelled the picker, not an error, so
+  /// it's handled silently.
+  Future<void> _pickImage() async {
+    final channel = _channel;
+    if (channel == null || _isImporting) return;
+    setState(() => _isImporting = true);
+    try {
+      final imported = await channel.invokeMethod<bool>('pickAndSetBackgroundImage');
+      if (!mounted || imported != true) return;
+      _showSnack('이미지를 가져왔어요');
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      _showSnack('이미지를 가져오지 못했어요: ${e.message ?? e.code}');
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
     }
   }
 
@@ -188,10 +225,24 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
         children: [
           Row(
             children: [
-              for (var i = 0; i < 3; i++) _widthButton(i),
+              for (var i = 0; i < (_tool == _Tool.eraser ? _eraserWidthLabels.length : _widthLabels.length); i++)
+                _widthButton(i),
               const SizedBox(width: 8),
               _eraserButton(),
+              const SizedBox(width: 8),
+              _bucketButton(),
               const Spacer(),
+              IconButton(
+                icon: _isImporting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.add_photo_alternate_outlined),
+                onPressed: _isImporting ? null : _pickImage,
+                tooltip: '이미지 가져오기',
+              ),
               IconButton(
                 icon: const Icon(Icons.undo),
                 onPressed: _undo,
@@ -224,21 +275,32 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
     );
   }
 
+  // Shown for both pen and eraser, but each tool keeps its own size index
+  // (`_penWidthIndex` / `_eraserWidthIndex`) and its own size list — the
+  // eraser's is longer and runs larger (see `_eraserWidthLabels`). A width
+  // tap only forces a tool switch when coming from bucket (which has no
+  // width concept); it never switches between pen and eraser.
   Widget _widthButton(int index) {
-    final selected = !_isEraser && _widthIndex == index;
+    final isEraserMode = _tool == _Tool.eraser;
+    final currentIndex = isEraserMode ? _eraserWidthIndex : _penWidthIndex;
+    final selected = _tool != _Tool.bucket && currentIndex == index;
     final dotSize = 6.0 + index * 5.0;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
         onTap: () {
           setState(() {
-            _isEraser = false;
-            _widthIndex = index;
+            if (_tool == _Tool.bucket) _tool = _Tool.pen;
+            if (_tool == _Tool.eraser) {
+              _eraserWidthIndex = index;
+            } else {
+              _penWidthIndex = index;
+            }
           });
           _applyCurrentTool();
         },
         child: Tooltip(
-          message: _widthLabels[index],
+          message: isEraserMode ? _eraserWidthLabels[index] : _widthLabels[index],
           child: Container(
             width: 40,
             height: 40,
@@ -260,9 +322,10 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
   }
 
   Widget _eraserButton() {
+    final selected = _tool == _Tool.eraser;
     return GestureDetector(
       onTap: () {
-        setState(() => _isEraser = true);
+        setState(() => _tool = _Tool.eraser);
         _applyCurrentTool();
       },
       child: Container(
@@ -270,8 +333,8 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
         height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _isEraser ? _pink.withValues(alpha: 0.15) : Colors.grey.shade100,
-          border: Border.all(color: _isEraser ? _pink : Colors.transparent, width: 1.5),
+          color: selected ? _pink.withValues(alpha: 0.15) : Colors.grey.shade100,
+          border: Border.all(color: selected ? _pink : Colors.transparent, width: 1.5),
         ),
         alignment: Alignment.center,
         child: const Icon(Icons.auto_fix_normal, size: 18, color: Colors.black87),
@@ -279,13 +342,34 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
     );
   }
 
+  Widget _bucketButton() {
+    final selected = _tool == _Tool.bucket;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _tool = _Tool.bucket);
+        _applyCurrentTool();
+      },
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: selected ? _pink.withValues(alpha: 0.15) : Colors.grey.shade100,
+          border: Border.all(color: selected ? _pink : Colors.transparent, width: 1.5),
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.format_color_fill, size: 18, color: Colors.black87),
+      ),
+    );
+  }
+
   Widget _colorSwatch(int index) {
     final color = _colors[index];
-    final selected = !_isEraser && _colorIndex == index;
+    final selected = _tool != _Tool.eraser && _colorIndex == index;
     return GestureDetector(
       onTap: () {
         setState(() {
-          _isEraser = false;
+          if (_tool == _Tool.eraser) _tool = _Tool.pen;
           _colorIndex = index;
         });
         _applyCurrentTool();

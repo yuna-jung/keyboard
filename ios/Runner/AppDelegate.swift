@@ -19,14 +19,6 @@ import UserNotifications
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
 
-    // Sticker drawing canvas (phase 1: main-app-only PencilKit screen, see
-    // DrawingCanvasPlatformView.swift). Registered directly rather than via
-    // a third-party Flutter PencilKit wrapper.
-    if let drawingRegistrar = self.registrar(forPlugin: "DrawingCanvasPlugin") {
-      let drawingCanvasFactory = DrawingCanvasViewFactory(messenger: drawingRegistrar.messenger())
-      drawingRegistrar.register(drawingCanvasFactory, withId: "com.yunajung.fonki/drawing_canvas")
-    }
-
     // flutter_local_notifications' recommended iOS setup — without this,
     // a trial-expiry reminder that happens to fire while the app is
     // foregrounded silently would not display (background delivery works
@@ -40,6 +32,19 @@ import UserNotifications
       binaryMessenger: controller.binaryMessenger
     )
     appGroupChannel = channel
+
+    // Sticker drawing canvas (main-app PencilKit screen with bucket fill +
+    // photo import, see DrawingCanvasPlatformView.swift). Registered
+    // directly rather than via a third-party Flutter PencilKit wrapper.
+    // Needs `controller` as the view to present PHPickerViewController from,
+    // hence this sits after the App Group channel setup above.
+    if let drawingRegistrar = self.registrar(forPlugin: "DrawingCanvasPlugin") {
+      let drawingCanvasFactory = DrawingCanvasViewFactory(
+        messenger: drawingRegistrar.messenger(),
+        presentingViewController: controller
+      )
+      drawingRegistrar.register(drawingCanvasFactory, withId: "com.yunajung.fonki/drawing_canvas")
+    }
 
     // ── Keyboard-enabled check channel ──────────────────────────────────
     // Onboarding page 2 calls this after the user returns from iOS Settings
