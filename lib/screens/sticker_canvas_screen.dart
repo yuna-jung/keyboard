@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'sticker_library_view.dart';
+
 const _pink = Color(0xFF5BC8F5);
 
 enum _Tool { pen, eraser, bucket }
 
 /// A screen where the user draws on a square, transparent-background
 /// PencilKit canvas — with a bucket (flood fill) tool and photo import as
-/// a drawable background layer — and saves the result as a PNG to the
-/// Photos app.
+/// a drawable background layer — saves the result as a PNG to both the
+/// Photos app and the App Group sticker library, and can switch to a
+/// grid view of previously-saved stickers ("내 스티커함") without leaving
+/// this tab.
 ///
-/// Deliberately out of scope so far (see later work): App Group sharing, a
-/// "my stickers" gallery, the keyboard extension side, and any
-/// free-tier/paywall gating.
+/// Deliberately out of scope so far (see later work): the keyboard
+/// extension side and any free-tier/paywall gating.
 class StickerCanvasScreen extends StatefulWidget {
   const StickerCanvasScreen({super.key});
 
@@ -22,6 +25,9 @@ class StickerCanvasScreen extends StatefulWidget {
 
 class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
   static const _viewType = 'com.yunajung.fonki/drawing_canvas';
+
+  final _libraryKey = GlobalKey<StickerLibraryViewState>();
+  bool _showLibrary = false;
 
   MethodChannel? _channel;
   _Tool _tool = _Tool.pen;
@@ -162,6 +168,25 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _switchToCanvas() {
+    setState(() => _showLibrary = false);
+  }
+
+  void _switchToLibrary() {
+    setState(() => _showLibrary = true);
+    // The library view's `initState` already loads on its first build, but
+    // it stays mounted (via `Offstage`, so the canvas beneath it never
+    // loses its in-progress drawing) rather than being recreated on every
+    // switch — so later switches need this explicit reload to pick up
+    // anything saved since the last time it was shown. Posted rather than
+    // called inline: on the very first switch the widget doesn't exist
+    // yet at this point in the frame, only after the `setState` above
+    // actually builds it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _libraryKey.currentState?.reload();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // No own Scaffold/AppBar — this is embedded directly as a HomeScreen
@@ -174,23 +199,77 @@ class _StickerCanvasScreenState extends State<StickerCanvasScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
           child: Row(
             children: [
-              const Text('이모티콘 생성',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.black87)),
+              _tabToggle('그리기', selected: !_showLibrary, onTap: _switchToCanvas),
+              const SizedBox(width: 8),
+              _tabToggle('내 스티커함', selected: _showLibrary, onTap: _switchToLibrary),
               const Spacer(),
-              TextButton(
-                onPressed: _isSaving ? null : _save,
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('저장',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _pink)),
+              if (!_showLibrary)
+                TextButton(
+                  onPressed: _isSaving ? null : _save,
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('저장',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _pink)),
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Stack(
+            children: [
+              // `Offstage`, not a conditional `if` — swapping the canvas
+              // out of the tree entirely would dispose the native
+              // PKCanvasView platform view and lose whatever's currently
+              // drawn. Offstage keeps both mounted; only the invisible one
+              // skips painting/hit-testing.
+              Positioned.fill(
+                child: Offstage(offstage: _showLibrary, child: _buildCanvasBody()),
+              ),
+              Positioned.fill(
+                child: Offstage(
+                  offstage: !_showLibrary,
+                  child: StickerLibraryView(
+                    key: _libraryKey,
+                    onCreateNew: _switchToCanvas,
+                  ),
+                ),
               ),
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _tabToggle(String label, {required bool selected, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? _pink : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : Colors.black54,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCanvasBody() {
+    return Column(
+      children: [
         Expanded(
           child: Center(
             child: AspectRatio(

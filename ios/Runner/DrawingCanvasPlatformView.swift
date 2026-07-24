@@ -240,6 +240,16 @@ final class DrawingCanvasPlatformView: NSObject, FlutterPlatformView {
                 result(FlutterError(code: "INVALID_ARGS", message: "saveImageToPhotoLibrary needs pngData", details: nil))
                 return
             }
+            // Reuses the same PNG bytes to also stash a copy in the App
+            // Group sticker library (see StickerLibrary.swift). This is a
+            // best-effort side effect — if it fails (e.g. disk full), that
+            // never affects the Photos-library save below, which is what
+            // this method's result actually reports to Dart.
+            if StickerLibrary.save(pngData: typedData.data) == nil {
+                #if DEBUG
+                print("🔥 [DrawingCanvasPlatformView] StickerLibrary.save failed")
+                #endif
+            }
             Self.saveToPhotoLibrary(image) { success, error in
                 DispatchQueue.main.async {
                     if success {

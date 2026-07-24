@@ -257,6 +257,9 @@
 "toast_gif_downloading"    = "Downloading GIF...";
 "toast_gif_failed"         = "Download failed";
 "toast_gif_copied"         = "GIF copied!";
+"toast_sticker_copied"      = "Sticker copied!";
+"toast_sticker_copy_failed" = "Couldn't copy sticker";
+"sticker_empty"             = "No stickers yet.\nDraw one in the Fonkii app!";
 "toast_clipboard_empty"    = "Clipboard is empty";
 "toast_paste_done"         = "Pasted";
 "toast_translate_first"    = "Please translate first";

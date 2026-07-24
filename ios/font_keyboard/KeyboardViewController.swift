@@ -521,7 +521,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Mode
 
     enum Mode: Int, CaseIterable {
-        case fonts = 0, translate, calculator, emoticon, textTemplate, special, dotArt, gif, favorites, palette
+        case fonts = 0, translate, calculator, emoticon, textTemplate, special, dotArt, sticker, gif, favorites, palette
         var title: String {
             let bundle = Bundle(for: KeyboardViewController.self)
             switch self {
@@ -532,6 +532,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             case .textTemplate: return "💬"
             case .special:      return "✦"
             case .dotArt:       return "⣿"
+            case .sticker:      return "🎨"
             case .gif:          return "GIF"
             case .favorites:    return "♥"
             case .palette:      return ""  // SF Symbol image used instead (paintpalette.fill)
@@ -1754,6 +1755,31 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private weak var gifSearchClearButton: UIButton?
     private weak var gifSearchKeypadView: GifSearchKeypadView?
 
+    // MARK: - Sticker Tab State
+    //
+    // Mirrors the GIF tab's viewport-based decode/cache pattern above, but
+    // reads from the local App Group `Stickers/` folder (via
+    // `StickerLibrary.list()`, shared with the main app — see
+    // `ios/Runner/StickerLibrary.swift`) instead of a network call, and
+    // extracts only a small thumbnail per cell via ImageIO's
+    // `CGImageSourceCreateThumbnailAtIndex` rather than fully decoding each
+    // (potentially ~1000-1400px) saved PNG.
+    private var stickerEntries: [(path: String, createdAt: Double)] = []
+    private var stickerCellViews: [(path: String, imageView: UIImageView)] = []
+    private var stickerVisibleIDs: Set<String> = []
+    private var stickerLoadingIDs: Set<String> = []
+    private var stickerScrollDebounceWorkItem: DispatchWorkItem?
+    private weak var stickerGridStack: UIStackView?
+    private weak var stickerScrollView: UIScrollView?
+    private weak var stickerLoadingLabel: UILabel?
+    private let stickerImageCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 60
+        return cache
+    }()
+    private let stickerMaxConcurrentDecoded = 18
+    private let stickerThumbnailPixelSize: CGFloat = 200
+
     // MARK: - Translate State
 
     private let translateLangs: [(String, String)] = [
@@ -2168,6 +2194,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         for cell in gifCellViews where !gifVisibleIDs.contains(cell.gif.id) {
             cell.imageView.image = nil
         }
+        stickerImageCache.removeAllObjects()
+        for cell in stickerCellViews where !stickerVisibleIDs.contains(cell.path) {
+            cell.imageView.image = nil
+        }
     }
 
     /// Detect whether the connected host field is URL/email/search-style and,
@@ -2267,7 +2297,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         modeBar.distribution = .fillEqually
         modeBar.spacing = 4
         let modeOrder: [Mode] = [
-            .fonts, .translate, .textTemplate, .emoticon, .special, .gif, .dotArt, .favorites, .palette,
+            .fonts, .translate, .textTemplate, .emoticon, .special, .gif, .dotArt, .sticker, .favorites, .palette,
             // 비활성화 탭 (순서 복구 시 위 배열로 이동):
             .calculator,
         ]
@@ -2350,7 +2380,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             let isPartialFree = (mode == .emoticon || mode == .special || mode == .dotArt)  // first N items free per category
             let isFavorites = (mode == .favorites)        // fully free
             let isPalette = (mode == .palette)            // settings popup — fully free
-            if !isTextTemplate && !isFontsMode && !isGifMode && !isPartialFree && !isFavorites && !isPalette {
+            let isStickerMode = (mode == .sticker)        // fully free — matches Phase 2's "무료 제한 없음" for the sticker library itself
+            if !isTextTemplate && !isFontsMode && !isGifMode && !isPartialFree && !isFavorites && !isPalette && !isStickerMode {
                 showLockedOverlay()
                 return
             }
@@ -2378,6 +2409,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                                        scrollTag: 200,
                                        freeCount: isPremiumUser ? 6 : 0)
         case .dotArt:    buildDotArtMode()
+        case .sticker:   buildStickerMode()
         case .gif:       buildGifMode()
         case .translate: buildTranslateMode()
         case .favorites: buildFavoritesMode()
@@ -5034,6 +5066,259 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     @objc private func gifCategoryTapped(_ sender: UIButton) {
         gifCategoryIndex = sender.tag
         showMode(.gif)
+    }
+
+    // MARK: - Sticker Mode
+    //
+    // Shows PNGs saved from the main app's drawing canvas (see
+    // `StickerLibrary.swift`, shared into this target's Sources build
+    // phase alongside its existing membership in Runner). No search bar or
+    // category tabs — just a 3-column grid, reloaded fresh on every tab
+    // entry via `showMode` → `buildStickerMode` → `loadStickers`.
+
+    private func buildStickerMode() {
+        contentView.subviews.forEach { $0.removeFromSuperview() }
+
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(container)
+        pinToEdges(container, in: contentView)
+        container.heightAnchor.constraint(equalToConstant: tabContainerHeight).isActive = true
+
+        let scrollView = UIScrollView()
+        scrollView.alwaysBounceVertical = true
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.delegate = self
+        scrollView.tag = 301
+        container.addSubview(scrollView)
+        stickerScrollView = scrollView
+
+        let gridStack = UIStackView()
+        gridStack.axis = .vertical
+        gridStack.spacing = 5
+        gridStack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(gridStack)
+        stickerGridStack = gridStack
+
+        let loadingLabel = UILabel()
+        loadingLabel.font = .systemFont(ofSize: 13)
+        loadingLabel.textColor = .lightGray
+        loadingLabel.textAlignment = .center
+        loadingLabel.numberOfLines = 0
+        loadingLabel.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(loadingLabel)
+        stickerLoadingLabel = loadingLabel
+
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: container.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+
+            gridStack.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 5),
+            gridStack.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 5),
+            gridStack.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -5),
+            gridStack.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -5),
+            gridStack.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -10),
+
+            loadingLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            loadingLabel.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 40),
+            loadingLabel.leadingAnchor.constraint(greaterThanOrEqualTo: scrollView.leadingAnchor, constant: 24),
+            loadingLabel.trailingAnchor.constraint(lessThanOrEqualTo: scrollView.trailingAnchor, constant: -24),
+        ])
+
+        loadStickers()
+    }
+
+    /// Reloads the manifest from disk and rebuilds the grid — called on
+    /// every tab entry (via `buildStickerMode`) so a sticker saved from the
+    /// main app since the last visit shows up immediately.
+    private func loadStickers() {
+        stickerEntries = StickerLibrary.list().map { (path: $0.path, createdAt: $0.createdAt) }
+        renderStickerGrid()
+    }
+
+    private func renderStickerGrid() {
+        guard let gridStack = stickerGridStack else { return }
+        gridStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        stickerCellViews = []
+        stickerVisibleIDs = []
+        stickerLoadingIDs = []
+        stickerScrollDebounceWorkItem?.cancel()
+
+        stickerLoadingLabel?.isHidden = !stickerEntries.isEmpty
+        if stickerEntries.isEmpty {
+            stickerLoadingLabel?.text = loc("sticker_empty")
+        }
+
+        let cols = 3
+        let chunked = stride(from: 0, to: stickerEntries.count, by: cols).map {
+            Array(stickerEntries[$0..<min($0 + cols, stickerEntries.count)])
+        }
+
+        for row in chunked {
+            let rowStack = UIStackView()
+            rowStack.axis = .horizontal
+            rowStack.distribution = .fillEqually
+            rowStack.spacing = 5
+
+            for entry in row {
+                let btn = UIButton(type: .custom)
+                btn.backgroundColor = UIColor(white: 0.94, alpha: 1)
+                btn.layer.cornerRadius = 8
+                btn.clipsToBounds = true
+                btn.heightAnchor.constraint(equalToConstant: 72).isActive = true
+                btn.accessibilityIdentifier = entry.path
+                btn.addTarget(self, action: #selector(stickerCellTapped(_:)), for: .touchUpInside)
+
+                let imageView = UIImageView()
+                imageView.contentMode = .scaleAspectFit
+                imageView.clipsToBounds = true
+                imageView.isUserInteractionEnabled = false
+                imageView.translatesAutoresizingMaskIntoConstraints = false
+                btn.addSubview(imageView)
+                NSLayoutConstraint.activate([
+                    imageView.topAnchor.constraint(equalTo: btn.topAnchor, constant: 4),
+                    imageView.leadingAnchor.constraint(equalTo: btn.leadingAnchor, constant: 4),
+                    imageView.trailingAnchor.constraint(equalTo: btn.trailingAnchor, constant: -4),
+                    imageView.bottomAnchor.constraint(equalTo: btn.bottomAnchor, constant: -4),
+                ])
+
+                // Decoding deferred to `stickerUpdateVisibleCells`, same as the GIF grid.
+                stickerCellViews.append((path: entry.path, imageView: imageView))
+                rowStack.addArrangedSubview(btn)
+            }
+            for _ in 0..<(cols - row.count) { rowStack.addArrangedSubview(UIView()) }
+            gridStack.addArrangedSubview(rowStack)
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.stickerUpdateVisibleCells()
+        }
+    }
+
+    /// Loads (from `stickerImageCache` if present, else disk+ImageIO
+    /// thumbnail) the preview image for one cell. Guarded by
+    /// `stickerLoadingIDs` so a cell straddling two visibility-check passes
+    /// doesn't fire a second decode while the first is still in flight.
+    private func stickerLoadThumbnail(path: String, into imageView: UIImageView) {
+        let key = path as NSString
+        if let cached = stickerImageCache.object(forKey: key) {
+            imageView.image = cached
+            return
+        }
+        guard !stickerLoadingIDs.contains(path) else { return }
+        stickerLoadingIDs.insert(path)
+
+        // Defensive cap, mirroring `gifMaxConcurrentDecoded` — skip
+        // starting a new decode once the visible set is already at the
+        // ceiling; the next visibility pass (e.g. after a scroll) retries.
+        guard stickerVisibleIDs.count < stickerMaxConcurrentDecoded else {
+            stickerLoadingIDs.remove(path)
+            return
+        }
+
+        let pixelSize = stickerThumbnailPixelSize
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let thumbnail = Self.stickerThumbnail(fromFile: path, maxPixelSize: pixelSize)
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.stickerLoadingIDs.remove(path)
+                guard let thumbnail = thumbnail else { return }
+                self.stickerImageCache.setObject(thumbnail, forKey: key)
+                // Only display if still visible — it may have scrolled off
+                // while the decode was in flight (same guard as GIF).
+                if self.stickerVisibleIDs.contains(path) {
+                    imageView.image = thumbnail
+                }
+            }
+        }
+    }
+
+    /// Extracts a small thumbnail directly from disk via ImageIO without
+    /// ever fully decoding the (potentially ~1000-1400px) original PNG
+    /// into memory — the memory-safe alternative to `UIImage(contentsOfFile:)`
+    /// + manual resize for grid previews.
+    private static func stickerThumbnail(fromFile path: String, maxPixelSize: CGFloat) -> UIImage? {
+        guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+        ]
+        guard let cgThumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: cgThumbnail, scale: UIScreen.main.scale, orientation: .up)
+    }
+
+    /// Debounced entry point for scroll-driven visibility checks — see
+    /// `gifScheduleVisibilityCheck` for the identical rationale (~120ms so
+    /// a fast fling doesn't trigger decodes mid-flight).
+    private func stickerScheduleVisibilityCheck() {
+        stickerScrollDebounceWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.stickerUpdateVisibleCells() }
+        stickerScrollDebounceWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
+    }
+
+    /// Walks every built cell, decodes/loads the ones now on screen (plus a
+    /// small preload margin), and frees the ones that scrolled out. Mirrors
+    /// `gifUpdateVisibleCells` exactly, including the `layoutIfNeeded()`
+    /// call up front — a freshly rebuilt `UIScrollView` from
+    /// `buildStickerMode()`'s full-rebuild path has `bounds = (0,0,0,0)`
+    /// until Auto Layout resolves, which previously caused zero cells to
+    /// register as visible right after a tab switch.
+    private func stickerUpdateVisibleCells() {
+        guard let scrollView = stickerScrollView, !stickerCellViews.isEmpty else {
+            #if DEBUG
+            print("🔥 [Sticker] visibility check skipped: scrollView=\(stickerScrollView != nil) cellCount=\(stickerCellViews.count)")
+            #endif
+            return
+        }
+        scrollView.superview?.layoutIfNeeded()
+
+        let visibleRect = scrollView.bounds.insetBy(dx: 0, dy: -50)
+
+        var stillVisible: Set<String> = []
+        for cell in stickerCellViews {
+            let frameInScroll = cell.imageView.convert(cell.imageView.bounds, to: scrollView)
+            guard visibleRect.intersects(frameInScroll) else { continue }
+            stillVisible.insert(cell.path)
+            if cell.imageView.image == nil {
+                stickerLoadThumbnail(path: cell.path, into: cell.imageView)
+            }
+        }
+        stickerVisibleIDs = stillVisible
+
+        #if DEBUG
+        print("🔥 [Sticker] visibility check: scrollView.bounds=\(scrollView.bounds) visible=\(stillVisible.count)/\(stickerCellViews.count)")
+        #endif
+
+        for cell in stickerCellViews where !stillVisible.contains(cell.path) {
+            if cell.imageView.image != nil {
+                cell.imageView.image = nil
+            }
+        }
+    }
+
+    /// Copies the full-resolution sticker PNG (read fresh from disk, not
+    /// the cached grid thumbnail) to the pasteboard for pasting into the
+    /// host app. Mirrors `gifCellTapped`'s pasteboard+toast pattern, plus a
+    /// haptic tap (used elsewhere in this file, e.g. long-press delete).
+    @objc private func stickerCellTapped(_ sender: UIButton) {
+        guard let path = sender.accessibilityIdentifier else { return }
+        // Raw PNG bytes straight into the pasteboard with an explicit PNG
+        // UTI — NOT `UIPasteboard.general.image = UIImage(...)`, which
+        // re-encodes through UIImage and was silently dropping the alpha
+        // channel (stickers came out with a white background when pasted).
+        // Same low-level `setData(_:forPasteboardType:)` pattern already
+        // used by `gifCellTapped` for GIF data.
+        guard let pngData = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
+            showToast(loc("toast_sticker_copy_failed"))
+            return
+        }
+        UIPasteboard.general.setData(pngData, forPasteboardType: "public.png")
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        showToast(loc("toast_sticker_copied"))
     }
 
     @objc private func gifCellTapped(_ sender: UIButton) {
@@ -9356,6 +9641,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 loadMoreGifs()
             }
             gifScheduleVisibilityCheck()
+        } else if scrollView === stickerScrollView {
+            stickerScheduleVisibilityCheck()
         }
     }
 
@@ -9365,15 +9652,24 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // `scrollViewDidScroll` above) still covers the "paused mid-scroll"
     // case via its own debounce.
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        guard scrollView === gifScrollView, !decelerate else { return }
-        gifScrollDebounceWorkItem?.cancel()
-        gifUpdateVisibleCells()
+        guard !decelerate else { return }
+        if scrollView === gifScrollView {
+            gifScrollDebounceWorkItem?.cancel()
+            gifUpdateVisibleCells()
+        } else if scrollView === stickerScrollView {
+            stickerScrollDebounceWorkItem?.cancel()
+            stickerUpdateVisibleCells()
+        }
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        guard scrollView === gifScrollView else { return }
-        gifScrollDebounceWorkItem?.cancel()
-        gifUpdateVisibleCells()
+        if scrollView === gifScrollView {
+            gifScrollDebounceWorkItem?.cancel()
+            gifUpdateVisibleCells()
+        } else if scrollView === stickerScrollView {
+            stickerScrollDebounceWorkItem?.cancel()
+            stickerUpdateVisibleCells()
+        }
     }
 
     // MARK: - Toast

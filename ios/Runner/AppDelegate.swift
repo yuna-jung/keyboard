@@ -186,6 +186,24 @@ import UserNotifications
           "open_result":       d?.bool(forKey: "debug_open_result") ?? false,
         ] as [String: Bool])
 
+      // ── Sticker library (see StickerLibrary.swift) ─────────────────────
+      // Saving happens on DrawingCanvasPlatformView's own channel (it
+      // already has the PNG bytes at that point); this channel only needs
+      // to expose list/delete for the "내 스티커함" grid.
+      case "getStickers":
+        let stickers = StickerLibrary.list().map {
+          ["path": $0.path, "createdAt": $0.createdAt] as [String: Any]
+        }
+        result(stickers)
+
+      case "deleteSticker":
+        guard let args = call.arguments as? [String: Any],
+              let path = args["path"] as? String else {
+          result(FlutterError(code: "INVALID_ARGS", message: nil, details: nil))
+          return
+        }
+        result(StickerLibrary.delete(path: path))
+
       default:
         result(FlutterMethodNotImplemented)
       }
