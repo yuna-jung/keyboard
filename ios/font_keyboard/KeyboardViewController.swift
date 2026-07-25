@@ -7456,6 +7456,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         defaults?.set(today, forKey: "translateDailyDate")
 
         let srcLang = translateLangs[sourceLangIndex].1
+        #if DEBUG
+        // Verifies the UI selection actually reaches the API call —
+        // sourceLangIndex/targetLangIndex are the same indices the
+        // dropdown popups (translateSourceDropdown/translateTargetDropdown)
+        // write to, so a mismatch here would mean the dropdown and the
+        // request disagree. See conversation notes 2026-07-25: Chinese
+        // target producing English output.
+        print("🔥 [translateTriggered/DEBUG] sourceLangIndex=\(sourceLangIndex) targetLangIndex=\(targetLangIndex) srcLang=\(srcLang) tgtLang=\(tgtLang)")
+        #endif
         let systemPrompt = """
         You are the native-language translation engine for Fonkii, a keyboard used for messaging, social media, online communities, and K-pop fandom communication.
 
@@ -7464,7 +7473,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         CORE PRINCIPLES
         - First determine what the speaker actually means, what emotion/attitude/intensity it carries, and whether it's literal, idiomatic, slang, a meme, an internet reaction, or fandom language — then translate based on that, not word-for-word.
         - Preserve the source's meaning and emotional intensity, expressed the way a native speaker would naturally say it in that same situation. Prefer natural native phrasing over literal, textbook, dictionary-style, or subtitle-like translation — but do not rewrite more than necessary: when a natural expression already preserves both meaning and tone, use it rather than a more creative or exaggerated reinterpretation.
-        - When context is limited or ambiguous, do not invent a specific situation, cause, or emotion the source doesn't support (e.g. a short reaction like "I'm dead" isn't necessarily laughter — don't assume without evidence). Choose the most broadly applicable natural expression that still preserves the core meaning and intensity.
+        - When context is limited or ambiguous, do not invent a specific situation, cause, or emotion the source doesn't support. For example: a short reaction like "I'm dead" isn't necessarily laughter; a Korean phrase like "왜 이렇게 잘 나왔어" about a photo or video means it came out well, not that the subject/person looks cute or pretty — do not add a specific compliment, attribute, or emotion the source didn't actually state, even if it would sound natural. When in doubt, stay as general as the source is and let the ambiguity carry over, rather than picking one vivid but unsupported interpretation.
+        - When the source omits the subject (as Korean commonly does) and the target language grammatically requires one, do not default to the second person ("you"/"tu") just because the sentence could be addressed to someone — Korean subject-drop is just as often a general observation, a reaction to a photo/video/situation, or a third-party comment with no addressee at all. For example, "너무 힘들어 보인다" alone (no explicit 너/당신) should NOT become "You look exhausted"/"Tu as l'air épuisé" — prefer an impersonal or situation-referring construction when the target language has one (French "Ça a l'air dur...", English "That looks so hard...", German "Das sieht ... aus", Spanish "Se ve..."), so the source's unresolved subject stays unresolved. Only use "you" when the source itself contains an explicit second-person marker (너, 너는, 당신, etc.) or the conversational context makes direct address unambiguous.
         - Do not add emotion, humor, vulgarity, or drama beyond what the source supports, and do not flatten expressive/emphatic language into something neutral either. Match the source's intensity using whatever the target language's natural equivalent of that intensity is, even if structurally different or hyperbolic.
         - Do not force slang, internet expressions, or exaggerated localized phrasing onto neutral, formal, or informational messages — a simple message stays simple; a highly expressive one stays highly expressive.
 
@@ -7515,64 +7525,81 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // formal-register example, 20/20 prior pairs skewed casual and the
         // model over-generalized "this app always uses 반말" (see
         // conversation notes on 2026-07-19).
+        // These 24 few-shot turns are all Korean⇄English pairs — appending
+        // them unconditionally for every language pair was the actual bug
+        // behind "Chinese target comes back in English" (and identically
+        // for every other non-Korean/English target): the fixed instruction
+        // in `systemPrompt` said translate to Chinese, but the 24-turn
+        // conversation immediately after it was 100% Korean⇄English, and at
+        // `temperature: 0.1` that pattern dominated over the text
+        // instruction. Only include them when the request is actually a
+        // Korean⇄English pair, where they're validated and helpful; every
+        // other pair relies on `systemPrompt` alone (plus the reminder
+        // message appended below).
+        let isKoEnPair = (srcLang == "Korean" && tgtLang == "English") || (srcLang == "English" && tgtLang == "Korean")
+
         var messages: [[String: Any]] = [
             ["role": "system", "content": systemPrompt],
-            // MARK: - Functional Few-shot: Direct Address
-            ["role": "user", "content": "say hi to me, jhope please"],
-            ["role": "assistant", "content": "제이홉 제발 나한테 인사해줘"],
-            ["role": "user", "content": "i love you so much jimin"],
-            ["role": "assistant", "content": "지민아 진짜 너무 사랑해"],
-            ["role": "user", "content": "please notice my comment mark"],
-            ["role": "assistant", "content": "마크야 제발 내 댓글 좀 봐줘"],
-            // MARK: - Functional Few-shot: Third-person Reference
-            ["role": "user", "content": "I watched Jungkook's live"],
-            ["role": "assistant", "content": "정국이 라이브 봤어"],
-            // MARK: - Functional Few-shot: Indirect Request
-            ["role": "user", "content": "tell taehyung I said good luck tonight"],
-            ["role": "assistant", "content": "태형이한테 오늘 잘 되길 바란다고 전해줘"],
-            ["role": "user", "content": "ask namjoon if he's eating well"],
-            ["role": "assistant", "content": "남준이한테 잘 먹고 있는지 물어봐줘"],
-            // MARK: - Functional Few-shot: Do Not Add Laughter or Emotion
-            ["role": "user", "content": "I love you"],
-            ["role": "assistant", "content": "사랑해"],
-            ["role": "user", "content": "I love you lol"],
-            ["role": "assistant", "content": "사랑해ㅋㅋ"],
-            ["role": "user", "content": "Really?"],
-            ["role": "assistant", "content": "진짜?"],
-            ["role": "user", "content": "Really?? 😭"],
-            ["role": "assistant", "content": "진짜?? 😭"],
-            // MARK: - Reverse Translation
-            ["role": "user", "content": "나 지금 가는 중"],
-            ["role": "assistant", "content": "I'm on my way"],
-            ["role": "user", "content": "너무 웃겨ㅋㅋ"],
-            ["role": "assistant", "content": "You're so funny lol"],
-            // MARK: - Native Style Few-shot (kept last — see ordering note above)
-            ["role": "user", "content": "I'm dead 😭"],
-            ["role": "assistant", "content": "죽겠네 😭"],
-            ["role": "user", "content": "This hit different"],
-            ["role": "assistant", "content": "이건 좀 다르네"],
-            ["role": "user", "content": "Wait, this is unreal"],
-            ["role": "assistant", "content": "잠깐만 이거 실화야?"],
-            ["role": "user", "content": "Don't even get me started"],
-            ["role": "assistant", "content": "아 말도 마"],
-            ["role": "user", "content": "It is what it is"],
-            ["role": "assistant", "content": "뭐 어쩌겠어"],
-            ["role": "user", "content": "I didn't see that coming"],
-            ["role": "assistant", "content": "이건 예상 못 했네"],
-            ["role": "user", "content": "I'm obsessed"],
-            ["role": "assistant", "content": "완전 빠졌어"],
-            ["role": "user", "content": "Why is this so real"],
-            ["role": "assistant", "content": "아니 왜 이렇게 현실적이야"],
-            // MARK: - Politeness (formal vs. casual — judge from source, not default)
-            ["role": "user", "content": "Could you please let me know when you're available?"],
-            ["role": "assistant", "content": "언제 시간 되시는지 알려주실 수 있을까요?"],
-            ["role": "user", "content": "Thank you so much for your help today."],
-            ["role": "assistant", "content": "오늘 도와주셔서 정말 감사합니다."],
-            ["role": "user", "content": "hey what's up, free later?"],
-            ["role": "assistant", "content": "야 뭐해, 나중에 시간 있어?"],
-            ["role": "user", "content": "Chanel, are u serious? This is a casual look that many people wear when going to campus. The outfit is nice, but not for a Met Gala"],
-            ["role": "assistant", "content": "샤넬, 진심이에요? 이건 많은 사람들이 캠퍼스 갈 때 입는 캐주얼한 룩이잖아요. 옷은 예쁘지만 멧 갈라에는 안 어울려요"],
         ]
+        if isKoEnPair {
+            messages.append(contentsOf: [
+                // MARK: - Functional Few-shot: Direct Address
+                ["role": "user", "content": "say hi to me, jhope please"],
+                ["role": "assistant", "content": "제이홉 제발 나한테 인사해줘"],
+                ["role": "user", "content": "i love you so much jimin"],
+                ["role": "assistant", "content": "지민아 진짜 너무 사랑해"],
+                ["role": "user", "content": "please notice my comment mark"],
+                ["role": "assistant", "content": "마크야 제발 내 댓글 좀 봐줘"],
+                // MARK: - Functional Few-shot: Third-person Reference
+                ["role": "user", "content": "I watched Jungkook's live"],
+                ["role": "assistant", "content": "정국이 라이브 봤어"],
+                // MARK: - Functional Few-shot: Indirect Request
+                ["role": "user", "content": "tell taehyung I said good luck tonight"],
+                ["role": "assistant", "content": "태형이한테 오늘 잘 되길 바란다고 전해줘"],
+                ["role": "user", "content": "ask namjoon if he's eating well"],
+                ["role": "assistant", "content": "남준이한테 잘 먹고 있는지 물어봐줘"],
+                // MARK: - Functional Few-shot: Do Not Add Laughter or Emotion
+                ["role": "user", "content": "I love you"],
+                ["role": "assistant", "content": "사랑해"],
+                ["role": "user", "content": "I love you lol"],
+                ["role": "assistant", "content": "사랑해ㅋㅋ"],
+                ["role": "user", "content": "Really?"],
+                ["role": "assistant", "content": "진짜?"],
+                ["role": "user", "content": "Really?? 😭"],
+                ["role": "assistant", "content": "진짜?? 😭"],
+                // MARK: - Reverse Translation
+                ["role": "user", "content": "나 지금 가는 중"],
+                ["role": "assistant", "content": "I'm on my way"],
+                ["role": "user", "content": "너무 웃겨ㅋㅋ"],
+                ["role": "assistant", "content": "You're so funny lol"],
+                // MARK: - Native Style Few-shot (kept last — see ordering note above)
+                ["role": "user", "content": "I'm dead 😭"],
+                ["role": "assistant", "content": "죽겠네 😭"],
+                ["role": "user", "content": "This hit different"],
+                ["role": "assistant", "content": "이건 좀 다르네"],
+                ["role": "user", "content": "Wait, this is unreal"],
+                ["role": "assistant", "content": "잠깐만 이거 실화야?"],
+                ["role": "user", "content": "Don't even get me started"],
+                ["role": "assistant", "content": "아 말도 마"],
+                ["role": "user", "content": "It is what it is"],
+                ["role": "assistant", "content": "뭐 어쩌겠어"],
+                ["role": "user", "content": "I didn't see that coming"],
+                ["role": "assistant", "content": "이건 예상 못 했네"],
+                ["role": "user", "content": "I'm obsessed"],
+                ["role": "assistant", "content": "완전 빠졌어"],
+                ["role": "user", "content": "Why is this so real"],
+                ["role": "assistant", "content": "아니 왜 이렇게 현실적이야"],
+                // MARK: - Politeness (formal vs. casual — judge from source, not default)
+                ["role": "user", "content": "Could you please let me know when you're available?"],
+                ["role": "assistant", "content": "언제 시간 되시는지 알려주실 수 있을까요?"],
+                ["role": "user", "content": "Thank you so much for your help today."],
+                ["role": "assistant", "content": "오늘 도와주셔서 정말 감사합니다."],
+                ["role": "user", "content": "hey what's up, free later?"],
+                ["role": "assistant", "content": "야 뭐해, 나중에 시간 있어?"],
+                ["role": "user", "content": "Chanel, are u serious? This is a casual look that many people wear when going to campus. The outfit is nice, but not for a Met Gala"],
+                ["role": "assistant", "content": "샤넬, 진심이에요? 이건 많은 사람들이 캠퍼스 갈 때 입는 캐주얼한 룩이잖아요. 옷은 예쁘지만 멧 갈라에는 안 어울려요"],
+            ] as [[String: Any]])
+        }
         // NOTE: "I'm actually screaming" / "This is too much" / "It's giving
         // main character" / "You had one job" were removed from here — they
         // now live in TranslationDB.enKo as exact-match "hero phrases" that
@@ -7582,6 +7609,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         if let kbReference {
             messages.append(["role": "system", "content": kbReference])
         }
+        // Second safeguard, applied to every language pair (including
+        // Korean⇄English): a closing reminder placed immediately before the
+        // real input so it carries the strongest recency weight, overriding
+        // any language drift the few-shot examples above might otherwise
+        // pull toward.
+        messages.append(["role": "system", "content": "This translation is from \(srcLang) to \(tgtLang). Everything above is for style and tone reference only — the output language must be \(tgtLang), regardless of what language the reference examples used."])
         messages.append(["role": "user", "content": effectiveInput])
 
         #if DEBUG
