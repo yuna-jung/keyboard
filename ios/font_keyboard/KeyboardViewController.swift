@@ -1972,6 +1972,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private var premiumRefreshTimer: Timer?
     // TODO: REMOVE - 배포 전 false 유지
     static var debugForceFree: Bool = false // TODO: REMOVE
+    // TODO: REMOVE - 배포 전 100 유지. 실기기 테스트 시에만 3 등으로 낮춰서
+    // 한도 초과 토스트를 빠르게 재현한 뒤, 테스트가 끝나면 반드시 100으로
+    // 되돌릴 것 — 사용자에게 보이는 안내 문구("100회")는 이 값과 무관하게
+    // 고정 텍스트이므로, 값을 낮춰도 문구는 여전히 "100회"라고 표시된다.
+    static var debugTranslateDailyLimit: Int = 100 // TODO: REMOVE
 /// Throttle gate for the `textDidChange` subscription re-check. `viewWillAppear`
     /// can be skipped when iOS caches/reuses this VC across text fields, but
     /// `textDidChange` always fires on (re)connection — so we re-verify there
@@ -7377,6 +7382,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             from: translateLangs[sourceLangIndex].1,
             to: translateLangs[targetLangIndex].1
         ) {
+            #if DEBUG
+            // If this fires on every tap during a daily-limit test, the
+            // test input is a cached DB entry (e.g. a hero phrase) and is
+            // bypassing the quota entirely by design — not a quota bug.
+            // Use a sentence that's guaranteed to miss the DB (vary the
+            // wording each time) to actually exercise the counter below.
+            print("🔥 [translateDailyLimit] DB HIT for \"\(effectiveInput)\" — quota NOT touched, no API call made")
+            #endif
             lastTranslation = sanitizeTranslationOutput(cached)
             textDocumentProxy.insertText(lastTranslation)
             translateInputField?.resignFirstResponder()
@@ -7411,14 +7424,25 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return
         }
 
-        // Daily translation limit. Both tiers are now capped:
-        //   • free                    → 5/day
-        //   • premium (weekly/yearly) → 300/day
-        // (Lifetime is blocked outright above; trial users land on the
-        // free quota since `canTranslateUnlimited == false` for them.)
-        // `canTranslateUnlimited` is the premium-tier gate flag — kept
-        // under its old name to avoid touching its other call sites; it
-        // now selects which quota to apply, not "unlimited vs limited".
+        // Subscription may have lapsed between opening the translate tab and
+        // tapping the button — `checkPremiumStatus()` above re-reads live
+        // state, so re-gate here rather than trusting the guard at the top
+        // of this function. This is a genuine "no longer eligible" case,
+        // distinct from the daily quota below, so it still shows the
+        // upgrade-oriented locked overlay rather than the quota toast.
+        guard isPremiumUser else {
+            showLockedOverlay()
+            return
+        }
+
+        // Daily translation limit — flat 100/day for every subscriber
+        // (trial and full premium alike; lifetime is blocked outright
+        // above). This is purely a cost control on GPT API spend, not a
+        // paywall, so exceeding it only shows an informational toast —
+        // never `showLockedOverlay()` — and doesn't distinguish tiers.
+        // Only counts clicks that actually reach this point: a
+        // TranslationDB hit earlier in this function returns before ever
+        // getting here, so dictionary lookups never spend the quota.
         // Counter resets at local midnight and is keyed by
         // `translateDailyDate` in App Group UserDefaults so it survives
         // extension lifecycle + syncs with the host app.
@@ -7436,24 +7460,34 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             ? (defaults?.integer(forKey: "translateDailyCount") ?? 0)
             : 0
 
-        // 3-tier quota: full (non-trial) premium subscribers are unlimited-ish
-        // at 300/day; `can_translate_unlimited` is specifically false for
-        // trial subscribers (see subscription_service.dart _isInFreeTrial),
-        // so `isPremiumUser` (true for both trial and full premium) is what
-        // separates trial (30/day) from the free tier (0/day).
-        let maxCount = canTranslateUnlimited ? 300 : (isPremiumUser ? 30 : 0)
-        if count >= maxCount {
-            if canTranslateUnlimited {
-                showToast("오늘 번역 한도를 모두 사용했어요.")
-            } else {
-                showLockedOverlay()
-            }
+        #if DEBUG
+        // `defaults == nil` here would mean the App Group container isn't
+        // reachable at all — every `?.` read/write below silently no-ops,
+        // `count` always reads back as 0 via the `?? 0` fallback, and the
+        // limit can never be reached no matter how many times this runs.
+        print("🔥 [translateDailyLimit] defaults!=nil=\(defaults != nil) today=\(today) storedDate=\(storedDate ?? "nil") rawStoredCount=\(defaults?.integer(forKey: "translateDailyCount") ?? -1) → count=\(count) limit=\(Self.debugTranslateDailyLimit)")
+        #endif
+
+        if count >= Self.debugTranslateDailyLimit {
+            #if DEBUG
+            print("🔥 [translateDailyLimit] BLOCKED — count=\(count) >= limit=\(Self.debugTranslateDailyLimit), showing toast, no API call")
+            #endif
+            showToast(loc("toast_translate_daily_limit"))
             return
         }
 
         count += 1
         defaults?.set(count, forKey: "translateDailyCount")
         defaults?.set(today, forKey: "translateDailyDate")
+
+        #if DEBUG
+        // Read back what actually landed in the store (not just what we
+        // think we wrote) — if this doesn't match `count`, the write itself
+        // is failing silently (e.g. `defaults` was nil, or something else
+        // is clearing these keys between calls).
+        let readBack = defaults?.integer(forKey: "translateDailyCount")
+        print("🔥 [translateDailyLimit] ALLOWED — new count=\(count) persisted readBack=\(readBack.map(String.init) ?? "nil (defaults is nil)") limit=\(Self.debugTranslateDailyLimit)")
+        #endif
 
         let srcLang = translateLangs[sourceLangIndex].1
         #if DEBUG

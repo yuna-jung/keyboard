@@ -254,6 +254,7 @@
 "toast_copied"             = "Copied";
 "toast_translate_monthly"  = "Translation is available with monthly/yearly plans ✨";
 "toast_translate_sub"      = "Translation is for subscribers only ✨";
+"toast_translate_daily_limit" = "You've used all your translations for today.\nYou'll get 100 more at midnight!";
 "toast_gif_downloading"    = "Downloading GIF...";
 "toast_gif_failed"         = "Download failed";
 "toast_gif_copied"         = "GIF copied!";

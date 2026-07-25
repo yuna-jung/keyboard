@@ -254,6 +254,7 @@
 "toast_copied"             = "복사됨";
 "toast_translate_monthly"  = "번역 기능은 월간/연간 구독에서 이용 가능해요 ✨";
 "toast_translate_sub"      = "번역 기능은 구독자 전용이에요 ✨";
+"toast_translate_daily_limit" = "오늘의 번역 횟수를 모두 사용했어요.\n자정에 다시 100회가 채워져요!";
 "toast_gif_downloading"    = "GIF 다운로드 중...";
 "toast_gif_failed"         = "다운로드 실패";
 "toast_gif_copied"         = "GIF가 복사되었습니다";
