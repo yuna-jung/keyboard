@@ -1967,7 +1967,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Lifecycle
 
     private var isPremiumUser = false
-    private var userTier = "free" // "free" | "premium" | "lifetime"
+    private var userTier = "free" // "free" | "premium"
     private var canTranslateUnlimited = false
     private var premiumRefreshTimer: Timer?
     // TODO: REMOVE - 배포 전 false 유지
@@ -2343,9 +2343,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
 
         // Subscriber gate: any non-translate tab renders the in-keyboard lock
-        // view for free-tier users. Translate has its own toast at modeTapped
-        // (it distinguishes lifetime from free with a more specific message),
-        // Both premium and premium_lifetime have `isPremiumUser == true` and pass through.
+        // view for free-tier users. Translate is exempted here because its
+        // own gating happens in `translateTriggered()` (the action), not at
+        // tab entry — see the comment there for why that distinction matters.
         // Exception: textTemplate at My List category (index 0) is free for all users.
         print("🔥 [showMode] mode=\(mode) isPremiumUser=\(isPremiumUser)")
         if mode != .translate && !isPremiumUser {
@@ -2600,27 +2600,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // redundancy — already-fresh values).
         checkPremiumStatus()
 
-        // Translate keeps its own messaging (distinguishes lifetime from free).
-        // Trial users have isPremiumUser=true but canTranslateUnlimited=false
-        // — they must reach `translateTriggered` so the 30/day counter applies,
-        // so we gate on tier/membership here, not on the unlimited flag.
         // Hard paywall gating for the free tier lives in `translateTriggered`
         // (the action), NOT here — a tab-entry guard that calls
         // showLockedOverlay() gets re-triggered every time
         // dismissLockedOverlay() rebuilds the tab via showMode(currentMode),
         // recreating the overlay forever (the bug fixed in My List/favorites).
-        if mode == .translate {
-            checkPremiumStatus()
-            if userTier == "lifetime" {
-                showToast(loc("toast_translate_monthly"))
-                return
-            }
-            showMode(mode)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.showTipIfNeeded(for: .translate)
-            }
-            return
-        }
+        // So translate has no special-cased branch here; it falls through to
+        // the generic showMode(mode) + tip path below like every other tab.
 
         if mode == .palette {
             checkPremiumStatus()
@@ -7372,10 +7358,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // Check the local TranslationDB (200×9 phrase pairs, exact match)
         // BEFORE running any of the API-side gates. A hit returns instantly,
         // costs nothing from the daily quota, and works even when Full Access
-        // is off / the user is on the lifetime tier / the daily cap is
-        // exhausted — because none of those constraints apply to a purely
-        // local table lookup. On miss we fall through to the existing API
-        // path unchanged.
+        // is off or the daily cap is exhausted — because neither constraint
+        // applies to a purely local table lookup. On miss we fall through to
+        // the existing API path unchanged.
 
         if let cached = TranslationDB.lookup(
             text: effectiveInput,
@@ -7418,12 +7403,6 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // Refresh tier from App Group (main app may have updated it)
         checkPremiumStatus()
 
-        // Lifetime: translation not included in lifetime plan
-        if userTier == "lifetime" {
-            showTranslateError("번역은 주/연간 구독에서만 가능합니다")
-            return
-        }
-
         // Subscription may have lapsed between opening the translate tab and
         // tapping the button — `checkPremiumStatus()` above re-reads live
         // state, so re-gate here rather than trusting the guard at the top
@@ -7436,10 +7415,10 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
 
         // Daily translation limit — flat 100/day for every subscriber
-        // (trial and full premium alike; lifetime is blocked outright
-        // above). This is purely a cost control on GPT API spend, not a
-        // paywall, so exceeding it only shows an informational toast —
-        // never `showLockedOverlay()` — and doesn't distinguish tiers.
+        // (trial and full premium alike). This is purely a cost control
+        // on GPT API spend, not a paywall, so exceeding it only shows an
+        // informational toast — never `showLockedOverlay()` — and doesn't
+        // distinguish tiers.
         // Only counts clicks that actually reach this point: a
         // TranslationDB hit earlier in this function returns before ever
         // getting here, so dictionary lookups never spend the quota.

@@ -14,46 +14,7 @@
 
   ],
   "products" : [
-    {
-      "displayPrice" : "17.99",
-      "familyShareable" : false,
-      "internalID" : "6762086944",
-      "localizations" : [
-        {
-          "description" : "全フォント、絵文字、特殊文字が永久に使い放題",
-          "displayName" : "Fonkii 買い切り版",
-          "locale" : "ja"
-        },
-        {
-          "description" : "永久解鎖所有字體、表情和特殊字符",
-          "displayName" : "Fonkii 終身版",
-          "locale" : "zh_Hant"
-        },
-        {
-          "description" : "모든 폰트, 이모티콘, 특수문자 평생 무제한",
-          "displayName" : "Fonkii 평생 이용권",
-          "locale" : "ko"
-        },
-        {
-          "description" : "永久解锁所有字体、表情和特殊字符",
-          "displayName" : "Fonkii 终身版",
-          "locale" : "zh_Hans"
-        },
-        {
-          "description" : "All fonts, emoticons & special characters forever",
-          "displayName" : "Fonkii Lifetime",
-          "locale" : "en_US"
-        },
-        {
-          "description" : "All fonts, emoticons & special characters forever",
-          "displayName" : "Fonkii Lifetime",
-          "locale" : "en_GB"
-        }
-      ],
-      "productID" : "com.yunajung.fonki.lifetime",
-      "referenceName" : "Fonkii Lifetime",
-      "type" : "NonConsumable"
-    }
+
   ],
   "settings" : {
     "_applicationInternalID" : "6762085484",
