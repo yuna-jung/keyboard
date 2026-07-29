@@ -488,6 +488,30 @@ abstract class AppLocalizations {
   /// **'설정'**
   String get settingsTitle;
 
+  /// No description provided for @settingsSectionKeyboard.
+  ///
+  /// In ko, this message translates to:
+  /// **'키보드'**
+  String get settingsSectionKeyboard;
+
+  /// No description provided for @settingsKeyboardHapticTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'키 입력 진동'**
+  String get settingsKeyboardHapticTitle;
+
+  /// No description provided for @settingsKeyboardHapticSubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'키를 누를 때마다 가볍게 진동해요'**
+  String get settingsKeyboardHapticSubtitle;
+
+  /// No description provided for @settingsKeyboardHapticFullAccessNotice.
+  ///
+  /// In ko, this message translates to:
+  /// **'전체 접근 허용이 필요해요. 탭해서 설정으로 이동하세요.'**
+  String get settingsKeyboardHapticFullAccessNotice;
+
   /// No description provided for @settingsSectionSocial.
   ///
   /// In ko, this message translates to:

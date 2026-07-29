@@ -207,6 +207,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsTitle => '설정';
 
   @override
+  String get settingsSectionKeyboard => '키보드';
+
+  @override
+  String get settingsKeyboardHapticTitle => '키 입력 진동';
+
+  @override
+  String get settingsKeyboardHapticSubtitle => '키를 누를 때마다 가볍게 진동해요';
+
+  @override
+  String get settingsKeyboardHapticFullAccessNotice =>
+      '전체 접근 허용이 필요해요. 탭해서 설정으로 이동하세요.';
+
+  @override
   String get settingsSectionSocial => '소셜';
 
   @override

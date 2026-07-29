@@ -71,6 +71,10 @@
   "homePremiumActive": "✓ Premium Active",
 
   "settingsTitle": "Settings",
+  "settingsSectionKeyboard": "Keyboard",
+  "settingsKeyboardHapticTitle": "Key Press Haptics",
+  "settingsKeyboardHapticSubtitle": "A light vibration on every key press",
+  "settingsKeyboardHapticFullAccessNotice": "Full Access is required. Tap to open Settings.",
   "settingsSectionSocial": "Social",
   "settingsShareApp": "Share App",
   "settingsShareMessage": "Chat more fun with Fonkii Keyboard! 🎨\nhttps://apps.apple.com/app/fonkii/id6762085484",

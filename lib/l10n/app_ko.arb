@@ -71,6 +71,10 @@
   "homePremiumActive": "✓ 프리미엄 이용 중",
 
   "settingsTitle": "설정",
+  "settingsSectionKeyboard": "키보드",
+  "settingsKeyboardHapticTitle": "키 입력 진동",
+  "settingsKeyboardHapticSubtitle": "키를 누를 때마다 가볍게 진동해요",
+  "settingsKeyboardHapticFullAccessNotice": "전체 접근 허용이 필요해요. 탭해서 설정으로 이동하세요.",
   "settingsSectionSocial": "소셜",
   "settingsShareApp": "앱 공유",
   "settingsShareMessage": "Fonkii 키보드로 더 재밌게 소통해요! 🎨\nhttps://apps.apple.com/app/fonkii/id6762085484",

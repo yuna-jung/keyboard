@@ -2003,6 +2003,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // 되돌릴 것 — 사용자에게 보이는 안내 문구("100회")는 이 값과 무관하게
     // 고정 텍스트이므로, 값을 낮춰도 문구는 여전히 "100회"라고 표시된다.
     static var debugTranslateDailyLimit: Int = 100 // TODO: REMOVE
+
+    /// Prepared once and re-`prepare()`d after every use rather than
+    /// instantiated fresh per keystroke — Apple's documented pattern for
+    /// minimizing Taptic Engine latency, worth doing here since this fires
+    /// on every character typed. See `triggerKeyHaptic()`.
+    private lazy var keyHapticGenerator: UIImpactFeedbackGenerator = {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        return generator
+    }()
 /// Throttle gate for the `textDidChange` subscription re-check. `viewWillAppear`
     /// can be skipped when iOS caches/reuses this VC across text fields, but
     /// `textDidChange` always fires on (re)connection — so we re-verify there
@@ -2133,6 +2143,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         super.viewDidLoad()
         print("🔥 [KeyboardVC] extensionContext: \(String(describing: extensionContext))")
         print("🔥 [KeyboardVC] hasFullAccess: \(hasFullAccess)")
+        // Mirrors this session's Full Access status into the App Group so
+        // the main app's Settings screen can show/hide the haptic toggle's
+        // "Full Access required" state — there's no public API for the
+        // containing app to query Full Access directly, so this is the
+        // only way it can know. Necessarily as stale as the last time the
+        // keyboard was opened; see `getKeyboardHapticSettings` in
+        // AppDelegate.swift.
+        UserDefaults(suiteName: Self.favAppGroup)?.set(hasFullAccess, forKey: "keyboardHasFullAccess")
 
         // Apply gradient first so it sits at layer index 0 before any
         // subviews are added; viewDidLayoutSubviews() corrects the frame.
@@ -2183,6 +2201,19 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         super.viewWillAppear(animated)
         checkPremiumStatus()
         applyPlainTextFieldGate()
+        // Same staleness gap as `checkPremiumStatus()` above, for the
+        // Settings screen's "Full Access required" notice: `viewDidLoad`'s
+        // one-time write of `keyboardHasFullAccess` would miss a Full
+        // Access grant/revoke that happened while this VC instance stayed
+        // warm across show/hide cycles. Note this only refreshes the
+        // App-Group-mirrored value the *main app* reads for display —
+        // `triggerKeyHaptic()` itself always reads the live `hasFullAccess`
+        // property directly, never this mirrored copy, so it was never
+        // affected by this particular staleness gap.
+        #if DEBUG
+        print("🔥 [viewWillAppear] hasFullAccess=\(hasFullAccess)")
+        #endif
+        UserDefaults(suiteName: Self.favAppGroup)?.set(hasFullAccess, forKey: "keyboardHasFullAccess")
     }
 
     /// Extra defensive pass on top of `NSCache`'s own automatic eviction
@@ -6522,6 +6553,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
+        triggerKeyHaptic()
         if isKoreanMode && !isTranslateNumberMode {
             handleHangulInput(key)
             // Auto-release one-shot shift. SYNC rebuild (no
@@ -6552,6 +6584,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
+        triggerKeyHaptic()
         // Cheonjiin "smart space" — mirrors fonts-tab `spaceTapped`'s
         // jongsung-commit behavior but gated on translate-tab state
         // (`isKoreanMode` instead of `isFontsKorean`). When a syllable
@@ -7298,6 +7331,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
+        triggerKeyHaptic()
         // Visual tap feedback (92% shrink + accent tint pulse) — without
         // this, isolated `·` taps look completely dead because `·` alone
         // doesn't emit a jamo (it's buffered until the next vowel pairs
@@ -7346,6 +7380,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
+        triggerKeyHaptic()
         // `.,?!` cycle button — consecutive taps within `CJJ_TIMEOUT`
         // advance through the four-glyph cycle, with each step replacing
         // the previously-emitted glyph (`deleteBackward` + `insertText`).
@@ -7373,6 +7408,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
+        triggerKeyHaptic()
         hgFlush()
         cjjReset()
         textDocumentProxy.insertText(",")
@@ -8372,6 +8408,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     @objc private func letterTapped(_ s: UIButton) {
         guard var ch = s.title(for: .normal) else { return }
+        triggerKeyHaptic()
         // Korean keypad on the Aa tab: divert raw jamos into the same Hangul
         // composition engine the translate tab uses, so taps build syllables
         // (ㅇ + ㅏ + ㄴ → 안) instead of dropping standalone jamos. The engine
@@ -8440,6 +8477,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func spaceTapped() {
+        triggerKeyHaptic()
         // Cheonjiin "smart space" — when a syllable with a jongsung
         // (받침) is currently being composed in 천지인 mode, space acts
         // as a syllable boundary commit rather than a literal space:
@@ -9205,6 +9243,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
         guard let text = s.title(for: .normal) else { return }
         textDocumentProxy.insertText(text)
+        triggerKeyHaptic()
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
@@ -9219,6 +9258,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         let items = dotArtCategories.first?.1 ?? []
         guard s.tag < items.count else { return }
         textDocumentProxy.insertText(items[s.tag])
+        triggerKeyHaptic()
         tapFeedback(s)
     }
 
@@ -9791,6 +9831,34 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             guard let t = btn.title(for: .normal) else { continue }
             btn.setTitle(isShifted ? t.uppercased() : t.lowercased(), for: .normal)
         }
+    }
+
+    /// Per-keystroke haptic, gated on two independent conditions that both
+    /// have to hold:
+    ///   1. Full Access — `UIFeedbackGenerator` (the Taptic Engine) is one
+    ///      of the APIs a keyboard extension cannot reach without Full
+    ///      Access; calling it anyway doesn't crash, it just silently does
+    ///      nothing, so this check only avoids wasted work, not a failure.
+    ///   2. `keyboardHapticEnabled` in the App Group, set from the main
+    ///      app's Settings screen. Defaults to off (absent key reads as
+    ///      `false` via `bool(forKey:)`) to match stock iOS's own
+    ///      Settings → Sounds & Haptics → Keyboard Feedback → Haptic
+    ///      toggle, which ships off by default.
+    private func triggerKeyHaptic() {
+        guard hasFullAccess else {
+            #if DEBUG
+            print("🔥 [triggerKeyHaptic] BLOCKED — hasFullAccess=false")
+            #endif
+            return
+        }
+        let defaults = UserDefaults(suiteName: Self.favAppGroup)
+        let enabled = defaults?.bool(forKey: "keyboardHapticEnabled") ?? false
+        #if DEBUG
+        print("🔥 [triggerKeyHaptic] hasFullAccess=\(hasFullAccess) defaults!=nil=\(defaults != nil) keyboardHapticEnabled=\(enabled) → \(enabled ? "FIRING" : "BLOCKED")")
+        #endif
+        guard enabled else { return }
+        keyHapticGenerator.impactOccurred()
+        keyHapticGenerator.prepare()
     }
 
     private func tapFeedback(_ btn: UIButton) {

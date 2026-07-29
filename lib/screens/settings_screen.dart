@@ -1,13 +1,68 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  static const _appGroupChannel = MethodChannel('com.yunajung.fonki/appgroup');
+
+  bool _hapticEnabled = false;
+  bool _hasFullAccess = false;
+  bool _loadingHaptic = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHapticSettings();
+  }
+
+  /// `hasFullAccess` here is the keyboard extension's own last-known status,
+  /// mirrored into the App Group on its side (see `viewDidLoad` in
+  /// KeyboardViewController.swift) — there's no public API for the
+  /// containing app to query Full Access directly, so this can lag until
+  /// the keyboard is actually opened at least once after the user grants
+  /// it. Re-read every time this screen appears (not cached across
+  /// screens) so returning here after toggling Full Access in iOS
+  /// Settings picks up a stale value as soon as possible.
+  Future<void> _loadHapticSettings() async {
+    try {
+      final result = await _appGroupChannel.invokeMethod<Map<Object?, Object?>>(
+        'getKeyboardHapticSettings',
+      );
+      if (!mounted) return;
+      setState(() {
+        _hapticEnabled = result?['enabled'] as bool? ?? false;
+        _hasFullAccess = result?['hasFullAccess'] as bool? ?? false;
+        _loadingHaptic = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingHaptic = false);
+    }
+  }
+
+  Future<void> _setHapticEnabled(bool value) async {
+    setState(() => _hapticEnabled = value);
+    try {
+      await _appGroupChannel.invokeMethod('setKeyboardHapticEnabled', {
+        'enabled': value,
+      });
+    } catch (_) {
+      // App Group unavailable — revert the optimistic UI update.
+      if (mounted) setState(() => _hapticEnabled = !value);
+    }
+  }
 
   Future<void> _open(String url) async {
     final uri = Uri.parse(url);
@@ -20,7 +75,11 @@ class SettingsScreen extends StatelessWidget {
   /// `koUrl`, everything else gets `enUrl`. Uses `Platform.localeName`
   /// (e.g. "ko_KR") so detection works regardless of MaterialApp's
   /// supportedLocales configuration.
-  Future<void> _openUrl(BuildContext context, String koUrl, String enUrl) async {
+  Future<void> _openUrl(
+    BuildContext context,
+    String koUrl,
+    String enUrl,
+  ) async {
     final locale = Platform.localeName.split('_').first;
     final url = locale == 'ko' ? koUrl : enUrl;
     final uri = Uri.parse(url);
@@ -46,13 +105,17 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: isDark ? Colors.black : Colors.white,
         elevation: 0,
-        title: Text(l.settingsTitle,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Text(
+          l.settingsTitle,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.close,
-                color: isDark ? Colors.white : Colors.black87),
+            icon: Icon(
+              Icons.close,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -60,13 +123,45 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
+          _SectionHeader(title: l.settingsSectionKeyboard, isDark: isDark),
+          _SettingSwitchTile(
+            icon: Icons.vibration,
+            label: l.settingsKeyboardHapticTitle,
+            subtitle: _hasFullAccess
+                ? l.settingsKeyboardHapticSubtitle
+                : l.settingsKeyboardHapticFullAccessNotice,
+            subtitleIsWarning: !_hasFullAccess,
+            isDark: isDark,
+            value: _hapticEnabled,
+            // Deliberately NOT gated on `_hasFullAccess` — that flag is the
+            // keyboard extension's own last-known status, mirrored into the
+            // App Group only when the extension actually runs (see
+            // `viewWillAppear` in KeyboardViewController.swift), so it can
+            // read stale/false here even while Full Access is genuinely on
+            // (e.g. right after granting it, before the keyboard has been
+            // reopened). Disabling the switch on that stale read silently
+            // blocked every write to `keyboardHapticEnabled` — the actual
+            // bug behind "toggled it on, still reads false" — even though
+            // the real gating already happens safely on the extension side,
+            // which always checks the *live* `hasFullAccess` at the moment
+            // of each keystroke. So the preference is always settable; only
+            // its *effect* depends on Full Access actually being on.
+            enabled: !_loadingHaptic,
+            onChanged: _setHapticEnabled,
+            // Full Access notice stays purely informational — still offers
+            // the same one-tap shortcut to Settings, just without blocking
+            // the switch itself.
+            onRowTap: _hasFullAccess ? null : _openAppSettings,
+          ),
           _SectionHeader(title: l.settingsSectionSocial, isDark: isDark),
           _SettingTile(
             icon: Icons.ios_share,
             label: l.settingsShareApp,
             isDark: isDark,
             onTap: () {
-              SharePlus.instance.share(ShareParams(text: l.settingsShareMessage));
+              SharePlus.instance.share(
+                ShareParams(text: l.settingsShareMessage),
+              );
             },
           ),
           _SectionHeader(title: l.settingsSectionHelp, isDark: isDark),
@@ -151,9 +246,11 @@ class _SettingTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
           children: [
-            Icon(icon,
-                size: 22,
-                color: isDark ? Colors.white70 : Colors.black87),
+            Icon(
+              icon,
+              size: 22,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
@@ -164,9 +261,83 @@ class _SettingTile extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right,
-                size: 20,
-                color: isDark ? Colors.white38 : Colors.grey.shade400),
+            Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: isDark ? Colors.white38 : Colors.grey.shade400,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingSwitchTile extends StatelessWidget {
+  const _SettingSwitchTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.isDark,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+    this.subtitleIsWarning = false,
+    this.onRowTap,
+  });
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool isDark;
+  final bool value;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+  final bool subtitleIsWarning;
+  final VoidCallback? onRowTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onRowTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: subtitleIsWarning
+                          ? const Color(0xFFE8935C)
+                          : (isDark ? Colors.white60 : Colors.grey.shade600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Switch.adaptive(
+              value: value,
+              onChanged: enabled ? onChanged : null,
+            ),
           ],
         ),
       ),

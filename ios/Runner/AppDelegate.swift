@@ -219,6 +219,30 @@ import UserNotifications
         }
         result(StickerLibrary.delete(path: path))
 
+      // ── Keyboard typing haptic (Settings screen toggle) ────────────────
+      // `keyboardHasFullAccess` is written by the extension itself in
+      // `viewDidLoad` (see KeyboardViewController.swift) — there is no
+      // public API for the containing app to query Full Access directly,
+      // so this mirrors the extension's last-known status and can only be
+      // as fresh as the last time the keyboard was actually opened.
+      case "getKeyboardHapticSettings":
+        let d = UserDefaults(suiteName: self.appGroupID)
+        result([
+          "enabled":       d?.bool(forKey: "keyboardHapticEnabled") ?? false,
+          "hasFullAccess": d?.bool(forKey: "keyboardHasFullAccess") ?? false,
+        ] as [String: Bool])
+
+      case "setKeyboardHapticEnabled":
+        guard let args = call.arguments as? [String: Any],
+              let enabled = args["enabled"] as? Bool else {
+          result(FlutterError(code: "INVALID_ARGS", message: nil, details: nil))
+          return
+        }
+        let defaults = UserDefaults(suiteName: self.appGroupID)
+        defaults?.set(enabled, forKey: "keyboardHapticEnabled")
+        defaults?.synchronize()
+        result(nil)
+
       default:
         result(FlutterMethodNotImplemented)
       }

@@ -212,6 +212,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
+  String get settingsSectionKeyboard => 'Keyboard';
+
+  @override
+  String get settingsKeyboardHapticTitle => 'Key Press Haptics';
+
+  @override
+  String get settingsKeyboardHapticSubtitle =>
+      'A light vibration on every key press';
+
+  @override
+  String get settingsKeyboardHapticFullAccessNotice =>
+      'Full Access is required. Tap to open Settings.';
+
+  @override
   String get settingsSectionSocial => 'Social';
 
   @override
