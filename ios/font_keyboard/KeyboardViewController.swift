@@ -1993,11 +1993,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // MARK: - Lifecycle
 
     private var isPremiumUser = false
-    private var userTier = "free" // "free" | "premium" | "lifetime"
+    private var userTier = "free" // "free" | "premium"
     private var canTranslateUnlimited = false
     private var premiumRefreshTimer: Timer?
     // TODO: REMOVE - 배포 전 false 유지
     static var debugForceFree: Bool = false // TODO: REMOVE
+    // TODO: REMOVE - 배포 전 100 유지. 실기기 테스트 시에만 3 등으로 낮춰서
+    // 한도 초과 토스트를 빠르게 재현한 뒤, 테스트가 끝나면 반드시 100으로
+    // 되돌릴 것 — 사용자에게 보이는 안내 문구("100회")는 이 값과 무관하게
+    // 고정 텍스트이므로, 값을 낮춰도 문구는 여전히 "100회"라고 표시된다.
+    static var debugTranslateDailyLimit: Int = 100 // TODO: REMOVE
 /// Throttle gate for the `textDidChange` subscription re-check. `viewWillAppear`
     /// can be skipped when iOS caches/reuses this VC across text fields, but
     /// `textDidChange` always fires on (re)connection — so we re-verify there
@@ -2368,9 +2373,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
 
         // Subscriber gate: any non-translate tab renders the in-keyboard lock
-        // view for free-tier users. Translate has its own toast at modeTapped
-        // (it distinguishes lifetime from free with a more specific message),
-        // Both premium and premium_lifetime have `isPremiumUser == true` and pass through.
+        // view for free-tier users. Translate is exempted here because its
+        // own gating happens in `translateTriggered()` (the action), not at
+        // tab entry — see the comment there for why that distinction matters.
         // Exception: textTemplate at My List category (index 0) is free for all users.
         print("🔥 [showMode] mode=\(mode) isPremiumUser=\(isPremiumUser)")
         if mode != .translate && !isPremiumUser {
@@ -2627,27 +2632,13 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // redundancy — already-fresh values).
         checkPremiumStatus()
 
-        // Translate keeps its own messaging (distinguishes lifetime from free).
-        // Trial users have isPremiumUser=true but canTranslateUnlimited=false
-        // — they must reach `translateTriggered` so the 30/day counter applies,
-        // so we gate on tier/membership here, not on the unlimited flag.
         // Hard paywall gating for the free tier lives in `translateTriggered`
         // (the action), NOT here — a tab-entry guard that calls
         // showLockedOverlay() gets re-triggered every time
         // dismissLockedOverlay() rebuilds the tab via showMode(currentMode),
         // recreating the overlay forever (the bug fixed in My List/favorites).
-        if mode == .translate {
-            checkPremiumStatus()
-            if userTier == "lifetime" {
-                showToast(loc("toast_translate_monthly"))
-                return
-            }
-            showMode(mode)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.showTipIfNeeded(for: .translate)
-            }
-            return
-        }
+        // So translate has no special-cased branch here; it falls through to
+        // the generic showMode(mode) + tip path below like every other tab.
 
         if mode == .palette {
             checkPremiumStatus()
@@ -7674,16 +7665,23 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // Check the local TranslationDB (200×9 phrase pairs, exact match)
         // BEFORE running any of the API-side gates. A hit returns instantly,
         // costs nothing from the daily quota, and works even when Full Access
-        // is off / the user is on the lifetime tier / the daily cap is
-        // exhausted — because none of those constraints apply to a purely
-        // local table lookup. On miss we fall through to the existing API
-        // path unchanged.
+        // is off or the daily cap is exhausted — because neither constraint
+        // applies to a purely local table lookup. On miss we fall through to
+        // the existing API path unchanged.
 
         if let cached = TranslationDB.lookup(
             text: effectiveInput,
             from: translateLangs[sourceLangIndex].1,
             to: translateLangs[targetLangIndex].1
         ) {
+            #if DEBUG
+            // If this fires on every tap during a daily-limit test, the
+            // test input is a cached DB entry (e.g. a hero phrase) and is
+            // bypassing the quota entirely by design — not a quota bug.
+            // Use a sentence that's guaranteed to miss the DB (vary the
+            // wording each time) to actually exercise the counter below.
+            print("🔥 [translateDailyLimit] DB HIT for \"\(effectiveInput)\" — quota NOT touched, no API call made")
+            #endif
             lastTranslation = sanitizeTranslationOutput(cached)
             textDocumentProxy.insertText(lastTranslation)
             translateInputField?.resignFirstResponder()
@@ -7712,20 +7710,25 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // Refresh tier from App Group (main app may have updated it)
         checkPremiumStatus()
 
-        // Lifetime: translation not included in lifetime plan
-        if userTier == "lifetime" {
-            showTranslateError("번역은 주/연간 구독에서만 가능합니다")
+        // Subscription may have lapsed between opening the translate tab and
+        // tapping the button — `checkPremiumStatus()` above re-reads live
+        // state, so re-gate here rather than trusting the guard at the top
+        // of this function. This is a genuine "no longer eligible" case,
+        // distinct from the daily quota below, so it still shows the
+        // upgrade-oriented locked overlay rather than the quota toast.
+        guard isPremiumUser else {
+            showLockedOverlay()
             return
         }
 
-        // Daily translation limit. Both tiers are now capped:
-        //   • free                    → 5/day
-        //   • premium (weekly/yearly) → 300/day
-        // (Lifetime is blocked outright above; trial users land on the
-        // free quota since `canTranslateUnlimited == false` for them.)
-        // `canTranslateUnlimited` is the premium-tier gate flag — kept
-        // under its old name to avoid touching its other call sites; it
-        // now selects which quota to apply, not "unlimited vs limited".
+        // Daily translation limit — flat 100/day for every subscriber
+        // (trial and full premium alike). This is purely a cost control
+        // on GPT API spend, not a paywall, so exceeding it only shows an
+        // informational toast — never `showLockedOverlay()` — and doesn't
+        // distinguish tiers.
+        // Only counts clicks that actually reach this point: a
+        // TranslationDB hit earlier in this function returns before ever
+        // getting here, so dictionary lookups never spend the quota.
         // Counter resets at local midnight and is keyed by
         // `translateDailyDate` in App Group UserDefaults so it survives
         // extension lifecycle + syncs with the host app.
@@ -7743,18 +7746,19 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             ? (defaults?.integer(forKey: "translateDailyCount") ?? 0)
             : 0
 
-        // 3-tier quota: full (non-trial) premium subscribers are unlimited-ish
-        // at 300/day; `can_translate_unlimited` is specifically false for
-        // trial subscribers (see subscription_service.dart _isInFreeTrial),
-        // so `isPremiumUser` (true for both trial and full premium) is what
-        // separates trial (30/day) from the free tier (0/day).
-        let maxCount = canTranslateUnlimited ? 300 : (isPremiumUser ? 30 : 0)
-        if count >= maxCount {
-            if canTranslateUnlimited {
-                showToast("오늘 번역 한도를 모두 사용했어요.")
-            } else {
-                showLockedOverlay()
-            }
+        #if DEBUG
+        // `defaults == nil` here would mean the App Group container isn't
+        // reachable at all — every `?.` read/write below silently no-ops,
+        // `count` always reads back as 0 via the `?? 0` fallback, and the
+        // limit can never be reached no matter how many times this runs.
+        print("🔥 [translateDailyLimit] defaults!=nil=\(defaults != nil) today=\(today) storedDate=\(storedDate ?? "nil") rawStoredCount=\(defaults?.integer(forKey: "translateDailyCount") ?? -1) → count=\(count) limit=\(Self.debugTranslateDailyLimit)")
+        #endif
+
+        if count >= Self.debugTranslateDailyLimit {
+            #if DEBUG
+            print("🔥 [translateDailyLimit] BLOCKED — count=\(count) >= limit=\(Self.debugTranslateDailyLimit), showing toast, no API call")
+            #endif
+            showToast(loc("toast_translate_daily_limit"))
             return
         }
 
@@ -7762,7 +7766,25 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         defaults?.set(count, forKey: "translateDailyCount")
         defaults?.set(today, forKey: "translateDailyDate")
 
+        #if DEBUG
+        // Read back what actually landed in the store (not just what we
+        // think we wrote) — if this doesn't match `count`, the write itself
+        // is failing silently (e.g. `defaults` was nil, or something else
+        // is clearing these keys between calls).
+        let readBack = defaults?.integer(forKey: "translateDailyCount")
+        print("🔥 [translateDailyLimit] ALLOWED — new count=\(count) persisted readBack=\(readBack.map(String.init) ?? "nil (defaults is nil)") limit=\(Self.debugTranslateDailyLimit)")
+        #endif
+
         let srcLang = translateLangs[sourceLangIndex].1
+        #if DEBUG
+        // Verifies the UI selection actually reaches the API call —
+        // sourceLangIndex/targetLangIndex are the same indices the
+        // dropdown popups (translateSourceDropdown/translateTargetDropdown)
+        // write to, so a mismatch here would mean the dropdown and the
+        // request disagree. See conversation notes 2026-07-25: Chinese
+        // target producing English output.
+        print("🔥 [translateTriggered/DEBUG] sourceLangIndex=\(sourceLangIndex) targetLangIndex=\(targetLangIndex) srcLang=\(srcLang) tgtLang=\(tgtLang)")
+        #endif
         let systemPrompt = """
         You are the native-language translation engine for Fonkii, a keyboard used for messaging, social media, online communities, and K-pop fandom communication.
 
@@ -7771,7 +7793,9 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         CORE PRINCIPLES
         - First determine what the speaker actually means, what emotion/attitude/intensity it carries, and whether it's literal, idiomatic, slang, a meme, an internet reaction, or fandom language — then translate based on that, not word-for-word.
         - Preserve the source's meaning and emotional intensity, expressed the way a native speaker would naturally say it in that same situation. Prefer natural native phrasing over literal, textbook, dictionary-style, or subtitle-like translation — but do not rewrite more than necessary: when a natural expression already preserves both meaning and tone, use it rather than a more creative or exaggerated reinterpretation.
-        - When context is limited or ambiguous, do not invent a specific situation, cause, or emotion the source doesn't support (e.g. a short reaction like "I'm dead" isn't necessarily laughter — don't assume without evidence). Choose the most broadly applicable natural expression that still preserves the core meaning and intensity.
+        - Do not translate clause-by-clause in the source's order and stitch the pieces together with a comma or a literally-translated connector. When English states a conclusion first and its reason after (typically with "since"/"because", e.g. "I knew X, since Y" or "I knew X since [I saw] Y"), do NOT produce a Korean sentence that keeps that order and tacks the reason on after a comma (e.g. NOT "X인 거 알았어, Y 때문에/Y라서/Y 덕분에" as a trailing clause, even if Y itself is an abbreviated noun phrase like "some clips I saw from concerts" rather than a full clause) — Korean naturally states the reason first and the conclusion last, with no comma between them. Reorder the clauses so the reason comes first (using a natural Korean connector attached to that clause, like "-라서", "-길래", "-는데", "보고") and the conclusion follows as the sentence's actual ending — for example "블랙핑크 콘서트 클립 몇 개 보고 이 여자애 wlw인 줄 알았어" (reason clause, then conclusion, no comma) rather than "...인 거 알았어, ...클립들 때문에" (conclusion, comma, reason). This reordering applies even when the reason is phrased as a short noun phrase rather than a full "because" clause.
+        - When context is limited or ambiguous, do not invent a specific situation, cause, or emotion the source doesn't support. For example: a short reaction like "I'm dead" isn't necessarily laughter; a Korean phrase like "왜 이렇게 잘 나왔어" about a photo or video means it came out well, not that the subject/person looks cute or pretty — do not add a specific compliment, attribute, or emotion the source didn't actually state, even if it would sound natural. When in doubt, stay as general as the source is and let the ambiguity carry over, rather than picking one vivid but unsupported interpretation.
+        - When the source omits the subject (as Korean commonly does) and the target language grammatically requires one, do not default to the second person ("you"/"tu") just because the sentence could be addressed to someone — Korean subject-drop is just as often a general observation, a reaction to a photo/video/situation, or a third-party comment with no addressee at all. For example, "너무 힘들어 보인다" alone (no explicit 너/당신) should NOT become "You look exhausted"/"Tu as l'air épuisé" — prefer an impersonal or situation-referring construction when the target language has one (French "Ça a l'air dur...", English "That looks so hard...", German "Das sieht ... aus", Spanish "Se ve..."), so the source's unresolved subject stays unresolved. Only use "you" when the source itself contains an explicit second-person marker (너, 너는, 당신, etc.) or the conversational context makes direct address unambiguous.
         - Do not add emotion, humor, vulgarity, or drama beyond what the source supports, and do not flatten expressive/emphatic language into something neutral either. Match the source's intensity using whatever the target language's natural equivalent of that intensity is, even if structurally different or hyperbolic.
         - Do not force slang, internet expressions, or exaggerated localized phrasing onto neutral, formal, or informational messages — a simple message stays simple; a highly expressive one stays highly expressive.
 
@@ -7822,64 +7846,81 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // formal-register example, 20/20 prior pairs skewed casual and the
         // model over-generalized "this app always uses 반말" (see
         // conversation notes on 2026-07-19).
+        // These 24 few-shot turns are all Korean⇄English pairs — appending
+        // them unconditionally for every language pair was the actual bug
+        // behind "Chinese target comes back in English" (and identically
+        // for every other non-Korean/English target): the fixed instruction
+        // in `systemPrompt` said translate to Chinese, but the 24-turn
+        // conversation immediately after it was 100% Korean⇄English, and at
+        // `temperature: 0.1` that pattern dominated over the text
+        // instruction. Only include them when the request is actually a
+        // Korean⇄English pair, where they're validated and helpful; every
+        // other pair relies on `systemPrompt` alone (plus the reminder
+        // message appended below).
+        let isKoEnPair = (srcLang == "Korean" && tgtLang == "English") || (srcLang == "English" && tgtLang == "Korean")
+
         var messages: [[String: Any]] = [
             ["role": "system", "content": systemPrompt],
-            // MARK: - Functional Few-shot: Direct Address
-            ["role": "user", "content": "say hi to me, jhope please"],
-            ["role": "assistant", "content": "제이홉 제발 나한테 인사해줘"],
-            ["role": "user", "content": "i love you so much jimin"],
-            ["role": "assistant", "content": "지민아 진짜 너무 사랑해"],
-            ["role": "user", "content": "please notice my comment mark"],
-            ["role": "assistant", "content": "마크야 제발 내 댓글 좀 봐줘"],
-            // MARK: - Functional Few-shot: Third-person Reference
-            ["role": "user", "content": "I watched Jungkook's live"],
-            ["role": "assistant", "content": "정국이 라이브 봤어"],
-            // MARK: - Functional Few-shot: Indirect Request
-            ["role": "user", "content": "tell taehyung I said good luck tonight"],
-            ["role": "assistant", "content": "태형이한테 오늘 잘 되길 바란다고 전해줘"],
-            ["role": "user", "content": "ask namjoon if he's eating well"],
-            ["role": "assistant", "content": "남준이한테 잘 먹고 있는지 물어봐줘"],
-            // MARK: - Functional Few-shot: Do Not Add Laughter or Emotion
-            ["role": "user", "content": "I love you"],
-            ["role": "assistant", "content": "사랑해"],
-            ["role": "user", "content": "I love you lol"],
-            ["role": "assistant", "content": "사랑해ㅋㅋ"],
-            ["role": "user", "content": "Really?"],
-            ["role": "assistant", "content": "진짜?"],
-            ["role": "user", "content": "Really?? 😭"],
-            ["role": "assistant", "content": "진짜?? 😭"],
-            // MARK: - Reverse Translation
-            ["role": "user", "content": "나 지금 가는 중"],
-            ["role": "assistant", "content": "I'm on my way"],
-            ["role": "user", "content": "너무 웃겨ㅋㅋ"],
-            ["role": "assistant", "content": "You're so funny lol"],
-            // MARK: - Native Style Few-shot (kept last — see ordering note above)
-            ["role": "user", "content": "I'm dead 😭"],
-            ["role": "assistant", "content": "죽겠네 😭"],
-            ["role": "user", "content": "This hit different"],
-            ["role": "assistant", "content": "이건 좀 다르네"],
-            ["role": "user", "content": "Wait, this is unreal"],
-            ["role": "assistant", "content": "잠깐만 이거 실화야?"],
-            ["role": "user", "content": "Don't even get me started"],
-            ["role": "assistant", "content": "아 말도 마"],
-            ["role": "user", "content": "It is what it is"],
-            ["role": "assistant", "content": "뭐 어쩌겠어"],
-            ["role": "user", "content": "I didn't see that coming"],
-            ["role": "assistant", "content": "이건 예상 못 했네"],
-            ["role": "user", "content": "I'm obsessed"],
-            ["role": "assistant", "content": "완전 빠졌어"],
-            ["role": "user", "content": "Why is this so real"],
-            ["role": "assistant", "content": "아니 왜 이렇게 현실적이야"],
-            // MARK: - Politeness (formal vs. casual — judge from source, not default)
-            ["role": "user", "content": "Could you please let me know when you're available?"],
-            ["role": "assistant", "content": "언제 시간 되시는지 알려주실 수 있을까요?"],
-            ["role": "user", "content": "Thank you so much for your help today."],
-            ["role": "assistant", "content": "오늘 도와주셔서 정말 감사합니다."],
-            ["role": "user", "content": "hey what's up, free later?"],
-            ["role": "assistant", "content": "야 뭐해, 나중에 시간 있어?"],
-            ["role": "user", "content": "Chanel, are u serious? This is a casual look that many people wear when going to campus. The outfit is nice, but not for a Met Gala"],
-            ["role": "assistant", "content": "샤넬, 진심이에요? 이건 많은 사람들이 캠퍼스 갈 때 입는 캐주얼한 룩이잖아요. 옷은 예쁘지만 멧 갈라에는 안 어울려요"],
         ]
+        if isKoEnPair {
+            messages.append(contentsOf: [
+                // MARK: - Functional Few-shot: Direct Address
+                ["role": "user", "content": "say hi to me, jhope please"],
+                ["role": "assistant", "content": "제이홉 제발 나한테 인사해줘"],
+                ["role": "user", "content": "i love you so much jimin"],
+                ["role": "assistant", "content": "지민아 진짜 너무 사랑해"],
+                ["role": "user", "content": "please notice my comment mark"],
+                ["role": "assistant", "content": "마크야 제발 내 댓글 좀 봐줘"],
+                // MARK: - Functional Few-shot: Third-person Reference
+                ["role": "user", "content": "I watched Jungkook's live"],
+                ["role": "assistant", "content": "정국이 라이브 봤어"],
+                // MARK: - Functional Few-shot: Indirect Request
+                ["role": "user", "content": "tell taehyung I said good luck tonight"],
+                ["role": "assistant", "content": "태형이한테 오늘 잘 되길 바란다고 전해줘"],
+                ["role": "user", "content": "ask namjoon if he's eating well"],
+                ["role": "assistant", "content": "남준이한테 잘 먹고 있는지 물어봐줘"],
+                // MARK: - Functional Few-shot: Do Not Add Laughter or Emotion
+                ["role": "user", "content": "I love you"],
+                ["role": "assistant", "content": "사랑해"],
+                ["role": "user", "content": "I love you lol"],
+                ["role": "assistant", "content": "사랑해ㅋㅋ"],
+                ["role": "user", "content": "Really?"],
+                ["role": "assistant", "content": "진짜?"],
+                ["role": "user", "content": "Really?? 😭"],
+                ["role": "assistant", "content": "진짜?? 😭"],
+                // MARK: - Reverse Translation
+                ["role": "user", "content": "나 지금 가는 중"],
+                ["role": "assistant", "content": "I'm on my way"],
+                ["role": "user", "content": "너무 웃겨ㅋㅋ"],
+                ["role": "assistant", "content": "You're so funny lol"],
+                // MARK: - Native Style Few-shot (kept last — see ordering note above)
+                ["role": "user", "content": "I'm dead 😭"],
+                ["role": "assistant", "content": "죽겠네 😭"],
+                ["role": "user", "content": "This hit different"],
+                ["role": "assistant", "content": "이건 좀 다르네"],
+                ["role": "user", "content": "Wait, this is unreal"],
+                ["role": "assistant", "content": "잠깐만 이거 실화야?"],
+                ["role": "user", "content": "Don't even get me started"],
+                ["role": "assistant", "content": "아 말도 마"],
+                ["role": "user", "content": "It is what it is"],
+                ["role": "assistant", "content": "뭐 어쩌겠어"],
+                ["role": "user", "content": "I didn't see that coming"],
+                ["role": "assistant", "content": "이건 예상 못 했네"],
+                ["role": "user", "content": "I'm obsessed"],
+                ["role": "assistant", "content": "완전 빠졌어"],
+                ["role": "user", "content": "Why is this so real"],
+                ["role": "assistant", "content": "아니 왜 이렇게 현실적이야"],
+                // MARK: - Politeness (formal vs. casual — judge from source, not default)
+                ["role": "user", "content": "Could you please let me know when you're available?"],
+                ["role": "assistant", "content": "언제 시간 되시는지 알려주실 수 있을까요?"],
+                ["role": "user", "content": "Thank you so much for your help today."],
+                ["role": "assistant", "content": "오늘 도와주셔서 정말 감사합니다."],
+                ["role": "user", "content": "hey what's up, free later?"],
+                ["role": "assistant", "content": "야 뭐해, 나중에 시간 있어?"],
+                ["role": "user", "content": "Chanel, are u serious? This is a casual look that many people wear when going to campus. The outfit is nice, but not for a Met Gala"],
+                ["role": "assistant", "content": "샤넬, 진심이에요? 이건 많은 사람들이 캠퍼스 갈 때 입는 캐주얼한 룩이잖아요. 옷은 예쁘지만 멧 갈라에는 안 어울려요"],
+            ] as [[String: Any]])
+        }
         // NOTE: "I'm actually screaming" / "This is too much" / "It's giving
         // main character" / "You had one job" were removed from here — they
         // now live in TranslationDB.enKo as exact-match "hero phrases" that
@@ -7889,6 +7930,12 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         if let kbReference {
             messages.append(["role": "system", "content": kbReference])
         }
+        // Second safeguard, applied to every language pair (including
+        // Korean⇄English): a closing reminder placed immediately before the
+        // real input so it carries the strongest recency weight, overriding
+        // any language drift the few-shot examples above might otherwise
+        // pull toward.
+        messages.append(["role": "system", "content": "This translation is from \(srcLang) to \(tgtLang). Everything above is for style and tone reference only — the output language must be \(tgtLang), regardless of what language the reference examples used."])
         messages.append(["role": "user", "content": effectiveInput])
 
         #if DEBUG
