@@ -6614,6 +6614,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             textDocumentProxy.deleteBackward()
             hgFlush()
             cjjReset()
+            triggerKeyHaptic()
             DispatchQueue.global(qos: .userInteractive).async {
                 AudioServicesPlaySystemSound(1104)
             }
@@ -6626,6 +6627,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             guard !(translateInputField?.text?.isEmpty ?? true) else { return }
         }
         performTranslateDelete()
+        triggerKeyHaptic()
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
@@ -7350,22 +7352,24 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             textDocumentProxy.deleteBackward()
             hgFlush()
             cjjReset()
+            triggerKeyHaptic()
             DispatchQueue.global(qos: .userInteractive).async {
                 AudioServicesPlaySystemSound(1104)
             }
             return
         }
-        // Empty-target guard — suppress click sound on no-op delete. The
-        // cheonjiin keypad is shared between fonts and translate tabs, so
-        // pick the right target via `translateTargetsHostApp` (true when no
-        // in-keyboard field is focused, i.e. fonts tab or translate-host
-        // mode).
+        // Empty-target guard — suppress click sound (and haptic) on a
+        // no-op delete. The cheonjiin keypad is shared between fonts and
+        // translate tabs, so pick the right target via
+        // `translateTargetsHostApp` (true when no in-keyboard field is
+        // focused, i.e. fonts tab or translate-host mode).
         if translateTargetsHostApp {
             let before = textDocumentProxy.documentContextBeforeInput ?? ""
             guard !before.isEmpty else { return }
         } else {
             guard !(translateInputField?.text?.isEmpty ?? true) else { return }
         }
+        triggerKeyHaptic()
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
@@ -7486,10 +7490,14 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// (character cap, counter label, placeholder visibility) since a
     /// direct `.text` assignment doesn't trigger that callback either.
     @objc private func translateReturnTapped() {
+        // `returnTapped()` already calls `triggerKeyHaptic()` itself, so
+        // this branch must NOT call it again here — doing so would fire
+        // the Taptic Engine twice back-to-back for a single tap.
         guard !translateTargetsHostApp else {
             returnTapped()
             return
         }
+        triggerKeyHaptic()
         // Finalize any in-progress Hangul/cheonjiin composition before
         // mutating `.text` directly below. `hgFlush()`/`cjjReset()` only
         // reset the composer's own index state (hgCho/hgJung/hgJong,
@@ -8523,15 +8531,16 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             textDocumentProxy.deleteBackward()
             hgFlush()
             cjjReset()
+            triggerKeyHaptic()
             DispatchQueue.global(qos: .userInteractive).async {
                 AudioServicesPlaySystemSound(1104)
             }
             return
         }
-        // No text before cursor → bail early so the click sound doesn't fire
-        // on a no-op delete. In Korean fonts mode the composing syllable is
-        // already inserted into the host editor (handleHangulInput writes via
-        // translateTargetAppend), so its presence shows up in
+        // No text before cursor → bail early so the click sound (and haptic)
+        // doesn't fire on a no-op delete. In Korean fonts mode the composing
+        // syllable is already inserted into the host editor (handleHangulInput
+        // writes via translateTargetAppend), so its presence shows up in
         // `documentContextBeforeInput` and we still proceed correctly.
         let before = textDocumentProxy.documentContextBeforeInput ?? ""
         guard !before.isEmpty else { return }
@@ -8545,6 +8554,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         } else {
             textDocumentProxy.deleteBackward()
         }
+        triggerKeyHaptic()
         DispatchQueue.global(qos: .userInteractive).async {
             AudioServicesPlaySystemSound(1104)
         }
@@ -8698,6 +8708,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     }
 
     @objc private func returnTapped() {
+        triggerKeyHaptic()
         // Unconditionally finalize both Hangul and cheonjiin buffers — same
         // rationale as `spaceTapped`. Most importantly this catches the
         // "send via host app" flow: user types 한글, taps return to send
