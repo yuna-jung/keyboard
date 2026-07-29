@@ -8602,6 +8602,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 }
             }()
             if soundHasText {
+                triggerKeyHaptic()
                 DispatchQueue.global(qos: .userInteractive).async {
                     AudioServicesPlaySystemSound(1104)
                 }
@@ -8633,6 +8634,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 }
                 self.performBackspaceForCurrentMode()
                 if soundHasText {
+                    self.triggerKeyHaptic()
                     DispatchQueue.global(qos: .userInteractive).async {
                         AudioServicesPlaySystemSound(1104)
                     }
@@ -8664,6 +8666,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                         }
                         self.performBackspaceForCurrentMode()
                         if soundHasText {
+                            self.triggerKeyHaptic()
                             DispatchQueue.global(qos: .userInteractive).async {
                                 AudioServicesPlaySystemSound(1104)
                             }
