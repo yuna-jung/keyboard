@@ -18,7 +18,7 @@ class _GuideScreenState extends State<GuideScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -33,8 +33,8 @@ class _GuideScreenState extends State<GuideScreen>
     final isKo = Localizations.localeOf(context).languageCode == 'ko';
 
     final tabLabels = isKo
-        ? const ['키보드 추가', '번역', '폰트', '내 목록', '즐겨찾기', '테마', '스티커']
-        : const ['Add Keyboard', 'Translation', 'Fonts', 'My List', 'Favorites', 'Themes', 'Sticker'];
+        ? const ['키보드 추가', '번역', '폰트', '내 목록', '즐겨찾기', '테마']
+        : const ['Add Keyboard', 'Translation', 'Fonts', 'My List', 'Favorites', 'Themes'];
 
     return Column(
       children: [
@@ -60,7 +60,6 @@ class _GuideScreenState extends State<GuideScreen>
               _TabPage6(isKo: isKo, l: l),
               _TabPage3(isKo: isKo, l: l),
               _TabPage5(isKo: isKo, l: l),
-              _TabPage7(isKo: isKo, l: l),
             ],
           ),
         ),
@@ -1053,74 +1052,6 @@ class _TabPage6 extends StatelessWidget {
                     'The selected phrase is saved to My List! (Works with any language and emojis)',
                     'Long-press a saved phrase to add it to Favorites too',
                   ]),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── 탭 7: 스티커 ──────────────────────────────────────────────────────────
-
-class _TabPage7 extends StatelessWidget {
-  const _TabPage7({required this.isKo, required this.l});
-  final bool isKo;
-  final AppLocalizations l;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      child: _GuideCard(
-        number: 1,
-        emoji: '🖼️',
-        title: isKo ? '스티커 만들기' : 'Create Stickers',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Deliberately no keyboard mockup card here — this session
-            // repeatedly found real-device screenshots drifting out of
-            // sync with hand-drawn widget reproductions of the keyboard
-            // UI. A text-first step list doesn't have that failure mode;
-            // a real screenshot can be added later the same way the
-            // translate tab's mockup was replaced with one.
-            _StepList(steps: isKo
-                ? const [
-                    '"내 스티커" 탭에서 "+"를 눌러 사진을 추가하세요 (한 번에 여러 장도 선택할 수 있어요)',
-                    '사진을 선택하면 자동으로 스티커함에 저장돼요 (GIF도 움직이는 그대로 저장돼요)',
-                    '키보드에서 ㋡ 탭을 열면 저장한 스티커가 그리드로 보여요',
-                    '원하는 스티커를 탭하면 복사돼요 — 채팅창에서 길게 눌러 "붙여넣기"를 하면 스티커가 붙어요',
-                  ]
-                : const [
-                    'In the "My Stickers" tab, tap "+" to add a photo (you can pick several at once)',
-                    'Picking a photo saves it to your sticker library automatically (GIFs stay animated)',
-                    'Open the ㋡ tab on the keyboard to see your saved stickers in a grid',
-                    'Tap any sticker to copy it — long-press in a chat and tap "Paste" to drop it in',
-                  ]),
-            const SizedBox(height: 16),
-            _infoCard(
-              icon: '🖼️',
-              title: isKo ? '여러 장 한번에' : 'Multiple at Once',
-              desc: isKo
-                  ? '사진을 여러 장 선택하면 한 번에 스티커로 저장돼요'
-                  : 'Select several photos to save them all as stickers at once',
-            ),
-            const SizedBox(height: 8),
-            _infoCard(
-              icon: '🗑️',
-              title: isKo ? '정리하기' : 'Cleaning Up',
-              desc: isKo
-                  ? "스티커함에서 '선택'을 누르면 여러 개를 한 번에 삭제할 수 있어요"
-                  : "Tap 'Select' in your sticker library to delete several at once",
-            ),
-            const SizedBox(height: 8),
-            _infoCard(
-              icon: '💬',
-              title: isKo ? '어디서 쓸 수 있나요?' : 'Where Can I Use It?',
-              desc: isKo
-                  ? '카카오톡, 문자, 인스타그램 DM 등 이미지 붙여넣기를 지원하는 곳에서 사용할 수 있어요'
-                  : 'Works anywhere that supports pasting images — KakaoTalk, Messages, Instagram DMs, and more',
-            ),
           ],
         ),
       ),
