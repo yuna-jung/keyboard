@@ -171,7 +171,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get homeTabTrial => '체험하기';
 
   @override
-  String get homeTabStickerMaker => '이모티콘 생성';
+  String get homeTabStickerMaker => '내 스티커';
 
   @override
   String get homeTabGuide => '가이드';
@@ -309,4 +309,97 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get trialPrimerConfirmButton => '확인';
+
+  @override
+  String get cancel => '취소';
+
+  @override
+  String get delete => '삭제';
+
+  @override
+  String get stickerAddImage => '이미지 추가하기';
+
+  @override
+  String stickerPickFailed(String error) {
+    return '이미지를 가져오지 못했어요: $error';
+  }
+
+  @override
+  String stickerBatchSavedAll(int count) {
+    return '$count개의 스티커를 저장했어요';
+  }
+
+  @override
+  String stickerBatchFailedAll(int count) {
+    return '스티커 저장에 실패했어요 ($count개)';
+  }
+
+  @override
+  String stickerBatchPartial(int saved, int failed) {
+    return '$saved개 저장 완료, $failed개 실패';
+  }
+
+  @override
+  String get stickerSaved => '스티커를 저장했어요';
+
+  @override
+  String stickerSaveFailed(String error) {
+    return '저장에 실패했어요: $error';
+  }
+
+  @override
+  String get stickerSaveButton => '저장';
+
+  @override
+  String get stickerDeleteTitle => '스티커 삭제';
+
+  @override
+  String get stickerDeleteConfirmSingle => '이 스티커를 삭제할까요?\n이 동작은 되돌릴 수 없어요.';
+
+  @override
+  String stickerDeleteConfirmMultiple(int count) {
+    return '선택한 $count개의 스티커를 삭제할까요?\n이 동작은 되돌릴 수 없어요.';
+  }
+
+  @override
+  String get stickerDeleteFailed => '삭제하지 못했어요';
+
+  @override
+  String stickerDeletedAll(int count) {
+    return '$count개를 삭제했어요';
+  }
+
+  @override
+  String stickerDeletedPartial(int deleted, int failed) {
+    return '$deleted개 삭제 완료, $failed개 실패';
+  }
+
+  @override
+  String get stickerEmptyTitle => '아직 저장한 스티커가 없어요';
+
+  @override
+  String stickerSelectedCount(int count) {
+    return '$count개 선택';
+  }
+
+  @override
+  String stickerDeleteWithCount(int count) {
+    return '삭제($count)';
+  }
+
+  @override
+  String get stickerSelectButton => '선택';
+
+  @override
+  String get stickerTourAddDesc =>
+      '여기를 눌러 원하는 짤을 스티커로 만들어보세요\n한 번에 여러 장도 선택할 수 있어요';
+
+  @override
+  String get stickerTourGridDesc => '추가한 스티커가 여기에 모여요';
+
+  @override
+  String get stickerTourSelectDesc => '여러 개를 한 번에 정리하고 싶다면\n여기를 눌러보세요';
+
+  @override
+  String get stickerHelpTooltip => '튜토리얼 다시 보기';
 }

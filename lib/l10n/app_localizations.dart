@@ -419,7 +419,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeTabStickerMaker.
   ///
   /// In ko, this message translates to:
-  /// **'이모티콘 생성'**
+  /// **'내 스티커'**
   String get homeTabStickerMaker;
 
   /// No description provided for @homeTabGuide.
@@ -691,6 +691,150 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'확인'**
   String get trialPrimerConfirmButton;
+
+  /// No description provided for @cancel.
+  ///
+  /// In ko, this message translates to:
+  /// **'취소'**
+  String get cancel;
+
+  /// No description provided for @delete.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제'**
+  String get delete;
+
+  /// No description provided for @stickerAddImage.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지 추가하기'**
+  String get stickerAddImage;
+
+  /// No description provided for @stickerPickFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지를 가져오지 못했어요: {error}'**
+  String stickerPickFailed(String error);
+
+  /// No description provided for @stickerBatchSavedAll.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개의 스티커를 저장했어요'**
+  String stickerBatchSavedAll(int count);
+
+  /// No description provided for @stickerBatchFailedAll.
+  ///
+  /// In ko, this message translates to:
+  /// **'스티커 저장에 실패했어요 ({count}개)'**
+  String stickerBatchFailedAll(int count);
+
+  /// No description provided for @stickerBatchPartial.
+  ///
+  /// In ko, this message translates to:
+  /// **'{saved}개 저장 완료, {failed}개 실패'**
+  String stickerBatchPartial(int saved, int failed);
+
+  /// No description provided for @stickerSaved.
+  ///
+  /// In ko, this message translates to:
+  /// **'스티커를 저장했어요'**
+  String get stickerSaved;
+
+  /// No description provided for @stickerSaveFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'저장에 실패했어요: {error}'**
+  String stickerSaveFailed(String error);
+
+  /// No description provided for @stickerSaveButton.
+  ///
+  /// In ko, this message translates to:
+  /// **'저장'**
+  String get stickerSaveButton;
+
+  /// No description provided for @stickerDeleteTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'스티커 삭제'**
+  String get stickerDeleteTitle;
+
+  /// No description provided for @stickerDeleteConfirmSingle.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 스티커를 삭제할까요?\n이 동작은 되돌릴 수 없어요.'**
+  String get stickerDeleteConfirmSingle;
+
+  /// No description provided for @stickerDeleteConfirmMultiple.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택한 {count}개의 스티커를 삭제할까요?\n이 동작은 되돌릴 수 없어요.'**
+  String stickerDeleteConfirmMultiple(int count);
+
+  /// No description provided for @stickerDeleteFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제하지 못했어요'**
+  String get stickerDeleteFailed;
+
+  /// No description provided for @stickerDeletedAll.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개를 삭제했어요'**
+  String stickerDeletedAll(int count);
+
+  /// No description provided for @stickerDeletedPartial.
+  ///
+  /// In ko, this message translates to:
+  /// **'{deleted}개 삭제 완료, {failed}개 실패'**
+  String stickerDeletedPartial(int deleted, int failed);
+
+  /// No description provided for @stickerEmptyTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'아직 저장한 스티커가 없어요'**
+  String get stickerEmptyTitle;
+
+  /// No description provided for @stickerSelectedCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}개 선택'**
+  String stickerSelectedCount(int count);
+
+  /// No description provided for @stickerDeleteWithCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'삭제({count})'**
+  String stickerDeleteWithCount(int count);
+
+  /// No description provided for @stickerSelectButton.
+  ///
+  /// In ko, this message translates to:
+  /// **'선택'**
+  String get stickerSelectButton;
+
+  /// No description provided for @stickerTourAddDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'여기를 눌러 원하는 짤을 스티커로 만들어보세요\n한 번에 여러 장도 선택할 수 있어요'**
+  String get stickerTourAddDesc;
+
+  /// No description provided for @stickerTourGridDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'추가한 스티커가 여기에 모여요'**
+  String get stickerTourGridDesc;
+
+  /// No description provided for @stickerTourSelectDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'여러 개를 한 번에 정리하고 싶다면\n여기를 눌러보세요'**
+  String get stickerTourSelectDesc;
+
+  /// No description provided for @stickerHelpTooltip.
+  ///
+  /// In ko, this message translates to:
+  /// **'튜토리얼 다시 보기'**
+  String get stickerHelpTooltip;
 }
 
 class _AppLocalizationsDelegate

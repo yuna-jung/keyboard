@@ -58,7 +58,7 @@
   "onboarding4TagChinese": "🇨🇳 중국어",
 
   "homeTabTrial": "체험하기",
-  "homeTabStickerMaker": "이모티콘 생성",
+  "homeTabStickerMaker": "내 스티커",
   "homeTabGuide": "가이드",
   "homeTabSubscription": "구독",
   "homeMyListTooltip": "내 목록 관리",
@@ -106,5 +106,84 @@
   "trialNotificationBody": "2일 후 자동으로 구독이 시작돼요! 계속 함께 하실 거죠…? 🩵",
   "trialPrimerTitle": "체험 끝나기 전에 알려드릴게요 🩵",
   "trialPrimerBody": "무료 체험 종료 2일 전에 알림을 보내드려요\n알림을 허용해 주세요",
-  "trialPrimerConfirmButton": "확인"
+  "trialPrimerConfirmButton": "확인",
+
+  "cancel": "취소",
+  "delete": "삭제",
+
+  "stickerAddImage": "이미지 추가하기",
+  "stickerPickFailed": "이미지를 가져오지 못했어요: {error}",
+  "@stickerPickFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "stickerBatchSavedAll": "{count}개의 스티커를 저장했어요",
+  "@stickerBatchSavedAll": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "stickerBatchFailedAll": "스티커 저장에 실패했어요 ({count}개)",
+  "@stickerBatchFailedAll": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "stickerBatchPartial": "{saved}개 저장 완료, {failed}개 실패",
+  "@stickerBatchPartial": {
+    "placeholders": {
+      "saved": { "type": "int" },
+      "failed": { "type": "int" }
+    }
+  },
+  "stickerSaved": "스티커를 저장했어요",
+  "stickerSaveFailed": "저장에 실패했어요: {error}",
+  "@stickerSaveFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "stickerSaveButton": "저장",
+  "stickerDeleteTitle": "스티커 삭제",
+  "stickerDeleteConfirmSingle": "이 스티커를 삭제할까요?\n이 동작은 되돌릴 수 없어요.",
+  "stickerDeleteConfirmMultiple": "선택한 {count}개의 스티커를 삭제할까요?\n이 동작은 되돌릴 수 없어요.",
+  "@stickerDeleteConfirmMultiple": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "stickerDeleteFailed": "삭제하지 못했어요",
+  "stickerDeletedAll": "{count}개를 삭제했어요",
+  "@stickerDeletedAll": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "stickerDeletedPartial": "{deleted}개 삭제 완료, {failed}개 실패",
+  "@stickerDeletedPartial": {
+    "placeholders": {
+      "deleted": { "type": "int" },
+      "failed": { "type": "int" }
+    }
+  },
+  "stickerEmptyTitle": "아직 저장한 스티커가 없어요",
+  "stickerSelectedCount": "{count}개 선택",
+  "@stickerSelectedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "stickerDeleteWithCount": "삭제({count})",
+  "@stickerDeleteWithCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "stickerSelectButton": "선택",
+
+  "stickerTourAddDesc": "여기를 눌러 원하는 짤을 스티커로 만들어보세요\n한 번에 여러 장도 선택할 수 있어요",
+  "stickerTourGridDesc": "추가한 스티커가 여기에 모여요",
+  "stickerTourSelectDesc": "여러 개를 한 번에 정리하고 싶다면\n여기를 눌러보세요",
+  "stickerHelpTooltip": "튜토리얼 다시 보기"
 }

@@ -8,7 +8,7 @@ import 'add_phrase_screen.dart';
 import 'guide_screen.dart';
 import 'paywall_screen.dart';
 import 'settings_screen.dart';
-import 'sticker_canvas_screen.dart';
+import 'sticker_screen.dart';
 
 const _pink = Color(0xFF5BC8F5);
 
@@ -80,8 +80,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _drainPendingPaywall() async {
     try {
-      final pending =
-          await _appGroupChannel.invokeMethod<bool>('consumePendingPaywall');
+      final pending = await _appGroupChannel.invokeMethod<bool>(
+        'consumePendingPaywall',
+      );
       if (pending == true) _showPaywall();
     } catch (_) {
       // Native handler not registered yet on first launch — ignore; live
@@ -121,17 +122,16 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       final nav = Navigator.of(context);
       nav.popUntil((route) => route.isFirst);
-      nav.push(
-        MaterialPageRoute(builder: (_) => const AddPhraseScreen()),
-      );
+      nav.push(MaterialPageRoute(builder: (_) => const AddPhraseScreen()));
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final logoAsset =
-        isDark ? 'assets/images/logo_white.png' : 'assets/images/logo_black.png';
+    final logoAsset = isDark
+        ? 'assets/images/logo_white.png'
+        : 'assets/images/logo_black.png';
     final l = AppLocalizations.of(context)!;
 
     // Tab list. The 구독 tab item is added to `navItems` on iOS but NOT
@@ -143,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // to 3 — 구독's index (it can't, by construction).
     final screens = <Widget>[
       const _ChatTab(),
-      const StickerCanvasScreen(),
+      StickerScreen(isActive: _selectedIndex == 1),
       const GuideScreen(),
     ];
     final navItems = <BottomNavigationBarItem>[
@@ -153,8 +153,8 @@ class _HomeScreenState extends State<HomeScreen> {
         label: l.homeTabTrial,
       ),
       BottomNavigationBarItem(
-        icon: const Icon(Icons.draw_outlined),
-        activeIcon: const Icon(Icons.draw),
+        icon: const Icon(Icons.photo_library_outlined),
+        activeIcon: const Icon(Icons.photo_library),
         label: l.homeTabStickerMaker,
       ),
       BottomNavigationBarItem(
@@ -179,8 +179,10 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.format_list_bulleted,
-                color: isDark ? Colors.white : Colors.black87),
+            icon: Icon(
+              Icons.format_list_bulleted,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
             tooltip: l.homeMyListTooltip,
             onPressed: () {
               Navigator.of(context).push(
@@ -189,20 +191,19 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.settings_outlined,
-                color: isDark ? Colors.white : Colors.black87),
+            icon: Icon(
+              Icons.settings_outlined,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: screens,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (i) {
@@ -233,10 +234,24 @@ class _HomeScreenState extends State<HomeScreen> {
 // ══════════════════════════════════════════════════════════════════════════
 
 class _ChatMessage {
-  _ChatMessage({this.text, this.gifUrl, required this.fromMe})
-      : assert(text != null || gifUrl != null);
+  _ChatMessage({
+    this.text,
+    this.gifUrl,
+    this.stickerBytes,
+    this.stickerIsGif = false,
+    required this.fromMe,
+  }) : assert(text != null || gifUrl != null || stickerBytes != null);
   final String? text;
   final String? gifUrl;
+
+  /// Raw PNG/GIF bytes pasted from a sticker copied via the keyboard's
+  /// sticker tab (`UIPasteboard`, not a network URL like `gifUrl` — see
+  /// `_ChatTabState._pasteFromClipboard`). `stickerIsGif` only matters for
+  /// picking the right rendering path; `Image.memory` itself doesn't need
+  /// to know — it animates multi-frame GIF byte data automatically, same
+  /// as it does for `Image.file`/`Image.network`.
+  final Uint8List? stickerBytes;
+  final bool stickerIsGif;
   final bool fromMe;
 }
 
@@ -314,17 +329,25 @@ class _ChatTabState extends State<_ChatTab> {
     });
   }
 
-  static const _appGroupChannel =
-      MethodChannel('com.yunajung.fonki/appgroup');
+  static const _appGroupChannel = MethodChannel('com.yunajung.fonki/appgroup');
 
-  /// Paste handler: first checks the App Group stash that the keyboard
-  /// extension writes when copying a GIF (which the standard Clipboard API
-  /// can't see — GIFs are copied as `com.compuserve.gif` binary data, not
-  /// plain text). Falls back to text clipboard if no GIF URL is queued.
+  /// Paste handler, checked in order:
+  ///   1. The App Group stash the keyboard's GIF *search* tab writes when
+  ///      copying a remote GIF (a Giphy URL — the standard Clipboard API
+  ///      can't see it either way, since it's never plain text).
+  ///   2. The real system pasteboard for sticker image bytes — the
+  ///      keyboard's *sticker* tab copies local PNG/GIF files as raw binary
+  ///      data straight onto `UIPasteboard` (see `stickerCellTapped` in
+  ///      KeyboardViewController.swift), which Flutter's `Clipboard` API
+  ///      has no way to read at all (it only ever exposes plain text), so
+  ///      this goes through a native channel instead.
+  ///   3. Plain text clipboard, as a final fallback.
   Future<void> _pasteFromClipboard() async {
     String? gifUrl;
     try {
-      gifUrl = await _appGroupChannel.invokeMethod<String>('getLastCopiedGifUrl');
+      gifUrl = await _appGroupChannel.invokeMethod<String>(
+        'getLastCopiedGifUrl',
+      );
     } catch (_) {
       gifUrl = null;
     }
@@ -332,7 +355,8 @@ class _ChatTabState extends State<_ChatTab> {
 
     if (gifUrl != null) {
       final lower = gifUrl.toLowerCase();
-      final looksLikeGif = lower.contains('giphy.com') ||
+      final looksLikeGif =
+          lower.contains('giphy.com') ||
           lower.endsWith('.gif') ||
           lower.contains('.gif?');
       if (looksLikeGif) {
@@ -348,6 +372,32 @@ class _ChatTabState extends State<_ChatTab> {
       }
     }
 
+    Map<Object?, Object?>? clipboardImage;
+    try {
+      clipboardImage = await _appGroupChannel
+          .invokeMethod<Map<Object?, Object?>>('getClipboardImageData');
+    } catch (_) {
+      clipboardImage = null;
+    }
+    if (!mounted) return;
+    if (clipboardImage != null) {
+      final type = clipboardImage['type'] as String?;
+      final bytes = clipboardImage['data'] as Uint8List?;
+      if (type != null && bytes != null) {
+        setState(() {
+          _messages.add(
+            _ChatMessage(
+              stickerBytes: bytes,
+              stickerIsGif: type == 'gif',
+              fromMe: true,
+            ),
+          );
+        });
+        _scrollToBottom();
+        return;
+      }
+    }
+
     // Fallback — plain text clipboard (Giphy URL pasted manually, or
     // ordinary text the user wants to drop into the input field).
     final data = await Clipboard.getData(Clipboard.kTextPlain);
@@ -356,7 +406,8 @@ class _ChatTabState extends State<_ChatTab> {
     if (!mounted) return;
 
     final lower = text.toLowerCase();
-    final looksLikeGif = lower.contains('giphy.com') ||
+    final looksLikeGif =
+        lower.contains('giphy.com') ||
         lower.endsWith('.gif') ||
         lower.contains('.gif?');
     if (looksLikeGif) {
@@ -366,8 +417,7 @@ class _ChatTabState extends State<_ChatTab> {
       _scrollToBottom();
     } else {
       _input.text = text;
-      _input.selection =
-          TextSelection.collapsed(offset: _input.text.length);
+      _input.selection = TextSelection.collapsed(offset: _input.text.length);
     }
   }
 
@@ -390,8 +440,7 @@ class _ChatTabState extends State<_ChatTab> {
     // Reading from `SubscriptionService` is cheap (it just returns a cached
     // tier); the `tierListenable` we registered in initState forces a
     // setState whenever Adapty's tier changes so this re-evaluates live.
-    final showPremiumCta =
-        _isIOS && !SubscriptionService.instance.isPremiumNow;
+    final showPremiumCta = _isIOS && !SubscriptionService.instance.isPremiumNow;
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -430,10 +479,14 @@ class _ChatTabState extends State<_ChatTab> {
                         child: ListView.builder(
                           controller: _scroll,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           itemCount: _messages.length,
                           itemBuilder: (_, i) => _ChatBubble(
-                              message: _messages[i], isDark: isDark),
+                            message: _messages[i],
+                            isDark: isDark,
+                          ),
                         ),
                       ),
                       _ChatInput(
@@ -465,7 +518,9 @@ class _ChatTabState extends State<_ChatTab> {
                     child: Text(
                       l.homePremiumCta,
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w700),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -496,7 +551,9 @@ class _ChatTabState extends State<_ChatTab> {
                     child: Text(
                       l.homePremiumActive,
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w700),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -528,7 +585,51 @@ class _ChatBubble extends StatelessWidget {
     );
 
     final Widget content;
-    if (message.gifUrl != null) {
+    if (message.stickerBytes != null) {
+      final bytes = message.stickerBytes!;
+      // `Image.memory` animates multi-frame GIF byte data automatically —
+      // same underlying codec Flutter uses for `Image.file`/`Image.network`
+      // — so `stickerIsGif` doesn't need to pick a different widget here,
+      // only whether the bytes came from a GIF at all (unused directly,
+      // kept on the message for anything that might need it later, e.g.
+      // debugging which pasteboard type actually matched).
+      content = GestureDetector(
+        onTap: () {
+          showDialog<void>(
+            context: context,
+            barrierColor: Colors.black.withValues(alpha: 0.92),
+            builder: (_) => Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.all(16),
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: InteractiveViewer(
+                  child: Image.memory(bytes, fit: BoxFit.contain),
+                ),
+              ),
+            ),
+          );
+        },
+        child: ClipRRect(
+          borderRadius: radius,
+          child: Image.memory(
+            bytes,
+            width: 200,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => Container(
+              width: 200,
+              height: 120,
+              color: isDark ? const Color(0xFF2C2C2E) : Colors.grey.shade200,
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.broken_image,
+                color: isDark ? Colors.white38 : Colors.grey.shade500,
+              ),
+            ),
+          ),
+        ),
+      );
+    } else if (message.gifUrl != null) {
       final stillUrl = message.gifUrl!;
       final animatedUrl = message.gifUrl!;
       content = GestureDetector(
@@ -546,7 +647,10 @@ class _ChatBubble extends StatelessWidget {
                     animatedUrl,
                     fit: BoxFit.contain,
                     errorBuilder: (_, _, _) => const Icon(
-                        Icons.broken_image, color: Colors.white, size: 48),
+                      Icons.broken_image,
+                      color: Colors.white,
+                      size: 48,
+                    ),
                   ),
                 ),
               ),
@@ -567,23 +671,19 @@ class _ChatBubble extends StatelessWidget {
                     child: Center(
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: isDark
-                            ? Colors.white54
-                            : Colors.grey.shade400,
+                        color: isDark ? Colors.white54 : Colors.grey.shade400,
                       ),
                     ),
                   ),
             errorBuilder: (_, _, _) => Container(
               width: 200,
               height: 120,
-              color: isDark
-                  ? const Color(0xFF2C2C2E)
-                  : Colors.grey.shade200,
+              color: isDark ? const Color(0xFF2C2C2E) : Colors.grey.shade200,
               alignment: Alignment.center,
-              child: Icon(Icons.broken_image,
-                  color: isDark
-                      ? Colors.white38
-                      : Colors.grey.shade500),
+              child: Icon(
+                Icons.broken_image,
+                color: isDark ? Colors.white38 : Colors.grey.shade500,
+              ),
             ),
           ),
         ),
@@ -593,9 +693,8 @@ class _ChatBubble extends StatelessWidget {
       // Dot-art needs `softWrap: false` + horizontal scroll to keep its grid
       // intact; ordinary text/emoticon messages should wrap naturally so the
       // bubble doesn't blow out into a single long horizontal strip.
-      final isDotArt = message.text?.runes
-              .any((r) => r >= 0x2800 && r <= 0x28FF) ??
-          false;
+      final isDotArt =
+          message.text?.runes.any((r) => r >= 0x2800 && r <= 0x28FF) ?? false;
       final textWidget = Text(
         message.text ?? '',
         softWrap: !isDotArt,
@@ -625,8 +724,7 @@ class _ChatBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment:
-            me ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: me ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [Flexible(child: content)],
       ),
     );
@@ -683,13 +781,15 @@ class _ChatInput extends StatelessWidget {
                 final items = editableTextState.contextMenuButtonItems
                     .where((i) => i.type != ContextMenuButtonType.paste)
                     .toList();
-                items.add(ContextMenuButtonItem(
-                  type: ContextMenuButtonType.paste,
-                  onPressed: () {
-                    ContextMenuController.removeAny();
-                    onPaste();
-                  },
-                ));
+                items.add(
+                  ContextMenuButtonItem(
+                    type: ContextMenuButtonType.paste,
+                    onPressed: () {
+                      ContextMenuController.removeAny();
+                      onPaste();
+                    },
+                  ),
+                );
                 return AdaptiveTextSelectionToolbar.buttonItems(
                   anchors: editableTextState.contextMenuAnchors,
                   buttonItems: items,
@@ -704,7 +804,9 @@ class _ChatInput extends StatelessWidget {
                 filled: true,
                 fillColor: isDark ? const Color(0xFF2C2C2E) : Colors.white,
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                   borderSide: BorderSide.none,
@@ -722,8 +824,7 @@ class _ChatInput extends StatelessWidget {
               onTap: onSend,
               child: const Padding(
                 padding: EdgeInsets.all(10),
-                child: Icon(Icons.arrow_upward,
-                    color: Colors.white, size: 22),
+                child: Icon(Icons.arrow_upward, color: Colors.white, size: 22),
               ),
             ),
           ),

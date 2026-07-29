@@ -532,7 +532,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             case .textTemplate: return "💬"
             case .special:      return "✦"
             case .dotArt:       return "⣿"
-            case .sticker:      return "🎨"
+            case .sticker:      return "㋡"
             case .gif:          return "GIF"
             case .favorites:    return "♥"
             case .palette:      return ""  // SF Symbol image used instead (paintpalette.fill)
@@ -1764,8 +1764,8 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     // extracts only a small thumbnail per cell via ImageIO's
     // `CGImageSourceCreateThumbnailAtIndex` rather than fully decoding each
     // (potentially ~1000-1400px) saved PNG.
-    private var stickerEntries: [(path: String, createdAt: Double)] = []
-    private var stickerCellViews: [(path: String, imageView: UIImageView)] = []
+    private var stickerEntries: [(path: String, createdAt: Double, isGif: Bool)] = []
+    private var stickerCellViews: [(path: String, isGif: Bool, imageView: UIImageView)] = []
     private var stickerVisibleIDs: Set<String> = []
     private var stickerLoadingIDs: Set<String> = []
     private var stickerScrollDebounceWorkItem: DispatchWorkItem?
@@ -2297,7 +2297,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         modeBar.distribution = .fillEqually
         modeBar.spacing = 4
         let modeOrder: [Mode] = [
-            .fonts, .translate, .textTemplate, .emoticon, .special, .gif, .dotArt, .sticker, .favorites, .palette,
+            .fonts, .translate, .textTemplate, .emoticon, .special, .dotArt, .sticker, .gif, .favorites, .palette,
             // 비활성화 탭 (순서 복구 시 위 배열로 이동):
             .calculator,
         ]
@@ -5134,7 +5134,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     /// every tab entry (via `buildStickerMode`) so a sticker saved from the
     /// main app since the last visit shows up immediately.
     private func loadStickers() {
-        stickerEntries = StickerLibrary.list().map { (path: $0.path, createdAt: $0.createdAt) }
+        stickerEntries = StickerLibrary.list().map { (path: $0.path, createdAt: $0.createdAt, isGif: $0.type == "gif") }
         renderStickerGrid()
     }
 
@@ -5185,7 +5185,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
                 ])
 
                 // Decoding deferred to `stickerUpdateVisibleCells`, same as the GIF grid.
-                stickerCellViews.append((path: entry.path, imageView: imageView))
+                stickerCellViews.append((path: entry.path, isGif: entry.isGif, imageView: imageView))
                 rowStack.addArrangedSubview(btn)
             }
             for _ in 0..<(cols - row.count) { rowStack.addArrangedSubview(UIView()) }
@@ -5197,11 +5197,11 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
     }
 
-    /// Loads (from `stickerImageCache` if present, else disk+ImageIO
-    /// thumbnail) the preview image for one cell. Guarded by
-    /// `stickerLoadingIDs` so a cell straddling two visibility-check passes
-    /// doesn't fire a second decode while the first is still in flight.
-    private func stickerLoadThumbnail(path: String, into imageView: UIImageView) {
+    /// Loads (from `stickerImageCache` if present, else decoded fresh) the
+    /// preview image for one cell. Guarded by `stickerLoadingIDs` so a cell
+    /// straddling two visibility-check passes doesn't fire a second decode
+    /// while the first is still in flight.
+    private func stickerLoadThumbnail(path: String, isGif: Bool, into imageView: UIImageView) {
         let key = path as NSString
         if let cached = stickerImageCache.object(forKey: key) {
             imageView.image = cached
@@ -5220,7 +5220,24 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
         let pixelSize = stickerThumbnailPixelSize
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let thumbnail = Self.stickerThumbnail(fromFile: path, maxPixelSize: pixelSize)
+            let thumbnail: UIImage?
+            if isGif {
+                // A static ImageIO thumbnail would only ever extract one
+                // frame, which defeats the point of a moving sticker
+                // preview — decode every frame instead, reusing the exact
+                // same decoder the GIF search tab already relies on (see
+                // `decodeAnimatedGIF`). Heavier than a PNG thumbnail, but
+                // that cost is inherent to an actually-animated preview;
+                // the same viewport/cache/memory-warning safety net this
+                // grid already has for PNGs covers GIF cells too.
+                if let data = try? Data(contentsOf: URL(fileURLWithPath: path)) {
+                    thumbnail = self?.decodeAnimatedGIF(data)
+                } else {
+                    thumbnail = nil
+                }
+            } else {
+                thumbnail = Self.stickerThumbnail(fromFile: path, maxPixelSize: pixelSize)
+            }
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.stickerLoadingIDs.remove(path)
@@ -5284,7 +5301,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             guard visibleRect.intersects(frameInScroll) else { continue }
             stillVisible.insert(cell.path)
             if cell.imageView.image == nil {
-                stickerLoadThumbnail(path: cell.path, into: cell.imageView)
+                stickerLoadThumbnail(path: cell.path, isGif: cell.isGif, into: cell.imageView)
             }
         }
         stickerVisibleIDs = stillVisible
@@ -5300,23 +5317,28 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
     }
 
-    /// Copies the full-resolution sticker PNG (read fresh from disk, not
-    /// the cached grid thumbnail) to the pasteboard for pasting into the
-    /// host app. Mirrors `gifCellTapped`'s pasteboard+toast pattern, plus a
-    /// haptic tap (used elsewhere in this file, e.g. long-press delete).
+    /// Copies the full-resolution sticker file (read fresh from disk, not
+    /// the cached grid thumbnail/preview) to the pasteboard for pasting
+    /// into the host app. Mirrors `gifCellTapped`'s pasteboard+toast
+    /// pattern, plus a haptic tap (used elsewhere in this file, e.g.
+    /// long-press delete).
     @objc private func stickerCellTapped(_ sender: UIButton) {
         guard let path = sender.accessibilityIdentifier else { return }
-        // Raw PNG bytes straight into the pasteboard with an explicit PNG
-        // UTI — NOT `UIPasteboard.general.image = UIImage(...)`, which
-        // re-encodes through UIImage and was silently dropping the alpha
-        // channel (stickers came out with a white background when pasted).
-        // Same low-level `setData(_:forPasteboardType:)` pattern already
-        // used by `gifCellTapped` for GIF data.
-        guard let pngData = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
+        // Raw bytes straight into the pasteboard with an explicit UTI — NOT
+        // `UIPasteboard.general.image = UIImage(...)`, which re-encodes
+        // through UIImage and was silently dropping the alpha channel (PNG
+        // stickers came out with a white background) and would collapse a
+        // GIF to a static first frame the same way the picker's UIImage
+        // path did. `StickerLibrary` always names files by their actual
+        // extension, so the file name itself is the source of truth for
+        // which UTI to use here — mirrors `gifCellTapped`'s
+        // "com.compuserve.gif" for the search tab's own copy.
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
             showToast(loc("toast_sticker_copy_failed"))
             return
         }
-        UIPasteboard.general.setData(pngData, forPasteboardType: "public.png")
+        let isGif = path.lowercased().hasSuffix(".gif")
+        UIPasteboard.general.setData(data, forPasteboardType: isGif ? "com.compuserve.gif" : "public.png")
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         showToast(loc("toast_sticker_copied"))
     }

@@ -58,7 +58,7 @@
   "onboarding4TagChinese": "🇨🇳 Chinese",
 
   "homeTabTrial": "Try",
-  "homeTabStickerMaker": "Sticker Maker",
+  "homeTabStickerMaker": "My Stickers",
   "homeTabGuide": "Guide",
   "homeTabSubscription": "Subscribe",
   "homeMyListTooltip": "Manage My List",
@@ -106,5 +106,32 @@
   "trialNotificationBody": "Your subscription starts automatically in 2 days! You'll stick around, right? 🩵",
   "trialPrimerTitle": "We'll remind you before your trial ends 🩵",
   "trialPrimerBody": "You'll get a reminder 2 days before your trial ends.\nPlease allow notifications.",
-  "trialPrimerConfirmButton": "OK"
+  "trialPrimerConfirmButton": "OK",
+
+  "cancel": "Cancel",
+  "delete": "Delete",
+
+  "stickerAddImage": "Add Image",
+  "stickerPickFailed": "Couldn't get the image: {error}",
+  "stickerBatchSavedAll": "Saved {count} stickers",
+  "stickerBatchFailedAll": "Couldn't save stickers ({count})",
+  "stickerBatchPartial": "{saved} saved, {failed} failed",
+  "stickerSaved": "Sticker saved",
+  "stickerSaveFailed": "Couldn't save: {error}",
+  "stickerSaveButton": "Save",
+  "stickerDeleteTitle": "Delete Sticker",
+  "stickerDeleteConfirmSingle": "Delete this sticker?\nThis can't be undone.",
+  "stickerDeleteConfirmMultiple": "Delete the selected {count} stickers?\nThis can't be undone.",
+  "stickerDeleteFailed": "Couldn't delete",
+  "stickerDeletedAll": "Deleted {count}",
+  "stickerDeletedPartial": "{deleted} deleted, {failed} failed",
+  "stickerEmptyTitle": "No stickers saved yet",
+  "stickerSelectedCount": "{count} selected",
+  "stickerDeleteWithCount": "Delete ({count})",
+  "stickerSelectButton": "Select",
+
+  "stickerTourAddDesc": "Tap here to turn your favorite pics into stickers\nYou can pick several at once",
+  "stickerTourGridDesc": "Your added stickers show up here",
+  "stickerTourSelectDesc": "Want to clean up several at once?\nTap here",
+  "stickerHelpTooltip": "Replay tutorial"
 }

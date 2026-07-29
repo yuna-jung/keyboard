@@ -18,7 +18,7 @@ class _GuideScreenState extends State<GuideScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
   }
 
   @override
@@ -33,8 +33,8 @@ class _GuideScreenState extends State<GuideScreen>
     final isKo = Localizations.localeOf(context).languageCode == 'ko';
 
     final tabLabels = isKo
-        ? const ['키보드 추가', '번역', '폰트', '내 목록', '즐겨찾기', '테마']
-        : const ['Add Keyboard', 'Translation', 'Fonts', 'My List', 'Favorites', 'Themes'];
+        ? const ['키보드 추가', '번역', '폰트', '내 목록', '즐겨찾기', '테마', '스티커']
+        : const ['Add Keyboard', 'Translation', 'Fonts', 'My List', 'Favorites', 'Themes', 'Sticker'];
 
     return Column(
       children: [
@@ -60,10 +60,88 @@ class _GuideScreenState extends State<GuideScreen>
               _TabPage6(isKo: isKo, l: l),
               _TabPage3(isKo: isKo, l: l),
               _TabPage5(isKo: isKo, l: l),
+              _TabPage7(isKo: isKo, l: l),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The keyboard's actual tab bar, per `KeyboardViewController.swift`'s
+/// `modeOrder`: Aa → 번역 → 💬(내 목록) → ( ◡̉̈ )카오모지 → ✦ → ⣿(도트아트) →
+/// ㋡(스티커) → GIF → ♥(즐겨찾기) → ⚙(설정, 실제로는 gearshape.fill SF
+/// Symbol이지만 목업에서는 유니코드 톱니바퀴로 대체). Default 테마 기준
+/// 배경은 흰색(`keyboardBg`의 `.default` 케이스), 선택된 탭만 실제 accent
+/// pink(`mainPink` ≈ #FF6B9E)에 해당하는 알약 배경을 가진다 — 이 목업은
+/// 가이드 전체에서 강조색으로 쓰는 기존 핑크(0xFFF77BAA)를 그대로 재사용해
+/// 다른 가이드 UI와 톤이 어긋나지 않게 했다.
+///
+/// 6개의 가이드 섹션이 각자 다른 탭을 "선택된 상태"로 보여주려고 이 Row를
+/// 개별적으로 중복 구현하고 있었던 걸 하나로 통합한 위젯 — 실제 키보드
+/// 순서/구성이 바뀌면 여기 한 곳만 고치면 된다.
+enum _KeyboardTab { fonts, translate, textTemplate, emoticon, special, dotArt, sticker, gif, favorites, palette }
+
+class _KeyboardModeBar extends StatelessWidget {
+  const _KeyboardModeBar({required this.selected, this.borderRadius});
+  final _KeyboardTab selected;
+  final BorderRadius? borderRadius;
+
+  static const _labels = <_KeyboardTab, String>{
+    _KeyboardTab.fonts: 'Aa',
+    _KeyboardTab.translate: '번역',
+    _KeyboardTab.textTemplate: '💬',
+    _KeyboardTab.emoticon: '( ◡̉̈ )',
+    _KeyboardTab.special: '✦',
+    _KeyboardTab.dotArt: '⣿',
+    _KeyboardTab.sticker: '㋡',
+    _KeyboardTab.gif: 'GIF',
+    _KeyboardTab.favorites: '♥',
+    _KeyboardTab.palette: '⚙',
+  };
+
+  static const _fontSizes = <_KeyboardTab, double>{
+    _KeyboardTab.fonts: 11,
+    _KeyboardTab.translate: 11,
+    _KeyboardTab.textTemplate: 12,
+    _KeyboardTab.emoticon: 11,
+    _KeyboardTab.special: 12,
+    _KeyboardTab.dotArt: 12,
+    _KeyboardTab.sticker: 12,
+    _KeyboardTab.gif: 11,
+    _KeyboardTab.favorites: 13,
+    _KeyboardTab.palette: 13,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(color: Colors.white, borderRadius: borderRadius),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: _labels.entries.map((entry) {
+          final fontSize = _fontSizes[entry.key]!;
+          if (entry.key != selected) {
+            return Text(
+              entry.value,
+              style: TextStyle(fontSize: fontSize, color: const Color(0xFF555555)),
+            );
+          }
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(8)),
+            // `color: Colors.white` here is a no-op for emoji glyphs (💬) —
+            // they always render in their own native color — but harmless
+            // to pass unconditionally rather than special-casing.
+            child: Text(
+              entry.value,
+              style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -334,30 +412,9 @@ class _TabPage3 extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      Container(
-                        height: 38,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFC8ECF0),
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(8)),
-                              child: const Text('Aa', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                            ),
-                            const Text('번역', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                            const Text('💬', style: TextStyle(fontSize: 12)),
-                            const Text('( ᵔ )', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                            const Text('✦', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                            const Text('GIF', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                            const Text('⠿', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                            const Text('♥', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                            const Text('⚙', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                          ],
-                        ),
+                      _KeyboardModeBar(
+                        selected: _KeyboardTab.fonts,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
                       ),
                       Container(
                         height: 32,
@@ -425,30 +482,9 @@ class _TabPage3 extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      Container(
-                        height: 38,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFC8ECF0),
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(8)),
-                              child: const Text('Aa', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                            ),
-                            const Text('번역', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                            const Text('💬', style: TextStyle(fontSize: 12)),
-                            const Text('( ᵔ )', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                            const Text('✦', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                            const Text('GIF', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                            const Text('⠿', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                            const Text('♥', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                            const Text('⚙', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                          ],
-                        ),
+                      _KeyboardModeBar(
+                        selected: _KeyboardTab.fonts,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
                       ),
                       Container(
                         height: 32,
@@ -526,29 +562,9 @@ class _TabPage3 extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Container(
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFC8ECF0),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        const Text('Aa', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('번역', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(12)),
-                          child: const Text('( ᵔ )', style: TextStyle(fontSize: 11, color: Colors.white)),
-                        ),
-                        const Text('✦', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                        const Text('GIF', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('⠿', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                        const Text('♥', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                        const Text('⚙', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                      ],
-                    ),
+                  _KeyboardModeBar(
+                    selected: _KeyboardTab.emoticon,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
                   ),
                   Container(
                     height: 32,
@@ -657,29 +673,9 @@ class _TabPage3 extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Container(
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFC8ECF0),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        const Text('Aa', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('번역', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('( ᵔ )', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('✦', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                        const Text('GIF', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('⠿', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(12)),
-                          child: const Text('♥', style: TextStyle(fontSize: 13, color: Colors.white)),
-                        ),
-                        const Text('⚙', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                      ],
-                    ),
+                  _KeyboardModeBar(
+                    selected: _KeyboardTab.favorites,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
                   ),
                   Container(
                     height: 32,
@@ -761,134 +757,27 @@ class _TabPage4 extends StatelessWidget {
         title: l.guideSection4Title,
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFFC8ECF0),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFA8D8E0), width: 0.5),
+            // Real device screenshot of the translate tab, replacing what
+            // used to be a hand-drawn widget mockup (language bar + text
+            // area + mode bar + bottom bar). A static image can't drift out
+            // of sync with the keyboard's actual layout the way the widget
+            // version repeatedly did — when the real UI changes, swap this
+            // file instead of re-auditing colors/icons/structure here.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Image.asset(
+                'assets/guide/guide_translate_mock.png',
+                width: double.infinity,
+                fit: BoxFit.fitWidth,
               ),
-              child: Column(
-                children: [
-                  Container(
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFB8E4EC),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        const Text('🇰🇷 Korean ▼', style: TextStyle(fontSize: 12, color: Color(0xFF333333))),
-                        const SizedBox(width: 12),
-                        const Text('→', style: TextStyle(fontSize: 14, color: Color(0xFFF77BAA))),
-                        const SizedBox(width: 12),
-                        const Text('🇺🇸 English ▼', style: TextStyle(fontSize: 12, color: Color(0xFF333333))),
-                        const Spacer(),
-                        Container(
-                          width: 24, height: 24,
-                          decoration: BoxDecoration(color: Colors.white54, borderRadius: BorderRadius.circular(6)),
-                          child: const Center(child: Text('🔄', style: TextStyle(fontSize: 12))),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 24, height: 24,
-                          decoration: BoxDecoration(color: Colors.white54, borderRadius: BorderRadius.circular(6)),
-                          child: const Center(child: Text('🗑', style: TextStyle(fontSize: 12))),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(child: Container(
-                          padding: const EdgeInsets.all(12),
-                          color: Colors.white,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('나 좀 낯가리는데..', style: TextStyle(fontSize: 14, color: Color(0xFF333333))),
-                              const SizedBox(height: 40),
-                              const Align(
-                                alignment: Alignment.bottomRight,
-                                child: Text('11 / 200', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                              ),
-                            ],
-                          ),
-                        )),
-                        Expanded(child: Container(
-                          padding: const EdgeInsets.all(12),
-                          color: const Color(0xFFF0F0F0),
-                          child: const Text("I'm a bit shy\naround new people.", style: TextStyle(fontSize: 13, color: Color(0xFF444444))),
-                        )),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    height: 36,
-                    color: const Color(0xFFC8ECF0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        const Text('Aa', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(8)),
-                          child: const Text('번역', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                        ),
-                        const Text('💬', style: TextStyle(fontSize: 12)),
-                        const Text('( ᵔ )', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('✦', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                        const Text('GIF', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('♥', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                        const Text('⚙', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFC8ECF0),
-                      borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44, height: 28,
-                          decoration: BoxDecoration(color: const Color(0xFF8AB8C8), borderRadius: BorderRadius.circular(6)),
-                          child: const Center(child: Text('En', style: TextStyle(fontSize: 10, color: Colors.white))),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 56, height: 28,
-                          decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(6)),
-                          child: const Center(child: Text('!?123', style: TextStyle(fontSize: 10, color: Colors.white))),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(child: Container(
-                          height: 28,
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFDDDDDD))),
-                          child: const Center(child: Text('space', style: TextStyle(fontSize: 11, color: Colors.grey))),
-                        )),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 48, height: 28,
-                          decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(6)),
-                          child: const Center(child: Text('번역', style: TextStyle(fontSize: 11, color: Colors.white))),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 48, height: 28,
-                          decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(6)),
-                          child: const Center(child: Text('삽입', style: TextStyle(fontSize: 11, color: Colors.white))),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            ),
+            const SizedBox(height: 12),
+            _infoCard(
+              icon: '🌍',
+              title: isKo ? '자동 번역' : 'Auto Translate',
+              desc: isKo
+                  ? '번역 버튼을 누르면 자연스러운 번역 결과가 채팅창에 바로 나와요'
+                  : 'Tap Translate to get a natural translation right in the chat',
             ),
             const SizedBox(height: 16),
             Container(
@@ -1100,29 +989,9 @@ class _TabPage6 extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Container(
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFC8ECF0),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        const Text('Aa', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('번역', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFFF77BAA), borderRadius: BorderRadius.circular(8)),
-                          child: const Text('💬', style: TextStyle(fontSize: 12)),
-                        ),
-                        const Text('✦', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                        const Text('GIF', style: TextStyle(fontSize: 11, color: Color(0xFF555555))),
-                        const Text('⠿', style: TextStyle(fontSize: 12, color: Color(0xFF555555))),
-                        const Text('♥', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                        const Text('⚙', style: TextStyle(fontSize: 13, color: Color(0xFF555555))),
-                      ],
-                    ),
+                  _KeyboardModeBar(
+                    selected: _KeyboardTab.textTemplate,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
                   ),
                   Container(
                     height: 32,
@@ -1184,6 +1053,74 @@ class _TabPage6 extends StatelessWidget {
                     'The selected phrase is saved to My List! (Works with any language and emojis)',
                     'Long-press a saved phrase to add it to Favorites too',
                   ]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 탭 7: 스티커 ──────────────────────────────────────────────────────────
+
+class _TabPage7 extends StatelessWidget {
+  const _TabPage7({required this.isKo, required this.l});
+  final bool isKo;
+  final AppLocalizations l;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      child: _GuideCard(
+        number: 1,
+        emoji: '🖼️',
+        title: isKo ? '스티커 만들기' : 'Create Stickers',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Deliberately no keyboard mockup card here — this session
+            // repeatedly found real-device screenshots drifting out of
+            // sync with hand-drawn widget reproductions of the keyboard
+            // UI. A text-first step list doesn't have that failure mode;
+            // a real screenshot can be added later the same way the
+            // translate tab's mockup was replaced with one.
+            _StepList(steps: isKo
+                ? const [
+                    '"내 스티커" 탭에서 "+"를 눌러 사진을 추가하세요 (한 번에 여러 장도 선택할 수 있어요)',
+                    '사진을 선택하면 자동으로 스티커함에 저장돼요 (GIF도 움직이는 그대로 저장돼요)',
+                    '키보드에서 ㋡ 탭을 열면 저장한 스티커가 그리드로 보여요',
+                    '원하는 스티커를 탭하면 복사돼요 — 채팅창에서 길게 눌러 "붙여넣기"를 하면 스티커가 붙어요',
+                  ]
+                : const [
+                    'In the "My Stickers" tab, tap "+" to add a photo (you can pick several at once)',
+                    'Picking a photo saves it to your sticker library automatically (GIFs stay animated)',
+                    'Open the ㋡ tab on the keyboard to see your saved stickers in a grid',
+                    'Tap any sticker to copy it — long-press in a chat and tap "Paste" to drop it in',
+                  ]),
+            const SizedBox(height: 16),
+            _infoCard(
+              icon: '🖼️',
+              title: isKo ? '여러 장 한번에' : 'Multiple at Once',
+              desc: isKo
+                  ? '사진을 여러 장 선택하면 한 번에 스티커로 저장돼요'
+                  : 'Select several photos to save them all as stickers at once',
+            ),
+            const SizedBox(height: 8),
+            _infoCard(
+              icon: '🗑️',
+              title: isKo ? '정리하기' : 'Cleaning Up',
+              desc: isKo
+                  ? "스티커함에서 '선택'을 누르면 여러 개를 한 번에 삭제할 수 있어요"
+                  : "Tap 'Select' in your sticker library to delete several at once",
+            ),
+            const SizedBox(height: 8),
+            _infoCard(
+              icon: '💬',
+              title: isKo ? '어디서 쓸 수 있나요?' : 'Where Can I Use It?',
+              desc: isKo
+                  ? '카카오톡, 문자, 인스타그램 DM 등 이미지 붙여넣기를 지원하는 곳에서 사용할 수 있어요'
+                  : 'Works anywhere that supports pasting images — KakaoTalk, Messages, Instagram DMs, and more',
+            ),
           ],
         ),
       ),

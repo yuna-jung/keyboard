@@ -12,6 +12,7 @@ import UserNotifications
   private var pendingPaywall = false
   private var pendingAddPhrase = false
   private let myPhrasesKey = "user_custom_phrases"
+  private var stickerImagePicker: StickerImagePicker?
 
   override func application(
     _ application: UIApplication,
@@ -33,18 +34,17 @@ import UserNotifications
     )
     appGroupChannel = channel
 
-    // Sticker drawing canvas (main-app PencilKit screen with bucket fill +
-    // photo import, see DrawingCanvasPlatformView.swift). Registered
-    // directly rather than via a third-party Flutter PencilKit wrapper.
-    // Needs `controller` as the view to present PHPickerViewController from,
-    // hence this sits after the App Group channel setup above.
-    if let drawingRegistrar = self.registrar(forPlugin: "DrawingCanvasPlugin") {
-      let drawingCanvasFactory = DrawingCanvasViewFactory(
-        messenger: drawingRegistrar.messenger(),
-        presentingViewController: controller
-      )
-      drawingRegistrar.register(drawingCanvasFactory, withId: "com.yunajung.fonki/drawing_canvas")
-    }
+    // Sticker image picker (PHPicker → center-crop → save to Photos + App
+    // Group sticker library, see StickerImagePicker.swift). Plain method
+    // channel, not a platform view — there's no native preview surface to
+    // embed since the picked image is just shown with Image.memory on the
+    // Dart side. Needs `controller` as the view to present
+    // PHPickerViewController from, hence this sits after the App Group
+    // channel setup above.
+    stickerImagePicker = StickerImagePicker(
+      messenger: controller.binaryMessenger,
+      presentingViewController: controller
+    )
 
     // ── Keyboard-enabled check channel ──────────────────────────────────
     // Onboarding page 2 calls this after the user returns from iOS Settings
@@ -124,6 +124,21 @@ import UserNotifications
         defaults?.synchronize()
         result(nil)
 
+      // Stickers (unlike search-tab GIFs, which are remote and get their
+      // URL stashed in the App Group above) are copied by the keyboard's
+      // sticker tab as raw PNG/GIF bytes written directly onto the real
+      // system pasteboard (see stickerCellTapped in KeyboardViewController.swift)
+      // — Flutter's own `Clipboard` API only ever reads plain text, so this
+      // is the only way the chat preview screen can see that data at all.
+      case "getClipboardImageData":
+        if let gifData = UIPasteboard.general.data(forPasteboardType: "com.compuserve.gif") {
+          result(["type": "gif", "data": FlutterStandardTypedData(bytes: gifData)])
+        } else if let pngData = UIPasteboard.general.data(forPasteboardType: "public.png") {
+          result(["type": "png", "data": FlutterStandardTypedData(bytes: pngData)])
+        } else {
+          result(nil)
+        }
+
       case "consumePendingPaywall":
         let pending = self.pendingPaywall
         self.pendingPaywall = false
@@ -187,12 +202,12 @@ import UserNotifications
         ] as [String: Bool])
 
       // ── Sticker library (see StickerLibrary.swift) ─────────────────────
-      // Saving happens on DrawingCanvasPlatformView's own channel (it
-      // already has the PNG bytes at that point); this channel only needs
-      // to expose list/delete for the "내 스티커함" grid.
+      // Saving happens on StickerImagePicker's own channel (it already has
+      // the PNG bytes at that point); this channel only needs to expose
+      // list/delete for the "내 스티커" grid.
       case "getStickers":
         let stickers = StickerLibrary.list().map {
-          ["path": $0.path, "createdAt": $0.createdAt] as [String: Any]
+          ["path": $0.path, "createdAt": $0.createdAt, "type": $0.type] as [String: Any]
         }
         result(stickers)
 

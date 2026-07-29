@@ -259,7 +259,7 @@
 "toast_gif_copied"         = "GIF가 복사되었습니다";
 "toast_sticker_copied"      = "스티커가 복사되었습니다";
 "toast_sticker_copy_failed" = "스티커를 복사하지 못했어요";
-"sticker_empty"             = "아직 스티커가 없어요.\nFonkii 앱에서 그려보세요!";
+"sticker_empty"             = "아직 저장한 스티커가 없어요.\nFonkii 앱에서 추가해보세요!";
 "toast_clipboard_empty"    = "클립보드가 비어있어요";
 "toast_paste_done"         = "붙여넣기 완료";
 "toast_translate_first"    = "먼저 번역해주세요";

@@ -175,7 +175,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeTabTrial => 'Try';
 
   @override
-  String get homeTabStickerMaker => 'Sticker Maker';
+  String get homeTabStickerMaker => 'My Stickers';
 
   @override
   String get homeTabGuide => 'Guide';
@@ -325,4 +325,99 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get trialPrimerConfirmButton => 'OK';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get stickerAddImage => 'Add Image';
+
+  @override
+  String stickerPickFailed(String error) {
+    return 'Couldn\'t get the image: $error';
+  }
+
+  @override
+  String stickerBatchSavedAll(int count) {
+    return 'Saved $count stickers';
+  }
+
+  @override
+  String stickerBatchFailedAll(int count) {
+    return 'Couldn\'t save stickers ($count)';
+  }
+
+  @override
+  String stickerBatchPartial(int saved, int failed) {
+    return '$saved saved, $failed failed';
+  }
+
+  @override
+  String get stickerSaved => 'Sticker saved';
+
+  @override
+  String stickerSaveFailed(String error) {
+    return 'Couldn\'t save: $error';
+  }
+
+  @override
+  String get stickerSaveButton => 'Save';
+
+  @override
+  String get stickerDeleteTitle => 'Delete Sticker';
+
+  @override
+  String get stickerDeleteConfirmSingle =>
+      'Delete this sticker?\nThis can\'t be undone.';
+
+  @override
+  String stickerDeleteConfirmMultiple(int count) {
+    return 'Delete the selected $count stickers?\nThis can\'t be undone.';
+  }
+
+  @override
+  String get stickerDeleteFailed => 'Couldn\'t delete';
+
+  @override
+  String stickerDeletedAll(int count) {
+    return 'Deleted $count';
+  }
+
+  @override
+  String stickerDeletedPartial(int deleted, int failed) {
+    return '$deleted deleted, $failed failed';
+  }
+
+  @override
+  String get stickerEmptyTitle => 'No stickers saved yet';
+
+  @override
+  String stickerSelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String stickerDeleteWithCount(int count) {
+    return 'Delete ($count)';
+  }
+
+  @override
+  String get stickerSelectButton => 'Select';
+
+  @override
+  String get stickerTourAddDesc =>
+      'Tap here to turn your favorite pics into stickers\nYou can pick several at once';
+
+  @override
+  String get stickerTourGridDesc => 'Your added stickers show up here';
+
+  @override
+  String get stickerTourSelectDesc =>
+      'Want to clean up several at once?\nTap here';
+
+  @override
+  String get stickerHelpTooltip => 'Replay tutorial';
 }

@@ -17,7 +17,7 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		C2043061300947D90013641F /* TranslationKnowledgeBaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2043060300947D90013641F /* TranslationKnowledgeBaseTests.swift */; };
-		C2451159300F254600B71BD8 /* DrawingCanvasPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2451158300F254600B71BD8 /* DrawingCanvasPlatformView.swift */; };
+		C2451159300F254600B71BD8 /* StickerImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2451158300F254600B71BD8 /* StickerImagePicker.swift */; };
 		C26FC247F27C4DB2A593038C /* StickerLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A234EA9A73A46EC938CB210 /* StickerLibrary.swift */; };
 		96569E0A5069470A96727182 /* StickerLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A234EA9A73A46EC938CB210 /* StickerLibrary.swift */; };
 		C27ABE3F2F7CFA9700DBC470 /* font_keyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C27ABE382F7CFA9700DBC470 /* font_keyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -92,7 +92,7 @@
 		AD1FBFCF0A52BDA4FB1C9775 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
 		C2043060300947D90013641F /* TranslationKnowledgeBaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationKnowledgeBaseTests.swift; sourceTree = "<group>"; };
 		C2093D6F2F9AD21000A03343 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
-		C2451158300F254600B71BD8 /* DrawingCanvasPlatformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingCanvasPlatformView.swift; sourceTree = "<group>"; };
+		C2451158300F254600B71BD8 /* StickerImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickerImagePicker.swift; sourceTree = "<group>"; };
 		3A234EA9A73A46EC938CB210 /* StickerLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickerLibrary.swift; sourceTree = "<group>"; };
 		C27ABE382F7CFA9700DBC470 /* font_keyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = font_keyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C2896D9E2F9D3C3400E381DB /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = Products.storekit; path = Runner/Products.storekit; sourceTree = "<group>"; };
@@ -218,7 +218,7 @@
 		97C146F01CF9000F007C117D /* Runner */ = {
 			isa = PBXGroup;
 			children = (
-				C2451158300F254600B71BD8 /* DrawingCanvasPlatformView.swift */,
+				C2451158300F254600B71BD8 /* StickerImagePicker.swift */,
 				3A234EA9A73A46EC938CB210 /* StickerLibrary.swift */,
 				C2093D6F2F9AD21000A03343 /* Runner.entitlements */,
 				64FD1A292489E200596FC8BF /* Localizable.strings */,
@@ -489,7 +489,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
-				C2451159300F254600B71BD8 /* DrawingCanvasPlatformView.swift in Sources */,
+				C2451159300F254600B71BD8 /* StickerImagePicker.swift in Sources */,
 				C26FC247F27C4DB2A593038C /* StickerLibrary.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
