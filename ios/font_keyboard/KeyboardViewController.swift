@@ -9833,6 +9833,17 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         }
     }
 
+    /// Reads a boolean App Group flag that defaults to `true` until the user
+    /// explicitly turns it off. `bool(forKey:)` alone can't distinguish
+    /// "never set" from "explicitly set false" — both read back `false` —
+    /// so this checks `object(forKey:)` first. Used for `keyboardHapticEnabled`,
+    /// which ships enabled by default (existing users who already explicitly
+    /// disabled it keep that choice; only a never-touched key reads as on).
+    private func defaultTrueFlag(_ key: String, in defaults: UserDefaults?) -> Bool {
+        guard let defaults, defaults.object(forKey: key) != nil else { return true }
+        return defaults.bool(forKey: key)
+    }
+
     /// Per-keystroke haptic, gated on two independent conditions that both
     /// have to hold:
     ///   1. Full Access — `UIFeedbackGenerator` (the Taptic Engine) is one
@@ -9840,10 +9851,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     ///      Access; calling it anyway doesn't crash, it just silently does
     ///      nothing, so this check only avoids wasted work, not a failure.
     ///   2. `keyboardHapticEnabled` in the App Group, set from the main
-    ///      app's Settings screen. Defaults to off (absent key reads as
-    ///      `false` via `bool(forKey:)`) to match stock iOS's own
-    ///      Settings → Sounds & Haptics → Keyboard Feedback → Haptic
-    ///      toggle, which ships off by default.
+    ///      app's Settings screen. Ships on by default.
     private func triggerKeyHaptic() {
         guard hasFullAccess else {
             #if DEBUG
@@ -9852,7 +9860,7 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
             return
         }
         let defaults = UserDefaults(suiteName: Self.favAppGroup)
-        let enabled = defaults?.bool(forKey: "keyboardHapticEnabled") ?? false
+        let enabled = defaultTrueFlag("keyboardHapticEnabled", in: defaults)
         #if DEBUG
         print("🔥 [triggerKeyHaptic] hasFullAccess=\(hasFullAccess) defaults!=nil=\(defaults != nil) keyboardHapticEnabled=\(enabled) → \(enabled ? "FIRING" : "BLOCKED")")
         #endif

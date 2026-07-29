@@ -17,7 +17,10 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   static const _appGroupChannel = MethodChannel('com.yunajung.fonki/appgroup');
 
-  bool _hapticEnabled = false;
+  // Ships on by default (see the native "unset key reads as true" default
+  // in AppDelegate.swift's `getKeyboardHapticSettings` — this is just a
+  // placeholder until that first read completes).
+  bool _hapticEnabled = true;
   bool _hasFullAccess = false;
   bool _loadingHaptic = true;
 
@@ -28,13 +31,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// `hasFullAccess` here is the keyboard extension's own last-known status,
-  /// mirrored into the App Group on its side (see `viewDidLoad` in
-  /// KeyboardViewController.swift) — there's no public API for the
-  /// containing app to query Full Access directly, so this can lag until
-  /// the keyboard is actually opened at least once after the user grants
-  /// it. Re-read every time this screen appears (not cached across
-  /// screens) so returning here after toggling Full Access in iOS
-  /// Settings picks up a stale value as soon as possible.
+  /// mirrored into the App Group on its side (see `viewDidLoad`/
+  /// `viewWillAppear` in KeyboardViewController.swift) — there's no public
+  /// API for the containing app to query Full Access directly, so this can
+  /// lag until the keyboard is actually opened at least once after the user
+  /// grants it. Re-read every time this screen appears (not cached across
+  /// screens) so returning here after toggling Full Access in iOS Settings
+  /// picks up a stale value as soon as possible.
   Future<void> _loadHapticSettings() async {
     try {
       final result = await _appGroupChannel.invokeMethod<Map<Object?, Object?>>(
@@ -42,7 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _hapticEnabled = result?['enabled'] as bool? ?? false;
+        _hapticEnabled = result?['enabled'] as bool? ?? true;
         _hasFullAccess = result?['hasFullAccess'] as bool? ?? false;
         _loadingHaptic = false;
       });

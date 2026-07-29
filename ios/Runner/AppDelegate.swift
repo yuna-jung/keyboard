@@ -219,16 +219,22 @@ import UserNotifications
         }
         result(StickerLibrary.delete(path: path))
 
-      // ── Keyboard typing haptic (Settings screen toggle) ────────────────
+      // ── Keyboard typing haptic (Settings screen toggle) ─────────────────
       // `keyboardHasFullAccess` is written by the extension itself in
-      // `viewDidLoad` (see KeyboardViewController.swift) — there is no
-      // public API for the containing app to query Full Access directly,
-      // so this mirrors the extension's last-known status and can only be
-      // as fresh as the last time the keyboard was actually opened.
+      // `viewDidLoad`/`viewWillAppear` (see KeyboardViewController.swift) —
+      // there is no public API for the containing app to query Full Access
+      // directly, so this mirrors the extension's last-known status and can
+      // only be as fresh as the last time the keyboard was actually opened.
       case "getKeyboardHapticSettings":
         let d = UserDefaults(suiteName: self.appGroupID)
+        // Ships on by default — `object(forKey:) == nil` is how "never
+        // explicitly set" is distinguished from "explicitly set false",
+        // since `bool(forKey:)` alone reads both cases as `false`.
+        let hapticEnabled = d?.object(forKey: "keyboardHapticEnabled") == nil
+          ? true
+          : (d?.bool(forKey: "keyboardHapticEnabled") ?? true)
         result([
-          "enabled":       d?.bool(forKey: "keyboardHapticEnabled") ?? false,
+          "enabled":       hapticEnabled,
           "hasFullAccess": d?.bool(forKey: "keyboardHasFullAccess") ?? false,
         ] as [String: Bool])
 
