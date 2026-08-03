@@ -13,13 +13,13 @@
 		3B5B41EDE4221C547F1540B8 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A68017FAE5EB6AD02B19BB04 /* Pods_Runner.framework */; };
 		4ADBDEC17EFD98F6C2002F31 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 253EEAA1B19FBE94D8F87485 /* Pods_RunnerTests.framework */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
+		96569E0A5069470A96727182 /* StickerLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A234EA9A73A46EC938CB210 /* StickerLibrary.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		C2043061300947D90013641F /* TranslationKnowledgeBaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2043060300947D90013641F /* TranslationKnowledgeBaseTests.swift */; };
 		C2451159300F254600B71BD8 /* StickerImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2451158300F254600B71BD8 /* StickerImagePicker.swift */; };
 		C26FC247F27C4DB2A593038C /* StickerLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A234EA9A73A46EC938CB210 /* StickerLibrary.swift */; };
-		96569E0A5069470A96727182 /* StickerLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A234EA9A73A46EC938CB210 /* StickerLibrary.swift */; };
 		C27ABE3F2F7CFA9700DBC470 /* font_keyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C27ABE382F7CFA9700DBC470 /* font_keyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C2896D9F2F9D3C3400E381DB /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = C2896D9E2F9D3C3400E381DB /* Products.storekit */; };
 		FAE33B9DD835AB6FB0DCC056 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 64FD1A292489E200596FC8BF /* Localizable.strings */; };
@@ -74,6 +74,7 @@
 		2B0AF5FD56BEB2BBE17B7029 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3A234EA9A73A46EC938CB210 /* StickerLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickerLibrary.swift; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		4416839DC1D1D5344BA8FD49 /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		57086305EE17B3A00E35EDA2 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
@@ -93,7 +94,6 @@
 		C2043060300947D90013641F /* TranslationKnowledgeBaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationKnowledgeBaseTests.swift; sourceTree = "<group>"; };
 		C2093D6F2F9AD21000A03343 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		C2451158300F254600B71BD8 /* StickerImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickerImagePicker.swift; sourceTree = "<group>"; };
-		3A234EA9A73A46EC938CB210 /* StickerLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickerLibrary.swift; sourceTree = "<group>"; };
 		C27ABE382F7CFA9700DBC470 /* font_keyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = font_keyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C2896D9E2F9D3C3400E381DB /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = Products.storekit; path = Runner/Products.storekit; sourceTree = "<group>"; };
 		E5BFEC9348B93DB22D8A758F /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -101,7 +101,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		C204306330094A310013641F /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		C204306330094A310013641F /* Exceptions for "font_keyboard" folder in "RunnerTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				TranslationKnowledgeBase.json,
@@ -109,7 +109,7 @@
 			);
 			target = 331C8080294A63A400263BE5 /* RunnerTests */;
 		};
-		C27ABE442F7CFA9700DBC470 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		C27ABE442F7CFA9700DBC470 /* Exceptions for "font_keyboard" folder in "font_keyboard" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -119,7 +119,19 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		C27ABE392F7CFA9700DBC470 /* font_keyboard */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (C204306330094A310013641F /* PBXFileSystemSynchronizedBuildFileExceptionSet */, C27ABE442F7CFA9700DBC470 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = font_keyboard; sourceTree = "<group>"; };
+		C27ABE392F7CFA9700DBC470 /* font_keyboard */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C204306330094A310013641F /* Exceptions for "font_keyboard" folder in "RunnerTests" target */,
+				C27ABE442F7CFA9700DBC470 /* Exceptions for "font_keyboard" folder in "font_keyboard" target */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = font_keyboard;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -400,13 +412,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -611,7 +619,7 @@
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = UW9QZCMPUX;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -635,7 +643,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yunajung.fonki.RunnerTests;
@@ -653,7 +661,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yunajung.fonki.RunnerTests;
@@ -669,7 +677,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yunajung.fonki.RunnerTests;
@@ -805,7 +813,7 @@
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = UW9QZCMPUX;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -833,7 +841,7 @@
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = UW9QZCMPUX;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -862,7 +870,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = font_keyboard/font_keyboard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -904,7 +912,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = font_keyboard/font_keyboard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -943,7 +951,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = font_keyboard/font_keyboard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
