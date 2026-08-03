@@ -2314,6 +2314,34 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         applyPlainTextFieldGate()
     }
 
+    /// Generalizes the flush `cheonjiinCursorLeftTapped()` already does for
+    /// the keyboard's own cursor-left button to *any* host-app selection
+    /// change — including a plain tap elsewhere in already-typed text,
+    /// which that button-specific fix never covered.
+    ///
+    /// Deliberately NOT an unconditional flush: this delegate callback also
+    /// fires for the keyboard's OWN edits (`textDocumentProxy.insertText`/
+    /// `deleteBackward` legitimately move the cursor too), and flushing
+    /// every time would wipe the composer state right after every normal
+    /// keystroke, breaking composition outright. `hgStateMatchesCursor()`
+    /// is true immediately after our own edits — that's what keeps
+    /// `hgCho`/`hgJung`/`hgJong` in sync — and only false when the cursor
+    /// moved for a reason we didn't cause, so this only ever flushes in the
+    /// case that actually needs it.
+    ///
+    /// This is a best-effort early flush, not the actual fix: some host
+    /// apps are known to not report every selection change consistently to
+    /// keyboard extensions, so `handleHangulInput`/`handleHangulDelete`
+    /// independently re-check `hgStateMatchesCursor()` at the point of use
+    /// regardless of whether this callback fired.
+    override func selectionDidChange(_ textInput: UITextInput?) {
+        super.selectionDidChange(textInput)
+        if !hgStateMatchesCursor() {
+            hgFlush()
+            cjjReset()
+        }
+    }
+
     /// Device-branched keyboard height — single source of truth used by
     /// viewDidLoad (view.heightAnchor) and by each build method (container height).
     private var kbHeight: CGFloat {
@@ -6656,6 +6684,40 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
 
     private func hgFlush() { hgCho = -1; hgJung = -1; hgJong = 0 }
 
+    /// The character immediately before the cursor in whichever target is
+    /// currently active — host app via `textDocumentProxy`, or the
+    /// translate tab's own input field. Mirrors the A/B split every other
+    /// `translateTarget*` helper already uses.
+    private func targetLastCharacter() -> Character? {
+        if translateTargetsHostApp {
+            return textDocumentProxy.documentContextBeforeInput?.last
+        } else {
+            return translateInputField?.text?.last
+        }
+    }
+
+    /// True when `hgCho`/`hgJung`/`hgJong` still accurately describe the
+    /// character immediately before the cursor — false once the cursor has
+    /// moved away from the syllable the composer was tracking (e.g. the
+    /// user tapped elsewhere in the host app's text) without going through
+    /// a path that flushes it (like `cheonjiinCursorLeftTapped()` already
+    /// does for the keyboard's own cursor button).
+    ///
+    /// The composer has no actual position tracking of its own — `hgCho`/
+    /// `hgJung`/`hgJong` are three bare ints, last mutated by whichever key
+    /// was pressed most recently, with no record of *where* in the text
+    /// that corresponds to. `handleHangulInput`/`handleHangulDelete` must
+    /// check this before touching `hgCompose()`, since composing/deleting
+    /// against a stale mismatch corrupts whatever's actually at the cursor
+    /// instead of the syllable the state describes (see both functions'
+    /// call sites for the fix this backs).
+    private func hgStateMatchesCursor() -> Bool {
+        guard hgCho >= 0 else { return true } // nothing in flight to validate
+        let expected = hgCompose()
+        guard let last = targetLastCharacter() else { return false }
+        return String(last) == expected
+    }
+
     // MARK: - Cheonjiin (천지인) Engine
     //
     // The user spec asked us to keep this simple: 천지인 buttons map to the
@@ -7533,6 +7595,15 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
         // CJJ_VOWELS entry) can't leak `·` into the editor via the State-0
         // `translateTargetAppend(key)` else-if branch below.
         if key == "·" { return }
+        // Cursor moved away from the syllable `hgCho`/`hgJung`/`hgJong`
+        // describes (e.g. a tap elsewhere in the host app's text) since it
+        // was last updated — flush before the state machine below runs, so
+        // this key starts a fresh syllable at the real cursor position
+        // instead of composing against/replacing whatever the stale state
+        // pointed at. See `hgStateMatchesCursor()`.
+        if !hgStateMatchesCursor() {
+            hgFlush()
+        }
         let ci = CHO.firstIndex(of: key)   // chosung index or nil
         let ji = JUNG.firstIndex(of: key)  // jungsung index or nil
         let isCon = ci != nil
@@ -7631,6 +7702,21 @@ class KeyboardViewController: UIInputViewController, UIScrollViewDelegate, UIInp
     private func handleHangulDelete() {
         if hgCho < 0 {
             // No composition — just remove last char
+            translateTargetRemoveLast()
+            return
+        }
+        // Cursor moved away from the syllable `hgCho`/`hgJung`/`hgJong`
+        // describes since it was last updated (e.g. the user tapped
+        // elsewhere in the host app's text, moving the cursor mid-string).
+        // Composing/peeling against that stale state here would delete the
+        // real character before the cursor and replace it with a leftover
+        // jamo derived from a completely different, already-finished
+        // syllable — the "안녕하세요" → "안녕ㅇ세요" bug. Flush and fall back
+        // to a plain single-character delete at the real cursor position,
+        // which correctly removes the whole (already-committed) syllable
+        // there as one unit. See `hgStateMatchesCursor()`.
+        guard hgStateMatchesCursor() else {
+            hgFlush()
             translateTargetRemoveLast()
             return
         }
